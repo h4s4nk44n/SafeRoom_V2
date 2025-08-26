@@ -27,7 +27,7 @@ dependencies {
     implementation "org.openjfx:javafx-media:$javafxVersion"
     implementation "org.openjfx:javafx-web:$javafxVersion"
 
-    // JFoenix (JavaFX UI)
+    // JFoenix (JavaFX UI) - Modern Material Design
     implementation 'com.jfoenix:jfoenix:9.0.10'
 
     // gRPC ve Protobuf
@@ -37,16 +37,20 @@ dependencies {
     compileOnly 'org.apache.tomcat:annotations-api:6.0.53'
     implementation 'com.google.protobuf:protobuf-java:3.23.4'
 
-    // Mail & Network
-    implementation name: 'javax.mail'
-    implementation name: 'javax.activation-1.2.0'
-    implementation name: 'jstun-0.7.4'
-    implementation name: 'weupnp-0.1.4'
+    // Network & P2P
+    implementation files('libs/jstun-0.7.4.jar')
+    implementation files('libs/weupnp-0.1.4.jar')
 
-    // DB & Logging
-    implementation name: 'mysql-connector-j-9.2.0'
-    implementation name: 'slf4j-api-1.7.36'
-    implementation name: 'slf4j-simple-1.7.36'
+    // Email
+    implementation files('libs/javax.mail.jar')
+    implementation files('libs/javax.activation-1.2.0.jar')
+
+    // Database
+    implementation files('libs/mysql-connector-j-9.2.0.jar')
+
+    // Logging
+    implementation files('libs/slf4j-api-1.7.36.jar')
+    implementation files('libs/slf4j-simple-1.7.36.jar')
 }
 
 application {
@@ -74,12 +78,12 @@ protobuf {
 sourceSets {
     main {
         java {
-            srcDirs += 'build/generated/source/proto/main/java'
-            srcDirs += 'build/generated/source/proto/main/grpc'
-            srcDirs += 'src/main/resources'
+            srcDirs 'src/main/java'
+            srcDirs 'build/generated/source/proto/main/java'
+            srcDirs 'build/generated/source/proto/main/grpc'
         }
         resources {
-            srcDirs = ['src/main/resources']
+            srcDirs 'src/main/resources'
         }
     }
 }
@@ -87,5 +91,10 @@ sourceSets {
 javafx {
     version = javafxVersion
     modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.graphics', 'javafx.base', 'javafx.media', 'javafx.web' ]
+}
+
+// Duplicate handling strategy
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
