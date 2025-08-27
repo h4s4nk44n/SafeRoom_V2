@@ -51,13 +51,11 @@ public class EmailSender {
         }
     }
 
-    // Geriye uyumlu yapı (4 parametreli)
     public static boolean sendEmail(String toEmail, String subject, String body, String attachmentPath) throws Exception {
-        return sendEmail(toEmail, subject, body); // attachmentPath parametresi sadece görsel olduğu için artık kullanılmıyor
+    return sendEmail(toEmail, subject, body); 
     }
 
-    // Yeni 3 parametreli yapı – classpath üzerinden PNG ekliyor
-    public static boolean sendEmail(String toEmail, String subject, String body) throws Exception {
+       public static boolean sendEmail(String toEmail, String subject, String body) throws Exception {
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.starttls.enable", "true");
@@ -76,14 +74,28 @@ public class EmailSender {
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
             message.setSubject(subject);
 
-            Multipart multipart = new MimeMultipart();
+            Multipart multipart = new MimeMultipart("alternative");
 
-            // Gövde
             MimeBodyPart textPart = new MimeBodyPart();
             textPart.setText(body);
             multipart.addBodyPart(textPart);
 
-            // PNG'yi classpath'ten oku
+                        MimeBodyPart htmlPart = new MimeBodyPart();
+                        String htmlBody = """
+                                <div style='min-height:100vh; background: radial-gradient(ellipse at 70% 30%, #2b2d42 0%, #1a1a2e 100%), url(https://www.transparenttextures.com/patterns/stardust.png); padding: 0; margin: 0;'>
+                                    <div style='max-width: 500px; margin: 48px auto; background: rgba(30,34,60,0.85); border-radius: 18px; box-shadow: 0 8px 32px #0008, 0 1.5px 8px #00f2ff44; padding: 40px 28px; border: 1.5px solid #00f2ff33; backdrop-filter: blur(4px);'>
+                                        <div style='text-align:center; margin-bottom: 28px;'>
+                                            <img src='cid:verificateimg' alt='SafeRoom' style='width:72px; height:72px; border-radius:12px; box-shadow:0 0 16px #00f2ff88; background:#111;'/>
+                                        </div>
+                                        <h2 style='color:#00f2ff; margin-bottom:18px; font-family: "Orbitron", Arial, sans-serif; letter-spacing:1px; text-shadow:0 2px 8px #00f2ff44;'>" + subject + "</h2>
+                                        <div style='color:#e0e6f7; font-size:17px; line-height:1.7; text-shadow:0 1px 4px #0006;'>" + body.replace("\n", "<br>") + "</div>
+                                        <div style='margin-top:36px; text-align:center; color:#00f2ffcc; font-size:14px; letter-spacing:1px; text-shadow:0 1px 8px #00f2ff44;'>SafeRoom Security Team<br><span style='font-size:11px; color:#fff8; text-shadow:none;'>Exploring Security in the Universe</span></div>
+                                    </div>
+                                </div>
+                        """;
+                        htmlPart.setContent(htmlBody, "text/html; charset=utf-8");
+                        multipart.addBodyPart(htmlPart);
+
             InputStream imageStream = EmailSender.class.getClassLoader().getResourceAsStream(ICON_RESOURCE_NAME);
             if (imageStream != null) {
                 File tempFile = File.createTempFile("verificate", ".png");
@@ -95,9 +107,19 @@ public class EmailSender {
                     }
                 }
 
-                MimeBodyPart filePart = new MimeBodyPart();
-                filePart.attachFile(tempFile);
-                multipart.addBodyPart(filePart);
+                MimeBodyPart imagePart = new MimeBodyPart();
+                imagePart.attachFile(tempFile);
+                imagePart.setContentID("<verificateimg>");
+                imagePart.setDisposition(MimeBodyPart.INLINE);
+
+                MimeMultipart relatedMultipart = new MimeMultipart("related");
+                relatedMultipart.addBodyPart(htmlPart);
+                relatedMultipart.addBodyPart(imagePart);
+
+                multipart.removeBodyPart(htmlPart);
+                MimeBodyPart relatedBodyPart = new MimeBodyPart();
+                relatedBodyPart.setContent(relatedMultipart);
+                multipart.addBodyPart(relatedBodyPart);
             } else {
                 LOGGER.warn("Verificate.png bulunamadı, ikon eklentisi yapılmadı.");
             }

@@ -365,7 +365,7 @@ public class DBManager {
 	                   + "If this was not you, please contact SafeRoom Security Team immediately.\n\n"
 	                   + "Regards,\nSafeRoom Security Team";
 	    
-	    EmailSender.sendEmail(email, subject, message, ICON_PATH);  // Bunu zaten yapmıştık
+	    EmailSender.sendEmail(email, subject, message, ICON_PATH); 
 	}
 
 	public static boolean checkGlobalAnomaly(String actionType) throws Exception {
@@ -398,7 +398,7 @@ public class DBManager {
 	        if (rs.next()) {
 	            int count = rs.getInt(1);
 	            if (count >= threshold) {
-	                LOGGER.warn("🚨 Global Anomaly Detected in " + actionType + " - Count: " + count);
+	                LOGGER.warn("Global Anomaly Detected in " + actionType + " - Count: " + count);
 	                return true;
 	            }
 	        }
