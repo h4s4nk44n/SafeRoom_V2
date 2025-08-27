@@ -1,12 +1,2 @@
+/.gradle/
 /build/
-/bin/
-/logs/
-.gradle/
-*.log
-*.class
-*.jar
-*.zip
-*.tar
-/libs/javafx-sdk-23.0.2/lib/libjfxwebkit.so
-/libs/javafx-sdk-23.0.2/
-/libs/
