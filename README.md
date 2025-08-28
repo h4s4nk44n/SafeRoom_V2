@@ -1,4 +1,4 @@
-# 🔐 SafeRoom_V2 — Farewell Zoom. You tried. (Not much, but monopolies rarely do.)
+# 🔐 SafeRoom_V2 — Farewell Zoom.
 > “Fast, Zoom? Eh, maybe.  
 > Secure? Nah, I'd Win.”  
 > — SafeRoom_V2
