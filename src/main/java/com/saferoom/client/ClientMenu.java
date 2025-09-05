@@ -109,9 +109,7 @@ public class ClientMenu{
 			System.out.println("Connection is not safe");
 			return 2;
 		}
-	}
-	
-	
+	}	
 
 	}
 

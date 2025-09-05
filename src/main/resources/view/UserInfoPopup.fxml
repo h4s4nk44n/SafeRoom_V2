@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.saferoom.gui.controller.UserInfoPopupController" styleClass="user-info-popup" stylesheets="@../styles/styles.css" spacing="15.0" prefWidth="300.0">
+    <padding>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+    </padding>
+
+    <!-- User Avatar and Basic Info -->
+    <VBox spacing="10.0" alignment="CENTER">
+        <StackPane fx:id="userAvatarContainer" styleClass="user-info-avatar-container">
+            <StackPane fx:id="userAvatar" styleClass="user-info-avatar">
+                <Label fx:id="userAvatarText" styleClass="user-info-avatar-text" text="U" />
+            </StackPane>
+            <!-- Status indicator -->
+            <StackPane fx:id="statusIndicator" styleClass="user-info-status-indicator" />
+        </StackPane>
+        
+        <VBox spacing="3.0" alignment="CENTER">
+            <HBox spacing="8.0" alignment="CENTER">
+                <Label fx:id="usernameLabel" styleClass="user-info-username" text="Username" />
+                <FontIcon fx:id="roleIcon" styleClass="user-info-role-icon" visible="false" />
+            </HBox>
+            <Label fx:id="statusLabel" styleClass="user-info-status-text" text="Online" />
+        </VBox>
+    </VBox>
+
+    <Separator styleClass="popup-separator" />
+
+    <!-- User Details -->
+    <VBox spacing="12.0">
+        
+        <!-- Role Information -->
+        <VBox spacing="5.0">
+            <Label styleClass="info-section-header" text="Role" />
+            <HBox spacing="8.0" alignment="CENTER_LEFT">
+                <FontIcon fx:id="roleDisplayIcon" styleClass="role-display-icon" visible="false" />
+                <Label fx:id="roleLabel" styleClass="info-section-content" text="Member" />
+            </HBox>
+        </VBox>
+
+        <!-- Status Information -->
+        <VBox spacing="5.0">
+            <Label styleClass="info-section-header" text="Status" />
+            <Label fx:id="statusDisplayLabel" styleClass="info-section-content" text="Online" />
+        </VBox>
+
+        <!-- Activity Information -->
+        <VBox fx:id="activitySection" spacing="5.0">
+            <Label styleClass="info-section-header" text="Activity" />
+            <HBox spacing="8.0" alignment="CENTER_LEFT">
+                <FontIcon iconLiteral="fas-circle" styleClass="activity-indicator" />
+                <Label fx:id="activityLabel" styleClass="info-section-content" text="Available" />
+            </HBox>
+        </VBox>
+
+        <!-- Member Since -->
+        <VBox spacing="5.0">
+            <Label styleClass="info-section-header" text="Member Since" />
+            <Label fx:id="memberSinceLabel" styleClass="info-section-content" text="January 2024" />
+        </VBox>
+
+        <!-- User ID for debugging/admin purposes -->
+        <VBox fx:id="userIdSection" spacing="5.0" visible="false" managed="false">
+            <Label styleClass="info-section-header" text="User ID" />
+            <Label fx:id="userIdLabel" styleClass="info-section-content-small" text="user123" />
+        </VBox>
+    </VBox>
+
+    <Separator styleClass="popup-separator" />
+
+    <!-- Action Buttons -->
+    <VBox spacing="10.0">
+        <Button fx:id="sendMessageBtn" styleClass="user-action-button, primary-action" text="Send Message" prefWidth="260.0">
+            <graphic>
+                <FontIcon iconLiteral="fas-envelope" styleClass="button-icon" />
+            </graphic>
+        </Button>
+        
+        <HBox spacing="10.0" alignment="CENTER">
+            <Button fx:id="callBtn" styleClass="user-action-button, secondary-action" prefWidth="125.0">
+                <graphic>
+                    <FontIcon iconLiteral="fas-phone" styleClass="button-icon" />
+                </graphic>
+            </Button>
+            <Button fx:id="videoCallBtn" styleClass="user-action-button, secondary-action" prefWidth="125.0">
+                <graphic>
+                    <FontIcon iconLiteral="fas-video" styleClass="button-icon" />
+                </graphic>
+            </Button>
+        </HBox>
+        
+        <!-- Admin/Moderator Actions (conditionally visible) -->
+        <VBox fx:id="adminActionsSection" spacing="8.0" visible="false" managed="false">
+            <Separator styleClass="popup-separator" />
+            <Label styleClass="info-section-header" text="Moderation" />
+            
+            <HBox spacing="10.0" alignment="CENTER">
+                <Button fx:id="muteBtn" styleClass="user-action-button, warning-action" prefWidth="80.0">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-volume-mute" styleClass="button-icon" />
+                    </graphic>
+                </Button>
+                <Button fx:id="kickBtn" styleClass="user-action-button, warning-action" prefWidth="80.0">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-sign-out-alt" styleClass="button-icon" />
+                    </graphic>
+                </Button>
+                <Button fx:id="banBtn" styleClass="user-action-button, danger-action" prefWidth="80.0">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-ban" styleClass="button-icon" />
+                    </graphic>
+                </Button>
+            </HBox>
+        </VBox>
+    </VBox>
+
+    <!-- Close Button -->
+    <Pane VBox.vgrow="ALWAYS" />
+    <HBox alignment="CENTER">
+        <Button fx:id="closeBtn" styleClass="user-action-button, neutral-action" text="Close" prefWidth="100.0" onAction="#closePopup" />
+    </HBox>
+
+</VBox>

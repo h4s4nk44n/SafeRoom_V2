@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.jfoenix.controls.JFXButton?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.VBox?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<!-- ✅ FriendsView.fxml - Responsive Alt ScrollPane -->
+<VBox styleClass="page-container" spacing="20.0"
+      xmlns="http://javafx.com/javafx/17"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.saferoom.gui.controller.FriendsController"
+      VBox.vgrow="ALWAYS">
+
+    <children>
+        <!-- Arama ve Kısayol Butonu -->
+        <HBox spacing="20.0">
+            <children>
+                <TextField promptText="Search friends..." styleClass="search-field" HBox.hgrow="ALWAYS" />
+                <JFXButton styleClass="icon-button-filled">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-user-plus" styleClass="header-icon" />
+                    </graphic>
+                </JFXButton>
+            </children>
+        </HBox>
+
+        <!-- Özet Kartlar -->
+        <HBox spacing="20.0">
+            <children>
+                <VBox styleClass="summary-card" HBox.hgrow="ALWAYS" alignment="CENTER" minWidth="120">
+                    <children>
+                        <Label fx:id="totalFriendsLabel" styleClass="summary-card-title" text="0" />
+                        <Label styleClass="summary-card-subtitle" text="Total Friends" />
+                    </children>
+                </VBox>
+                <VBox styleClass="summary-card" HBox.hgrow="ALWAYS" alignment="CENTER" minWidth="120">
+                    <children>
+                        <Label fx:id="onlineFriendsLabel" styleClass="summary-card-title" text="0" />
+                        <Label styleClass="summary-card-subtitle" text="Online" />
+                    </children>
+                </VBox>
+                <VBox styleClass="summary-card" HBox.hgrow="ALWAYS" alignment="CENTER" minWidth="120">
+                    <children>
+                        <Label fx:id="pendingFriendsLabel" styleClass="summary-card-title" text="0" />
+                        <Label styleClass="summary-card-subtitle" text="Pending" />
+                    </children>
+                </VBox>
+            </children>
+        </HBox>
+
+        <!-- Filtre Butonları -->
+        <HBox fx:id="filterBar" styleClass="filter-bar" spacing="10.0">
+            <children>
+                <JFXButton fx:id="onlineFilterButton" styleClass="filter-button" text="Online" />
+                <JFXButton fx:id="allFilterButton" styleClass="filter-button" text="All" />
+                <JFXButton fx:id="pendingFilterButton" styleClass="filter-button" text="Pending" />
+                <JFXButton fx:id="blockedFilterButton" styleClass="filter-button" text="Blocked" />
+            </children>
+        </HBox>
+
+        <!-- ✅ Responsive Arkadaş Listesi Kutusu -->
+        <ScrollPane fitToWidth="true" fitToHeight="true" VBox.vgrow="ALWAYS" styleClass="friends-section-box">
+            <content>
+                <VBox fx:id="friendsContainer" spacing="10.0" />
+            </content>
+        </ScrollPane>
+    </children>
+</VBox>

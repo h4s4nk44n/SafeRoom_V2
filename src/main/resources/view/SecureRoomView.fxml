@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.jfoenix.controls.JFXButton?>
+<?import com.jfoenix.controls.JFXCheckBox?>
+<?import com.jfoenix.controls.JFXComboBox?>
+<?import com.jfoenix.controls.JFXSlider?>
+<?import com.jfoenix.controls.JFXToggleButton?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<VBox styleClass="secure-room-container" stylesheets="@../styles/styles.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.saferoom.gui.controller.SecureRoomController">
+    <padding>
+        <Insets bottom="40.0" left="60.0" right="60.0" top="40.0" />
+    </padding>
+    <children>
+        <!-- Üst Başlık ve Geri Butonu -->
+        <HBox alignment="CENTER_LEFT" spacing="30.0">
+            <children>
+                <JFXButton fx:id="backButton" styleClass="back-button" text="Back">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-arrow-left" styleClass="header-icon" />
+                    </graphic>
+                </JFXButton>
+                <VBox>
+                    <children>
+                        <Label styleClass="title-label" text="Secure Room Initialization" />
+                    </children>
+                </VBox>
+            </children>
+        </HBox>
+
+        <!-- DÜZELTME: Ana içerik, dikey kaydırma için bir ScrollPane içine alındı -->
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="content-scroll-pane" VBox.vgrow="ALWAYS">
+            <content>
+                <!-- Ana İçerik -->
+                <HBox alignment="CENTER" spacing="40.0">
+                    <padding>
+                        <Insets top="40.0" />
+                    </padding>
+                    <children>
+                        <!-- Sol Taraf: Kamera Önizleme -->
+                        <StackPane styleClass="camera-view" HBox.hgrow="ALWAYS">
+                            <children>
+                                <VBox alignment="CENTER" spacing="10.0">
+                                    <children>
+                                        <FontIcon iconLiteral="fas-video-slash" styleClass="camera-disabled-icon" />
+                                        <Label text="Camera is disabled" styleClass="subtitle-label" />
+                                    </children>
+                                </VBox>
+                            </children>
+                        </StackPane>
+
+                        <!-- Sağ Taraf: Ayarlar -->
+                        <VBox maxWidth="400.0" minWidth="400.0" spacing="20.0">
+                            <children>
+                                <!-- Oda ID ve Politikası -->
+                                <VBox styleClass="settings-card" spacing="15.0">
+                                    <children>
+                                        <Label text="Room ID" styleClass="setting-title" />
+                                        <HBox alignment="CENTER_LEFT" styleClass="room-id-box">
+                                            <children>
+                                                <TextField fx:id="roomIdField" editable="false" text="sr-f91b-a4c8" HBox.hgrow="ALWAYS" />
+                                                <Button styleClass="icon-button" mnemonicParsing="false">
+                                                    <graphic>
+                                                        <FontIcon iconLiteral="far-copy" styleClass="header-icon" />
+                                                    </graphic>
+                                                </Button>
+                                            </children>
+                                        </HBox>
+                                        <Label text="Room Policy" styleClass="setting-title" />
+                                        <JFXCheckBox fx:id="autoDestroyCheck" text="Auto-destroy on exit" selected="true" styleClass="policy-checkbox" />
+                                        <JFXCheckBox fx:id="noLogsCheck" text="No server-side logs" selected="true" styleClass="policy-checkbox" />
+                                    </children>
+                                </VBox>
+                                <!-- Ses Ayarları -->
+                                <VBox styleClass="settings-card" spacing="15.0">
+                                    <children>
+                                        <Label text="Audio Settings" styleClass="setting-title" />
+                                        <JFXComboBox fx:id="audioInputBox" promptText="Select Audio Input" styleClass="settings-combo-box" prefWidth="Infinity"/>
+                                        <ProgressBar fx:id="micTestBar" progress="0.0" styleClass="mic-test-bar" prefWidth="Infinity" />
+                                        <JFXSlider fx:id="inputVolumeSlider" value="80.0" styleClass="settings-slider" />
+                                        <JFXComboBox fx:id="audioOutputBox" promptText="Select Audio Output" styleClass="settings-combo-box" prefWidth="Infinity"/>
+                                        <JFXSlider fx:id="outputVolumeSlider" value="100.0" styleClass="settings-slider" />
+                                        <HBox alignment="CENTER_LEFT">
+                                            <children>
+                                                <Label text="Join with microphone on" styleClass="setting-description" />
+                                                <Pane HBox.hgrow="ALWAYS" />
+                                                <JFXToggleButton fx:id="micToggle" selected="true" styleClass="settings-toggle" />
+                                            </children>
+                                        </HBox>
+                                    </children>
+                                </VBox>
+                                <!-- Video Ayarları -->
+                                <VBox styleClass="settings-card" spacing="15.0">
+                                    <children>
+                                        <Label text="Video Settings" styleClass="setting-title" />
+                                        <JFXComboBox fx:id="cameraSourceBox" promptText="Select Camera Source" styleClass="settings-combo-box" prefWidth="Infinity"/>
+                                        <HBox alignment="CENTER_LEFT">
+                                            <children>
+                                                <Label text="Join with camera on" styleClass="setting-description" />
+                                                <Pane HBox.hgrow="ALWAYS" />
+                                                <JFXToggleButton fx:id="cameraToggle" selected="true" styleClass="settings-toggle" />
+                                            </children>
+                                        </HBox>
+                                    </children>
+                                </VBox>
+                            </children>
+                        </VBox>
+                    </children>
+                </HBox>
+            </content>
+        </ScrollPane>
+
+        <!-- Alt Buton -->
+        <Button fx:id="initiateButton" maxWidth="1.7976931348623157E308" styleClass="login-button" text="INITIATE ZERO-TRACE ROOM">
+            <graphic>
+                <FontIcon iconLiteral="fas-user-secret" />
+            </graphic>
+            <VBox.margin>
+                <Insets top="20.0" />
+            </VBox.margin>
+        </Button>
+    </children>
+</VBox>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<StackPane alignment="CENTER" prefHeight="800.0" prefWidth="520.0" styleClass="login-background" stylesheets="@../styles/styles.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.saferoom.gui.controller.VerifyEmailController">
+    <children>
+        <!-- DEĞİŞİKLİK: VBox'ın pencereyi doldurması için maxHeight ve maxWidth kaldırıldı. -->
+        <VBox fx:id="rootPane" alignment="CENTER" spacing="30.0" styleClass="login-pane">
+            <children>
+                <!-- Başlık Alanı -->
+                <VBox alignment="CENTER" spacing="10.0">
+                    <children>
+                        <Label styleClass="title-label" text="Verify Your Email" />
+                        <Label styleClass="subtitle-label" text="A 6-digit code has been sent to your email." />
+                    </children>
+                </VBox>
+
+                <!-- 6 Haneli Kod Giriş Alanı -->
+                <HBox fx:id="codeInputBox" alignment="CENTER" spacing="10.0">
+                    <children>
+                        <TextField fx:id="digit1" styleClass="otp-field" />
+                        <TextField fx:id="digit2" styleClass="otp-field" />
+                        <TextField fx:id="digit3" styleClass="otp-field" />
+                        <TextField fx:id="digit4" styleClass="otp-field" />
+                        <TextField fx:id="digit5" styleClass="otp-field" />
+                        <TextField fx:id="digit6" styleClass="otp-field" />
+                    </children>
+                </HBox>
+
+                <!-- Doğrulama Butonu -->
+                <Button fx:id="verifyButton" mnemonicParsing="false" maxWidth="400" prefWidth="Infinity" styleClass="login-button" text="Verify Account" />
+
+                <!-- Diğer Linkler -->
+                <VBox alignment="CENTER" spacing="15.0">
+                    <children>
+                        <HBox alignment="CENTER" spacing="5.0">
+                            <children>
+                                <Label styleClass="footer-label" text="Didn't receive the code?" />
+                                <Hyperlink fx:id="resendLink" styleClass="signup-link" text="Resend in 38s" />
+                            </children>
+                        </HBox>
+                        <Hyperlink fx:id="backToLoginLink" styleClass="forgot-password" text="Back to Login" />
+                    </children>
+                    <VBox.margin>
+                        <Insets top="10.0" />
+                    </VBox.margin>
+                </VBox>
+            </children>
+            <padding>
+                <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
+            </padding>
+        </VBox>
+    </children>
+</StackPane>

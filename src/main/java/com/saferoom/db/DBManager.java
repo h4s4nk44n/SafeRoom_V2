@@ -123,6 +123,7 @@ public class DBManager {
 	        }
 	    }
 	}
+	
 
 	public static boolean check_email(String mail) throws SQLException{
 		String query = "SELECT COUNT(*) username FROM users WHERE email = (?)";

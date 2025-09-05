@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<BorderPane fx:id="chatPane" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.saferoom.gui.controller.ChatViewController">
+    <top>
+        <HBox fx:id="chatHeader" alignment="CENTER_LEFT" styleClass="chat-header">
+            <children>
+                <Label fx:id="chatPartnerAvatar" styleClass="contact-avatar" />
+                <VBox>
+                    <children>
+                        <Label fx:id="chatPartnerName" styleClass="chat-partner-name" />
+                        <Label fx:id="chatPartnerStatus" />
+                    </children>
+                </VBox>
+                <Pane HBox.hgrow="ALWAYS" />
+                <Button fx:id="phoneButton" mnemonicParsing="false" styleClass="icon-button">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-phone" styleClass="header-icon" />
+                    </graphic>
+                </Button>
+                <Button fx:id="videoButton" mnemonicParsing="false" styleClass="icon-button">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-video" styleClass="header-icon" />
+                    </graphic>
+                </Button>
+            </children>
+        </HBox>
+    </top>
+    <center>
+        <StackPane>
+            <children>
+                <ListView fx:id="messageListView" styleClass="message-list-view" />
+                <VBox fx:id="emptyChatPlaceholder" alignment="CENTER" managed="false" spacing="16.0" styleClass="empty-chat-placeholder" visible="false">
+                    <children>
+                        <FontIcon iconLiteral="fas-comments" styleClass="empty-chat-icon" />
+                        <Label styleClass="empty-chat-text" text="No messages yet." />
+                        <Label styleClass="empty-chat-subtext" text="Start the conversation by sending the first message." />
+                    </children>
+                </VBox>
+            </children>
+        </StackPane>
+    </center>
+    <bottom>
+        <HBox alignment="CENTER" styleClass="chat-input-area" spacing="10.0">
+            <children>
+                <Button mnemonicParsing="false" styleClass="icon-button">
+                    <graphic>
+                        <FontIcon iconLiteral="fas-plus" styleClass="input-area-icon" />
+                    </graphic>
+                </Button>
+                <HBox alignment="CENTER" HBox.hgrow="ALWAYS" styleClass="chat-input-field-container">
+                    <children>
+                        <TextField fx:id="messageInputField" promptText="Type a secure message..." styleClass="chat-input-field" HBox.hgrow="ALWAYS" />
+                        <Button fx:id="sendButton" mnemonicParsing="false" onAction="#handleSendMessage" styleClass="send-button">
+                            <graphic>
+                                <FontIcon iconLiteral="fas-paper-plane" styleClass="send-icon" />
+                            </graphic>
+                        </Button>
+                    </children>
+                </HBox>
+            </children>
+        </HBox>
+    </bottom>
+</BorderPane>

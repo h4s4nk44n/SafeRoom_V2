@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<AnchorPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.saferoom.gui.controller.MessagesController">
+    <children>
+        <SplitPane fx:id="mainSplitPane" dividerPositions="0.3" styleClass="messages-container" stylesheets="@../styles/styles.css"
+                   AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+            <items>
+                <BorderPane fx:id="contactListPane" minWidth="280.0" maxWidth="450.0" styleClass="contact-list-pane">
+                    <top>
+                        <VBox styleClass="search-box-container">
+                            <children><TextField promptText="Search messages..." styleClass="search-field" /></children>
+                        </VBox>
+                    </top>
+                    <center>
+                        <ListView fx:id="contactListView" styleClass="contact-list-view" />
+                    </center>
+                </BorderPane>
+
+                <fx:include fx:id="chatView" source="ChatView.fxml"/>
+
+            </items>
+        </SplitPane>
+    </children>
+</AnchorPane>

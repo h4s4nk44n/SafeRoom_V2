@@ -8,6 +8,7 @@ plugins {
 group = 'com.saferoom'
 version = '1.0'
 sourceCompatibility = '17'
+targetCompatibility = '17'
 
 repositories {
     mavenCentral()
@@ -29,6 +30,10 @@ dependencies {
 
     // JFoenix (JavaFX UI) - Modern Material Design
     implementation 'com.jfoenix:jfoenix:9.0.10'
+    
+    // Ikonli (Icons for JavaFX)
+    implementation 'org.kordamp.ikonli:ikonli-javafx:12.3.1'
+    implementation 'org.kordamp.ikonli:ikonli-fontawesome5-pack:12.3.1'
 
     // gRPC ve Protobuf
     implementation 'io.grpc:grpc-netty-shaded:1.58.0'
@@ -59,7 +64,7 @@ dependencies {
 }
 
 application {
-    mainClass = 'com.saferoom.natghost.NatAnalyzer'
+    mainClass = 'com.saferoom.gui.MainApp'
 }
 
 protobuf {
@@ -83,15 +88,23 @@ protobuf {
 sourceSets {
     main {
         java {
-            srcDirs 'src/main/java'
-            srcDirs 'build/generated/source/proto/main/java'
-            srcDirs 'build/generated/source/proto/main/grpc'
+            srcDirs = [
+                'src/main/java',
+                'build/generated/source/proto/main/java',
+                'build/generated/source/proto/main/grpc'
+            ]
+        }
+        proto {
+            srcDirs = ['src/main/proto']
         }
         resources {
-            srcDirs 'src/main/resources'
+            srcDirs = ['src/main/resources']
         }
     }
 }
+
+// CompileJava task'ının generateProto'ya bağımlı olduğunu belirt
+compileJava.dependsOn 'generateProto'
 
 javafx {
     version = javafxVersion

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.jfoenix.controls.JFXButton?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.TilePane?>
+<?import javafx.scene.layout.VBox?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<VBox styleClass="page-container" spacing="30.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.saferoom.gui.controller.FileVaultController">
+    <children>
+        <!-- Sürükle ve Bırak Alanı -->
+        <VBox fx:id="dropZone" alignment="CENTER" spacing="15.0" styleClass="drop-zone">
+            <children>
+                <FontIcon iconLiteral="fas-cloud-upload-alt" styleClass="drop-zone-icon" />
+                <Label styleClass="drop-zone-title" text="Drag &amp; drop files to encrypt" />
+                <Label styleClass="drop-zone-subtitle" text="or click to browse" />
+            </children>
+        </VBox>
+
+        <!-- Şifrelenmiş Dosyalar Bölümü -->
+        <VBox spacing="15.0" VBox.vgrow="ALWAYS">
+            <children>
+                <!-- DÜZELTME: Başlık, filtreleme çubuğunun üstüne alındı -->
+                <Label styleClass="section-title" text="Your Encrypted Files" />
+
+                <!-- DÜZELTME: Filtreleme çubuğu sola hizalandı -->
+                <HBox fx:id="fileFilterBar" styleClass="filter-bar" spacing="10.0">
+                    <children>
+                        <JFXButton text="All" styleClass="filter-button" />
+                        <JFXButton text="Documents" styleClass="filter-button" />
+                        <JFXButton text="Images" styleClass="filter-button" />
+                        <JFXButton text="Archives" styleClass="filter-button" />
+                    </children>
+                </HBox>
+
+                <ScrollPane fitToWidth="true" styleClass="content-scroll-pane" VBox.vgrow="ALWAYS">
+                    <content>
+                        <TilePane fx:id="fileGrid" hgap="20.0" vgap="20.0" />
+                    </content>
+                </ScrollPane>
+            </children>
+        </VBox>
+    </children>
+</VBox>

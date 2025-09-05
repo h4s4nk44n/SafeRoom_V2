@@ -22,12 +22,6 @@ public class NatAnalyzer {
             {"stun1.l.google.com", "19302"},
             {"stun2.l.google.com", "19302"},
             {"stun.stunprotocol.org", "3478"},
-            {"stun.ekiga.net", "3478"},
-            {"stun.schlund.de", "3478"},
-            {"stun.voipgate.com", "3478"},
-            {"stun.xten.com", "3478"},
-            {"stun.antisip.com", "3478"},
-            {"stun.server.org", "3478"}
     };
 
     private static final int   MIN_CHANNELS       = 4;

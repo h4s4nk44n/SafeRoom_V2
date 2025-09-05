@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" spacing="20.0" styleClass="page-container" VBox.vgrow="ALWAYS"
+      fx:controller="com.saferoom.gui.controller.RoomsController">
+    
+    <!-- Header with search and create button -->
+    <GridPane styleClass="search-container" hgap="10">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="30.0" />
+            <ColumnConstraints hgrow="ALWAYS" />
+            <ColumnConstraints />
+        </columnConstraints>
+        <TextField fx:id="searchTextField" promptText="Search for a room..." styleClass="input-field" GridPane.columnIndex="0" />
+        <Button text="Create New Room" styleClass="action-button" GridPane.columnIndex="2" />
+    </GridPane>
+    
+    <!-- Scrollable room grid -->
+    <ScrollPane styleClass="rooms-scroll-pane" fitToWidth="true" VBox.vgrow="ALWAYS">
+        <VBox styleClass="rooms-wrapper">
+            <!-- Grid container for rooms -->
+            <FlowPane fx:id="hubListContainer" styleClass="rooms-grid" hgap="16" vgap="16" alignment="TOP_LEFT" prefWrapLength="0">
+            
+                <!-- Compact Room Card 1 -->
+                <VBox styleClass="compact-room-card" fx:id="room1">
+                    <!-- Room Avatar -->
+                    <StackPane styleClass="room-avatar-large">
+                        <FontIcon iconLiteral="fas-rocket" styleClass="room-icon-large" />
+                    </StackPane>
+                    
+                    <!-- Room Info -->
+                    <VBox styleClass="room-info-compact" spacing="4" alignment="CENTER">
+                        <Label text="Project Overlord" styleClass="room-name-compact" />
+                        <HBox styleClass="room-stats" spacing="8" alignment="CENTER">
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-circle" styleClass="online-indicator" />
+                                <Label text="23" styleClass="stat-number" />
+                            </HBox>
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-users" styleClass="total-indicator" />
+                                <Label text="118" styleClass="stat-number" />
+                            </HBox>
+                        </HBox>
+                        
+                        <!-- Quick Actions -->
+                        <HBox styleClass="quick-actions" spacing="8" alignment="CENTER">
+                            <Button styleClass="quick-action-btn, voice-quick">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-microphone" styleClass="quick-action-icon" />
+                                </graphic>
+                            </Button>
+                            <Button styleClass="quick-action-btn, chat-quick">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-comments" styleClass="quick-action-icon" />
+                                </graphic>
+                            </Button>
+                        </HBox>
+                        
+                        <!-- Activity Indicators -->
+                        <VBox styleClass="activity-indicators" spacing="2" alignment="CENTER">
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-volume-up" styleClass="activity-icon" />
+                                <Label text="3 in voice" styleClass="activity-text" />
+                            </HBox>
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-envelope" styleClass="activity-icon" />
+                                <Label text="5 new messages" styleClass="activity-text" />
+                            </HBox>
+                        </VBox>
+                    </VBox>
+                </VBox>
+            
+                <!-- Compact Room Card 2 -->
+                <VBox styleClass="compact-room-card" fx:id="room2">
+                    <StackPane styleClass="room-avatar-large">
+                        <FontIcon iconLiteral="fas-shield-alt" styleClass="room-icon-large" />
+                    </StackPane>
+                    <VBox styleClass="room-info-compact" spacing="4" alignment="CENTER">
+                        <Label text="Aegis Defense Network" styleClass="room-name-compact" />
+                        <HBox styleClass="room-stats" spacing="8" alignment="CENTER">
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-circle" styleClass="online-indicator" />
+                                <Label text="45" styleClass="stat-number" />
+                            </HBox>
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-users" styleClass="total-indicator" />
+                                <Label text="256" styleClass="stat-number" />
+                            </HBox>
+                        </HBox>
+                        <HBox styleClass="quick-actions" spacing="8" alignment="CENTER">
+                            <Button styleClass="quick-action-btn, voice-quick">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-microphone" styleClass="quick-action-icon" />
+                                </graphic>
+                            </Button>
+                            <Button styleClass="quick-action-btn, chat-quick">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-comments" styleClass="quick-action-icon" />
+                                </graphic>
+                            </Button>
+                        </HBox>
+                        <VBox styleClass="activity-indicators" spacing="2" alignment="CENTER">
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-volume-up" styleClass="activity-icon" />
+                                <Label text="7 in voice" styleClass="activity-text" />
+                            </HBox>
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-envelope" styleClass="activity-icon" />
+                                <Label text="2 new messages" styleClass="activity-text" />
+                            </HBox>
+                        </VBox>
+                    </VBox>
+                </VBox>
+                
+                <!-- Compact Room Card 3 -->
+                <VBox styleClass="compact-room-card" fx:id="room3">
+                    <StackPane styleClass="room-avatar-large">
+                        <FontIcon iconLiteral="fas-fighter-jet" styleClass="room-icon-large" />
+                    </StackPane>
+                    <VBox styleClass="room-info-compact" spacing="4" alignment="CENTER">
+                        <Label text="Griffin Tactical" styleClass="room-name-compact" />
+                        <HBox styleClass="room-stats" spacing="8" alignment="CENTER">
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-circle" styleClass="online-indicator" />
+                                <Label text="12" styleClass="stat-number" />
+                            </HBox>
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-users" styleClass="total-indicator" />
+                                <Label text="72" styleClass="stat-number" />
+                            </HBox>
+                        </HBox>
+                        <HBox styleClass="quick-actions" spacing="8" alignment="CENTER">
+                            <Button styleClass="quick-action-btn, voice-quick">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-microphone" styleClass="quick-action-icon" />
+                                </graphic>
+                            </Button>
+                            <Button styleClass="quick-action-btn, chat-quick">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-comments" styleClass="quick-action-icon" />
+                                </graphic>
+                            </Button>
+                        </HBox>
+                        <VBox styleClass="activity-indicators" spacing="2" alignment="CENTER">
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-volume-up" styleClass="activity-icon" />
+                                <Label text="2 in voice" styleClass="activity-text" />
+                            </HBox>
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-envelope" styleClass="activity-icon" />
+                                <Label text="No new messages" styleClass="activity-text" />
+                            </HBox>
+                        </VBox>
+                    </VBox>
+                </VBox>
+                
+                <!-- Compact Room Card 4 -->
+                <VBox styleClass="compact-room-card" fx:id="room4">
+                    <StackPane styleClass="room-avatar-large">
+                        <FontIcon iconLiteral="fas-globe" styleClass="room-icon-large" />
+                    </StackPane>
+                    <VBox styleClass="room-info-compact" spacing="4" alignment="CENTER">
+                        <Label text="Vanguard Operations" styleClass="room-name-compact" />
+                        <HBox styleClass="room-stats" spacing="8" alignment="CENTER">
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-circle" styleClass="online-indicator" />
+                                <Label text="67" styleClass="stat-number" />
+                            </HBox>
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-users" styleClass="total-indicator" />
+                                <Label text="431" styleClass="stat-number" />
+                            </HBox>
+                        </HBox>
+                        <HBox styleClass="quick-actions" spacing="8" alignment="CENTER">
+                            <Button styleClass="quick-action-btn, voice-quick">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-microphone" styleClass="quick-action-icon" />
+                                </graphic>
+                            </Button>
+                            <Button styleClass="quick-action-btn, chat-quick">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-comments" styleClass="quick-action-icon" />
+                                </graphic>
+                            </Button>
+                        </HBox>
+                        <VBox styleClass="activity-indicators" spacing="2" alignment="CENTER">
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-volume-up" styleClass="activity-icon" />
+                                <Label text="12 in voice" styleClass="activity-text" />
+                            </HBox>
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-envelope" styleClass="activity-icon" />
+                                <Label text="15 new messages" styleClass="activity-text" />
+                            </HBox>
+                        </VBox>
+                    </VBox>
+                </VBox>
+                
+                <!-- Compact Room Card 5 -->
+                <VBox styleClass="compact-room-card" fx:id="room5">
+                    <StackPane styleClass="room-avatar-large">
+                        <FontIcon iconLiteral="fas-satellite-dish" styleClass="room-icon-large" />
+                    </StackPane>
+                    <VBox styleClass="room-info-compact" spacing="4" alignment="CENTER">
+                        <Label text="Cyber Sentry Hub" styleClass="room-name-compact" />
+                        <HBox styleClass="room-stats" spacing="8" alignment="CENTER">
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-circle" styleClass="online-indicator" />
+                                <Label text="8" styleClass="stat-number" />
+                            </HBox>
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-users" styleClass="total-indicator" />
+                                <Label text="89" styleClass="stat-number" />
+                            </HBox>
+                        </HBox>
+                        <HBox styleClass="quick-actions" spacing="8" alignment="CENTER">
+                            <Button styleClass="quick-action-btn, voice-quick">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-microphone" styleClass="quick-action-icon" />
+                                </graphic>
+                            </Button>
+                            <Button styleClass="quick-action-btn, chat-quick">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-comments" styleClass="quick-action-icon" />
+                                </graphic>
+                            </Button>
+                        </HBox>
+                        <VBox styleClass="activity-indicators" spacing="2" alignment="CENTER">
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-volume-up" styleClass="activity-icon" />
+                                <Label text="1 in voice" styleClass="activity-text" />
+                            </HBox>
+                            <HBox spacing="4" alignment="CENTER">
+                                <FontIcon iconLiteral="fas-envelope" styleClass="activity-icon" />
+                                <Label text="3 new messages" styleClass="activity-text" />
+                            </HBox>
+                        </VBox>
+                    </VBox>
+                </VBox>
+                
+            </FlowPane>
+        </VBox>
+    </ScrollPane>
+</VBox>

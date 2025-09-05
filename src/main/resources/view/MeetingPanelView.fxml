@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.jfoenix.controls.JFXButton?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.ToggleGroup?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<BorderPane styleClass="meeting-panel-root" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.saferoom.gui.controller.MeetingPanelController" stylesheets="@../styles/styles.css" style="-fx-background-color: #1e293b;">
+    <top>
+        <HBox alignment="CENTER_LEFT" prefHeight="60.0" spacing="16.0" styleClass="meeting-top-bar">
+            <padding><Insets left="24.0" right="24.0" /></padding>
+            <children>
+                <HBox alignment="CENTER_LEFT" minWidth="200.0" spacing="16.0">
+                    <children>
+                        <FontIcon iconLiteral="fas-grip-vertical" styleClass="top-bar-icon" />
+                        <Label fx:id="meetingNameLabel" text="Proje Tartışması" styleClass="meeting-title-label" />
+                    </children>
+                </HBox>
+                <Pane HBox.hgrow="ALWAYS" />
+                <HBox alignment="CENTER" spacing="8.0" styleClass="layout-button-container">
+                    <children>
+                        <JFXButton fx:id="gridViewButton" styleClass="layout-button">
+                            <graphic><FontIcon iconLiteral="fas-th-large" styleClass="layout-icon" /></graphic>
+                        </JFXButton>
+                        <JFXButton fx:id="speakerViewButton" styleClass="layout-button">
+                            <graphic><FontIcon iconLiteral="fas-user" styleClass="layout-icon" /></graphic>
+                        </JFXButton>
+                    </children>
+                </HBox>
+                <Pane HBox.hgrow="ALWAYS" />
+                <HBox alignment="CENTER_RIGHT" minWidth="200.0" spacing="16.0">
+                    <children>
+                        <Label fx:id="timerLabel" text="13:03:34" styleClass="timer-label" />
+                        <JFXButton fx:id="participantsButtonTop" onAction="#toggleRightPanelAndGoToParticipants" styleClass="top-bar-button" text="Participants">
+                            <graphic><FontIcon iconLiteral="fas-users" styleClass="top-bar-icon" /></graphic>
+                        </JFXButton>
+                    </children>
+                </HBox>
+            </children>
+        </HBox>
+    </top>
+    <center>
+        <AnchorPane fx:id="centerContentAnchorPane">
+            <children>
+                <StackPane fx:id="contentStackPane" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                    <children>
+                        <GridPane fx:id="videoGrid" hgap="16.0" vgap="16.0">
+                            <padding>
+                                <Insets bottom="16.0" left="24.0" right="24.0" top="16.0" />
+                            </padding>
+                        </GridPane>
+                        <BorderPane fx:id="speakerViewPane" visible="false">
+                            <padding>
+                                <Insets bottom="16.0" left="24.0" right="24.0" top="16.0" />
+                            </padding>
+                        </BorderPane>
+                    </children>
+                </StackPane>
+                <VBox fx:id="rightPanelVBox" prefWidth="320.0" styleClass="right-panel" AnchorPane.bottomAnchor="0.0" AnchorPane.rightAnchor="-320.0" AnchorPane.topAnchor="0.0">
+                    <children>
+                        <HBox alignment="CENTER" styleClass="right-panel-toggle-bar">
+                            <children>
+                                <ToggleButton fx:id="participantsToggle" mnemonicParsing="false" selected="true" text="Participants" styleClass="sidebar-toggle-button">
+                                    <toggleGroup><ToggleGroup fx:id="sidebarToggleGroup" /></toggleGroup>
+                                </ToggleButton>
+                                <ToggleButton fx:id="chatToggle" mnemonicParsing="false" text="Chat" styleClass="sidebar-toggle-button" toggleGroup="$sidebarToggleGroup" />
+                            </children>
+                        </HBox>
+                        <StackPane VBox.vgrow="ALWAYS">
+                            <children>
+                                <ScrollPane fx:id="participantsScrollPane" fitToWidth="true" hbarPolicy="NEVER" styleClass="sidebar-scroll-pane">
+                                    <content><VBox fx:id="participantsListVBox" spacing="8" /></content>
+                                    <padding><Insets top="8" /></padding>
+                                </ScrollPane>
+                                <fx:include fx:id="meetingChatView" source="ChatView.fxml" visible="false" />
+                            </children>
+                        </StackPane>
+                    </children>
+                </VBox>
+            </children>
+        </AnchorPane>
+    </center>
+    <bottom>
+        <HBox alignment="CENTER" prefHeight="80.0" spacing="16.0" styleClass="meeting-bottom-bar">
+            <padding><Insets left="24.0" right="24.0" /></padding>
+            <children>
+                <JFXButton styleClass="bottom-bar-icon-button" text=" "><graphic><FontIcon iconLiteral="fas-cog" styleClass="bottom-bar-icon" /></graphic></JFXButton>
+                <JFXButton styleClass="bottom-bar-icon-button" text=" "><graphic><FontIcon iconLiteral="fas-volume-up" styleClass="bottom-bar-icon" /></graphic></JFXButton>
+                <Pane HBox.hgrow="ALWAYS" />
+                <JFXButton fx:id="micButton" onAction="#toggleMic" styleClass="meeting-control-button" text="Mute"><graphic><FontIcon iconLiteral="fas-microphone" styleClass="control-icon" /></graphic></JFXButton>
+                <JFXButton fx:id="cameraButton" onAction="#toggleCamera" styleClass="meeting-control-button" text="Stop Video"><graphic><FontIcon iconLiteral="fas-video" styleClass="control-icon" /></graphic></JFXButton>
+                <JFXButton fx:id="chatButtonBottom" onAction="#toggleRightPanelAndGoToChat" styleClass="meeting-control-button-blue" text="Chat"><graphic><FontIcon iconLiteral="fas-comment" styleClass="control-icon" /></graphic></JFXButton>
+                <JFXButton fx:id="screenShareButton" styleClass="meeting-control-button" text="Share"><graphic><FontIcon iconLiteral="fas-desktop" styleClass="control-icon" /></graphic></JFXButton>
+                <JFXButton fx:id="recordButton" styleClass="meeting-control-button" text="Record"><graphic><FontIcon iconLiteral="fas-dot-circle" styleClass="control-icon" /></graphic></JFXButton>
+                <Pane HBox.hgrow="ALWAYS" />
+                <JFXButton fx:id="leaveButton" onAction="#leaveMeeting" styleClass="leave-button" text="Leave Meeting" />
+            </children>
+        </HBox>
+    </bottom>
+</BorderPane>

@@ -41,7 +41,6 @@ public class UDPHoleImpl extends UDPHoleGrpc.UDPHoleImplBase {
 	static String verCode = VerificationCodeGenerator.generateVerificationCode();
 	static String fullCode = Body + verCode;
 	
-
 	@Override
 	public void menuAns(Menu request, StreamObserver<Status> response){
 	String username = request.getUsername();
@@ -66,12 +65,12 @@ public class UDPHoleImpl extends UDPHoleGrpc.UDPHoleImplBase {
 			.build();
 		response.onNext(blocked_stat);
 	}
-	Status not_ex = Status.newBuilder()
-		.setMessage("N_REGISTER")
-		.setCode(1)
-		.build();
-	response.onNext(not_ex);
-
+	}else{
+		Status not_ex = Status.newBuilder()
+			.setMessage("N_REGISTER")
+			.setCode(1)
+			.build();
+		response.onNext(not_ex);
 	}
 		response.onCompleted();	
 	

@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.jfoenix.controls.JFXSlider?>
+<?import com.jfoenix.controls.JFXToggleButton?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.VBox?>
+
+<ScrollPane fitToWidth="true" styleClass="content-scroll-pane" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.saferoom.gui.controller.SettingsController">
+    <content>
+        <VBox styleClass="page-container" spacing="30.0">
+            <children>
+                <!-- Profil Bölümü -->
+                <VBox spacing="15.0">
+                    <children>
+                        <Label styleClass="settings-section-title" text="Profil" />
+                        <HBox alignment="CENTER_LEFT" spacing="20.0" styleClass="setting-row">
+                            <children>
+                                <Label styleClass="user-avatar" text="U" />
+                                <VBox>
+                                    <children>
+                                        <Label styleClass="setting-title" text="Kullanıcı Adı" />
+                                        <Label styleClass="setting-description" text="kullanici@saferoom.com" />
+                                    </children>
+                                </VBox>
+                                <Pane HBox.hgrow="ALWAYS" />
+                                <Hyperlink text="Avatar Değiştir" styleClass="signup-link" />
+                            </children>
+                        </HBox>
+                        <Separator styleClass="settings-separator" />
+                    </children>
+                </VBox>
+
+                <!-- Gizlilik ve Güvenlik Bölümü -->
+                <VBox spacing="15.0">
+                    <children>
+                        <Label styleClass="settings-section-title" text="Gizlilik ve Güvenlik" />
+                        <HBox alignment="CENTER_LEFT" styleClass="setting-row">
+                            <children>
+                                <VBox>
+                                    <children>
+                                        <Label styleClass="setting-title" text="İki Faktörlü Kimlik Doğrulama" />
+                                        <Label styleClass="setting-description" text="Hesabınıza ekstra güvenlik katmanı ekleyin" />
+                                    </children>
+                                </VBox>
+                                <Pane HBox.hgrow="ALWAYS" />
+                                <JFXToggleButton fx:id="twoFaToggle" styleClass="settings-toggle" />
+                            </children>
+                        </HBox>
+                        <HBox alignment="CENTER_LEFT" styleClass="setting-row">
+                            <children>
+                                <VBox>
+                                    <children>
+                                        <Label styleClass="setting-title" text="Uçtan Uca Şifreleme" />
+                                        <Label styleClass="setting-description" text="Tüm iletişimler için otomatik şifreleme etkinleştir" />
+                                    </children>
+                                </VBox>
+                                <Pane HBox.hgrow="ALWAYS" />
+                                <JFXToggleButton fx:id="e2eToggle" selected="true" styleClass="settings-toggle" />
+                            </children>
+                        </HBox>
+                        <HBox alignment="CENTER_LEFT" styleClass="setting-row">
+                            <children>
+                                <VBox>
+                                    <children>
+                                        <Label styleClass="setting-title" text="Çevrimiçi Durumu Göster" />
+                                        <Label styleClass="setting-description" text="Arkadaşlarınızın çevrimiçi olduğunuzu görmesine izin ver" />
+                                    </children>
+                                </VBox>
+                                <Pane HBox.hgrow="ALWAYS" />
+                                <JFXToggleButton fx:id="onlineStatusToggle" selected="true" styleClass="settings-toggle" />
+                            </children>
+                        </HBox>
+                        <Separator styleClass="settings-separator" />
+                    </children>
+                </VBox>
+
+                <!-- Bildirimler Bölümü -->
+                <VBox spacing="15.0">
+                    <children>
+                        <Label styleClass="settings-section-title" text="Bildirimler" />
+                        <HBox alignment="CENTER_LEFT" styleClass="setting-row">
+                            <children>
+                                <VBox>
+                                    <children>
+                                        <Label styleClass="setting-title" text="Masaüstü Bildirimleri" />
+                                        <Label styleClass="setting-description" text="Yeni mesajlar ve aramalar için bildirim al" />
+                                    </children>
+                                </VBox>
+                                <Pane HBox.hgrow="ALWAYS" />
+                                <JFXToggleButton fx:id="desktopNotificationToggle" selected="true" styleClass="settings-toggle" />
+                            </children>
+                        </HBox>
+                        <HBox alignment="CENTER_LEFT" styleClass="setting-row">
+                            <children>
+                                <VBox>
+                                    <children>
+                                        <Label styleClass="setting-title" text="Ses Bildirimleri" />
+                                        <Label styleClass="setting-description" text="Bildirimler için ses çal" />
+                                    </children>
+                                </VBox>
+                                <Pane HBox.hgrow="ALWAYS" />
+                                <JFXToggleButton fx:id="soundNotificationToggle" selected="true" styleClass="settings-toggle" />
+                            </children>
+                        </HBox>
+                        <VBox spacing="10.0" styleClass="setting-row">
+                            <children>
+                                <Label styleClass="setting-title" text="Bildirim Ses Düzeyi" />
+                                <JFXSlider fx:id="volumeSlider" value="75.0" styleClass="settings-slider" />
+                            </children>
+                        </VBox>
+                        <Separator styleClass="settings-separator" />
+                    </children>
+                </VBox>
+
+                <!-- Tehlikeli Alan Bölümü -->
+                <VBox spacing="15.0">
+                    <children>
+                        <Label styleClass="settings-section-title-danger" text="Tehlikeli Alan" />
+                        <HBox alignment="CENTER_LEFT" spacing="20.0" styleClass="setting-row">
+                            <children>
+                                <Button fx:id="clearDataButton" styleClass="danger-button" text="Tüm Verileri Temizle" />
+                                <Button fx:id="deleteAccountButton" styleClass="danger-button" text="Hesabı Sil" />
+                            </children>
+                        </HBox>
+                    </children>
+                </VBox>
+            </children>
+        </VBox>
+    </content>
+</ScrollPane>
