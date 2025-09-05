@@ -49,6 +49,8 @@ public class UDPHoleImpl extends UDPHoleGrpc.UDPHoleImplBase {
 	boolean user_exist = DBManager.userExists(username);
 		if(user_exist){
 
+			DBManager.updateLoginAttempts(username);
+
 			if(DBManager.isUserBlocked(username)){
 				
 				if(DBManager.verifyPassword(username, hash_password)){
@@ -56,8 +58,14 @@ public class UDPHoleImpl extends UDPHoleGrpc.UDPHoleImplBase {
 						.setMessage("ALL_GOOD")
 						.setCode(0)
 						.build();
-						
+						DBManager.updateLastLogin(username);
 					response.onNext(stat);
+		}else{
+			Status stat = Status.newBuilder()
+				.setMessage("WRONG_PASSWORD")
+				.setCode(3)
+				.build();
+			response.onNext(stat);
 		}
 		Status blocked_stat = Status.newBuilder()
 			.setMessage("BLOCKED")

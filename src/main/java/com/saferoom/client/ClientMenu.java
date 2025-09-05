@@ -15,7 +15,7 @@ public class ClientMenu{
 
 		public static int Login(String username, String Password)
 		{
-		ManagedChannel channel = ManagedChannelBuilder.forAddress(Server,Port)
+		ManagedChannel channel = ManagedChannelBuilder.forAddress(Server, Port)
 			.usePlaintext()
 			.build();
 
@@ -40,9 +40,12 @@ public class ClientMenu{
 					System.out.println("Blocked User");
 					return 2;
 		}
+		    case 3:
+				System.out.println("Wrong Password");
+				return 3;
 		default:
 				System.out.println("Message has broken");
-				return 3;					
+				return 4;					
 			}
 		}
 	public static int register_client(String username, String password, String mail)
