@@ -36,13 +36,13 @@ public class ClientMenu{
 				if(message.equals("N_REGISTER")){
 					System.out.println("Not Registered");
 					return 1;
-				}else{
-					System.out.println("Blocked User");
-					return 2;
-		}
-		    case 3:
-				System.out.println("Wrong Password");
-				return 3;
+				}else if(message.equals("WRONG_PASSWORD")){
+					System.out.println("Wrong Password");
+					return 3;
+					}else{
+						System.out.println("Blocked User");
+						return 2;
+					}
 		default:
 				System.out.println("Message has broken");
 				return 4;					

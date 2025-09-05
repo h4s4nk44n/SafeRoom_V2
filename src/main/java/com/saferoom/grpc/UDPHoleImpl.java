@@ -63,7 +63,7 @@ public class UDPHoleImpl extends UDPHoleGrpc.UDPHoleImplBase {
 		}else{
 			Status stat = Status.newBuilder()
 				.setMessage("WRONG_PASSWORD")
-				.setCode(3)
+				.setCode(1)
 				.build();
 			response.onNext(stat);
 		}

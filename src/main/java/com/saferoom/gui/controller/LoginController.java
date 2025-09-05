@@ -31,9 +31,37 @@ public class LoginController {
     @FXML private Hyperlink signUpLink;
     @FXML private Button closeButton; // YENİ: Kapatma butonu eklendi
 
-    // Sürükleme için ofset değişkenleri
     private double xOffset = 0;
     private double yOffset = 0;
+
+    private boolean containsSqlInjection(String input) {
+    String[] sqlKeywords = {
+        "SELECT", "INSERT", "UPDATE", "DELETE", "DROP", "CREATE", "ALTER",
+        "UNION", "OR", "AND", "--", "/*", "*/", "xp_", "sp_", "EXEC",
+        "'", "\"", ";", "=", "<", ">", "SCRIPT", "IFRAME", "ONLOAD"
+    };
+    
+    String upperInput = input.toUpperCase();
+    for (String keyword : sqlKeywords) {
+        if (upperInput.contains(keyword)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+private boolean isValidInput(String input) {
+    return input.matches("^[a-zA-Z0-9._-]+$");
+}
+
+private void logSecurityIncident(String attemptedUsername) {
+    System.err.println("SECURITY ALERT: SQL Injection attempt detected!");
+    System.err.println("Username attempt: " + attemptedUsername);
+    System.err.println("Timestamp: " + java.time.LocalDateTime.now());
+    System.err.println("This incident has been logged and will be reported.");
+    
+    // Buraya IP loglama, email gönderme vs ekleyebilirsin
+}
 
     @FXML
     public void initialize() {
@@ -43,13 +71,34 @@ public class LoginController {
         googleLoginButton.setOnAction(event -> handleGoogleLogin());
         githubLoginButton.setOnAction(event -> handleGitHubLogin());
         passwordField.setOnAction(event -> handleSignIn());
-        closeButton.setOnAction(event -> handleClose()); // YENİ: Kapatma butonu olayı eklendi
+        closeButton.setOnAction(event -> handleClose());
     }
 
     private void handleSignIn() {
        String username = usernameField.getText().trim();
        String password = passwordField.getText().trim();
 
+         if (username.isEmpty() || password.isEmpty()) {
+              showError("Kullanıcı adı ve şifre alanlarını doldurun.");
+              return;
+         }
+         if (containsSqlInjection(username) || containsSqlInjection(password)) {
+            showError("Security Alert: Suspicious input detected. This will report on your IP!");
+            logSecurityIncident(username); 
+        return;
+    }
+    
+        if (username.length() > 50 || password.length() > 100) {
+            showError("Username or password too long!");
+        return;
+        }
+    
+         if (!isValidInput(username) || !isValidInput(password)) {
+            showError("Invalid characters detected. This will report on your IP!");
+        return;
+    }
+
+         
        int loginResult = ClientMenu.Login(username, password);
        switch (loginResult) {
             case 0:
@@ -83,6 +132,11 @@ public class LoginController {
             case 2:
                 showError("Blocked User, this incident will report.");
             break;
+
+            case 3:
+                showError("Wrong Password, Please try again.");
+            break;
+
             default:
                 showError("An unknown error occurred. Please try again.");
             break;
