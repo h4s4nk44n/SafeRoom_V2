@@ -44,8 +44,109 @@ public class RegisterController {
     }
 
     private boolean isValidEmail(String email) {
+        // Email mutlaka @ ve . içermeli
+        if (!email.contains("@") || !email.contains(".")) {
+            return false;
+        }
+        
+        // @ işaretinden önce ve sonra karakter olmalı
+        int atIndex = email.indexOf("@");
+        if (atIndex <= 0 || atIndex >= email.length() - 1) {
+            return false;
+        }
+        
+        // @ işaretinden sonra nokta olmalı
+        String afterAt = email.substring(atIndex + 1);
+        if (!afterAt.contains(".")) {
+            return false;
+        }
+        
+        // Son noktadan sonra en az 2 karakter olmalı (domain extension)
+        int lastDotIndex = email.lastIndexOf(".");
+        if (lastDotIndex >= email.length() - 2) {
+            return false;
+        }
+        
+        // Genel email formatı kontrolü
         String emailPattern = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$";
         return email.matches(emailPattern);
+    }
+
+    private boolean isStrongPassword(String password) {
+        // En az 8 karakter olmalı
+        if (password.length() < 8) {
+            return false;
+        }
+        
+        // En az bir büyük harf olmalı
+        if (!password.matches(".*[A-Z].*")) {
+            return false;
+        }
+        
+        // En az bir küçük harf olmalı
+        if (!password.matches(".*[a-z].*")) {
+            return false;
+        }
+        
+        // En az bir rakam olmalı
+        if (!password.matches(".*[0-9].*")) {
+            return false;
+        }
+        
+        // En az bir özel karakter olmalı
+        if (!password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\|,.<>\\/?].*")) {
+            return false;
+        }
+        
+        // Yaygın zayıf şifreler kontrolü
+        String[] weakPasswords = {
+            "password", "123456", "123456789", "qwerty", "abc123", 
+            "password123", "admin", "letmein", "welcome", "monkey",
+            "dragon", "pass", "master", "hello", "login"
+        };
+        
+        String lowerPassword = password.toLowerCase();
+        for (String weak : weakPasswords) {
+            if (lowerPassword.contains(weak)) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    private String getPasswordStrengthMessage(String password) {
+        if (password.length() < 8) {
+            return "Password must be at least 8 characters long.";
+        }
+        if (!password.matches(".*[A-Z].*")) {
+            return "Password must contain at least one uppercase letter.";
+        }
+        if (!password.matches(".*[a-z].*")) {
+            return "Password must contain at least one lowercase letter.";
+        }
+        if (!password.matches(".*[0-9].*")) {
+            return "Password must contain at least one number.";
+        }
+        if (!password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\|,.<>\\/?].*")) {
+            return "Password must contain at least one special character (!@#$%^&*()_+-=[]{}';:\"|,.<>?/).";
+        }
+        
+        // Yaygın zayıf şifreler kontrolü
+        String[] weakPasswords = {
+            "password", "123456", "123456789", "qwerty", "abc123", 
+            "password123", "admin", "letmein", "welcome", "monkey",
+            "dragon", "pass", "master", "hello", "login"
+        };
+        
+        String lowerPassword = password.toLowerCase();
+        for (String weak : weakPasswords) {
+            if (lowerPassword.contains(weak)) {
+                return "Password contains common weak patterns. Please choose a more secure password.";
+            }
+        }
+        
+        return "";
     }
 
     private void logSecurityIncident(String attemptedInput, String fieldName) {
@@ -69,8 +170,48 @@ public class RegisterController {
         });
         
         passwordField.textProperty().addListener((observable, oldValue, newValue) -> {
+            validatePasswordStrength(newValue);
             validatePasswordMatch();
         });
+        
+        // Real-time email validation
+        emailField.textProperty().addListener((observable, oldValue, newValue) -> {
+            validateEmailFormat(newValue);
+        });
+    }
+    
+    private void validateEmailFormat(String email) {
+        if (email.isEmpty()) {
+            emailField.setStyle("");
+            return;
+        }
+        
+        if (isValidEmail(email)) {
+            // Geçerli email - yeşil border
+            emailField.setStyle("-fx-border-color: green; -fx-border-width: 2px;");
+        } else {
+            // Geçersiz email - kırmızı border
+            emailField.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
+        }
+    }
+    
+    private void validatePasswordStrength(String password) {
+        if (password.isEmpty()) {
+            passwordField.setStyle("");
+            return;
+        }
+        
+        if (isStrongPassword(password)) {
+            // Güçlü şifre - yeşil border
+            passwordField.setStyle("-fx-border-color: green; -fx-border-width: 2px;");
+        } else {
+            // Zayıf şifre - turuncu/kırmızı border
+            if (password.length() >= 8) {
+                passwordField.setStyle("-fx-border-color: orange; -fx-border-width: 2px;");
+            } else {
+                passwordField.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
+            }
+        }
     }
     
     private void validatePasswordMatch() {
@@ -170,7 +311,7 @@ public class RegisterController {
         }
 
         if (!isValidEmail(candicate_email)) {
-            showAlert("Invalid Email", "Please enter a valid email address!");
+            showAlert("Invalid Email", "Please enter a valid email address!\nEmail must contain '@' and '.' characters and be in proper format (example@domain.com).");
             return;
         }
 
@@ -179,8 +320,11 @@ public class RegisterController {
             return;
         }
 
-        if (password.length() < 6 || password.length() > 50) {
-            showAlert("Invalid Password Length", "Password must be between 6-50 characters!");
+        // Güçlü şifre kontrolü
+        if (!isStrongPassword(password)) {
+            String strengthMessage = getPasswordStrengthMessage(password);
+            showAlert("Weak Password", "Please choose a stronger password!\n\n" + strengthMessage + 
+                     "\n\nPassword Requirements:\n• At least 8 characters\n• At least one uppercase letter\n• At least one lowercase letter\n• At least one number\n• At least one special character\n• No common weak patterns");
             return;
         }
 
@@ -223,6 +367,8 @@ public class RegisterController {
                 showAlert("Server Connection Failed", "Cannot connect to server. Please check if the server is running.");
             } else if (e.getStatus().getCode() == io.grpc.Status.Code.UNAVAILABLE) {
                 showAlert("Server Unavailable", "Server is currently unavailable. Please try again later.");
+            } else if (e.getStatus().getCode() == io.grpc.Status.Code.DEADLINE_EXCEEDED) {
+                showAlert("Request Timeout", "The registration request timed out. Please check your internet connection and try again.");
             } else {
                 showAlert("Connection Error", "Connection error: " + e.getStatus().getDescription());
             }

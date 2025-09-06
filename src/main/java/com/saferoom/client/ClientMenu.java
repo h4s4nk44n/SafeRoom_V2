@@ -7,6 +7,7 @@ import com.saferoom.server.SafeRoomServer;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.concurrent.TimeUnit;
+
 public class ClientMenu{
 	public static String Server = SafeRoomServer.ServerIP;
 	public static int Port = SafeRoomServer.grpcPort;
@@ -59,67 +60,83 @@ public class ClientMenu{
 		}
 	public static int register_client(String username, String password, String mail)
 	{
-		ManagedChannel channel = ManagedChannelBuilder.forAddress(Server, Port)
-			.usePlaintext()
-			.build();
-
-		UDPHoleGrpc.UDPHoleBlockingStub stub = UDPHoleGrpc.newBlockingStub(channel);
-		
-		SafeRoomProto.Create_User insert_obj = SafeRoomProto.Create_User.newBuilder()
-			.setUsername(username)
-			.setEmail(mail)
-			.setPassword(password)
-			.setIsVerified(false)
-			.build();
-		SafeRoomProto.Status stat = stub.insertUser(insert_obj);
-
-		int code = stat.getCode();
-		String message = stat.getMessage();
-		
-		switch(code){
-			case 0:
-				System.out.println("Success!");
-				return 0;
-			case 2:
-				if(message.equals("VUSERNAME")){
-					System.out.println("Username already taken");
-					return 1;
-				}else{
-					System.out.println("Invalid E-mail");
-					return 2;
-		}
-		default:
-				System.out.println("Message has broken");
-				return 3;					
-			}
-		}
-	public static int verify_user(String username, String verify_code) {
-		ManagedChannel channel = ManagedChannelBuilder.forAddress(Server, Port)
+		ManagedChannel channel = null;
+		try {
+			channel = ManagedChannelBuilder.forAddress(Server, Port)
 				.usePlaintext()
 				.build();
-		
-		UDPHoleGrpc.UDPHoleBlockingStub stub = UDPHoleGrpc.newBlockingStub(channel);
-		
-		Verification verification_info = Verification.newBuilder()
+
+			UDPHoleGrpc.UDPHoleBlockingStub stub = UDPHoleGrpc.newBlockingStub(channel)
+				.withDeadlineAfter(10, TimeUnit.SECONDS);
+			
+			SafeRoomProto.Create_User insert_obj = SafeRoomProto.Create_User.newBuilder()
 				.setUsername(username)
-				.setVerify(verify_code)
+				.setEmail(mail)
+				.setPassword(password)
+				.setIsVerified(false)
 				.build();
-		
-		SafeRoomProto.Status response = stub.verifyUser(verification_info);
-		
-		int code = response.getCode();
-		
-		switch(code) {
-		case 0:
-			System.out.println("Verification Completed");
-			return 0;
-		case 1:
-			System.out.println("Not Matched");
-			return 1;
-		
-		default:
-			System.out.println("Connection is not safe");
-			return 2;
+			SafeRoomProto.Status stat = stub.insertUser(insert_obj);
+
+			int code = stat.getCode();
+			String message = stat.getMessage();
+			
+			switch(code){
+				case 0:
+					System.out.println("Success!");
+					return 0;
+				case 2:
+					if(message.equals("VUSERNAME")){
+						System.out.println("Username already taken");
+						return 1;
+					}else{
+						System.out.println("Invalid E-mail");
+						return 2;
+					}
+				default:
+					System.out.println("Message has broken");
+					return 3;					
+			}
+		} finally {
+			if (channel != null) {
+				channel.shutdown();
+			}
+		}
+	}
+	public static int verify_user(String username, String verify_code) {
+		ManagedChannel channel = null;
+		try {
+			channel = ManagedChannelBuilder.forAddress(Server, Port)
+					.usePlaintext()
+					.build();
+			
+			UDPHoleGrpc.UDPHoleBlockingStub stub = UDPHoleGrpc.newBlockingStub(channel)
+					.withDeadlineAfter(10, TimeUnit.SECONDS);
+			
+			Verification verification_info = Verification.newBuilder()
+					.setUsername(username)
+					.setVerify(verify_code)
+					.build();
+			
+			SafeRoomProto.Status response = stub.verifyUser(verification_info);
+			
+			int code = response.getCode();
+			
+			switch(code) {
+			case 0:
+				System.out.println("Verification Completed");
+				return 0;
+			case 1:
+				System.out.println("Not Matched");
+				return 1;
+			
+			default:
+				System.out.println("Connection is not safe");
+				return 2;
+			}
+		} finally {
+			if (channel != null) {
+				channel.shutdown();
+			}
 		}
 	}	
 
