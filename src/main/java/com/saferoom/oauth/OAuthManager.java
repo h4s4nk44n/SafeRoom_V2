@@ -72,8 +72,8 @@ public class OAuthManager {
             // Start callback server
             startCallbackServer();
             
-            // Wait for server to be fully ready
-            Thread.sleep(1000); // 1 second to ensure server is ready
+            // Wait for server to be ready (reduced from 1000ms to 300ms)
+            Thread.sleep(300); // Faster startup
             
             // Build Google OAuth URL with proper encoding
             String redirectUri = URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8);
@@ -117,8 +117,8 @@ public class OAuthManager {
             // Start callback server
             startCallbackServer();
             
-            // Wait for server to be fully ready
-            Thread.sleep(1000); // 1 second to ensure server is ready
+            // Wait for server to be ready (reduced from 1000ms to 300ms)
+            Thread.sleep(300); // Faster startup
             
             // Build GitHub OAuth URL with proper encoding
             String redirectUri = URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8);
@@ -175,8 +175,8 @@ public class OAuthManager {
             System.out.println("✅ OAuth callback server STARTED on http://localhost:" + CALLBACK_PORT + "/callback");
             System.out.println("✅ Server will stay alive until callback received or 5 minutes timeout");
             
-            // Verify server is actually listening
-            Thread.sleep(500); // Give server time to bind to port
+            // Quick server verification (reduced from 500ms to 100ms)
+            Thread.sleep(100); // Minimal delay for port binding
             
             // Server timeout - 5 minutes
             CompletableFuture.runAsync(() -> {
@@ -200,61 +200,45 @@ public class OAuthManager {
     }
 
     /**
-     * Stop callback server
+     * Stop callback server (optimized for speed)
      */
     private static void stopCallbackServer() {
         try {
             if (callbackServer != null) {
-                System.out.println("Stopping OAuth callback server...");
-                
-                // Gracefully stop the server
-                callbackServer.stop(3); // Give 3 seconds to finish requests
-                
-                // Give time for proper shutdown
-                Thread.sleep(100);
-                
+                // Fast shutdown without extra delays
+                callbackServer.stop(1); // Reduced from 3 to 1 second
                 callbackServer = null;
-                System.out.println("✅ OAuth callback server stopped gracefully");
+                System.out.println("✅ OAuth callback server stopped");
             }
         } catch (Exception e) {
             System.err.println("⚠️ Error stopping callback server: " + e.getMessage());
-            // Force stop if graceful stop fails
             if (callbackServer != null) {
                 try {
-                    callbackServer.stop(0); // Force immediate stop
+                    callbackServer.stop(0); // Immediate force stop
                     callbackServer = null;
                 } catch (Exception ex) {
-                    System.err.println("Failed to force stop server: " + ex.getMessage());
+                    // Silent fail for speed
                 }
             }
         }
     }
 
     /**
-     * Open system browser
+     * Open system browser (optimized for speed)
      */
     private static void openBrowser(String url) {
-        // Run browser opening in background thread to avoid blocking UI
+        // Immediate browser opening without extra logging for speed
         CompletableFuture.runAsync(() -> {
             try {
-                System.out.println("Attempting to open browser with URL: " + url);
-                
                 if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
                     Desktop.getDesktop().browse(URI.create(url));
-                    System.out.println("Browser opened using Desktop API");
                 } else {
-                    // Fallback for Linux systems
-                    System.out.println("Desktop API not supported, trying xdg-open...");
-                    ProcessBuilder pb = new ProcessBuilder("xdg-open", url);
-                    pb.start(); // Don't wait for process to complete
-                    System.out.println("Browser command executed using xdg-open");
+                    // Fast fallback for Linux systems
+                    new ProcessBuilder("xdg-open", url).start();
                 }
             } catch (Exception e) {
                 System.err.println("Failed to open browser: " + e.getMessage());
-                
-                // Manual fallback - print URL for user to copy
-                System.out.println("Please manually open this URL in your browser:");
-                System.out.println(url);
+                System.out.println("Please manually open: " + url);
             }
         });
     }
