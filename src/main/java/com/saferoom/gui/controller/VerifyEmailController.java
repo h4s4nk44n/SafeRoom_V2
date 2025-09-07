@@ -14,6 +14,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.VBox;
 import com.saferoom.gui.utils.AlertUtils;
+import com.saferoom.client.ClientMenu;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
@@ -35,10 +36,21 @@ public class VerifyEmailController {
     private Timeline timeline;
     private final IntegerProperty countdownSeconds = new SimpleIntegerProperty();
     private static final int COUNTDOWN_START_VALUE = 60;
+    
+    // Username'i saklamak için
+    private String currentUsername;
 
     // Sürükleme için ofset değişkenleri
     private double xOffset = 0;
     private double yOffset = 0;
+    
+    /**
+     * RegisterController'dan username'i alır
+     */
+    public void setUsername(String username) {
+        this.currentUsername = username;
+        System.out.println("VerifyEmailController: Username set to " + username);
+    }
 
     @FXML
     public void initialize() {
@@ -111,9 +123,16 @@ public class VerifyEmailController {
      * "Resend" linkine tıklandığında çalışır.
      */
     private void handleResend() {
-        System.out.println("Yeniden kod gönderme isteği...");
+        if (currentUsername == null || currentUsername.isEmpty()) {
+            showAlert("Error", "Username not found. Please restart registration.");
+            return;
+        }
+        
+        System.out.println("Yeniden kod gönderme isteği - Username: " + currentUsername);
         // TODO: Backend'e yeniden kod gönderme isteği yollanacak.
+        // Şimdilik sadece timer'ı restart ediyoruz
         startResendTimer(); // Sayacı yeniden başlat
+        showAlert("Info", "Verification code has been resent to your email.");
     }
 
     private void handleVerify() {
@@ -121,11 +140,47 @@ public class VerifyEmailController {
         digitFields.forEach(field -> code.append(field.getText()));
 
         System.out.println("Doğrulama denendi. Kod: " + code.toString());
+        
         if (code.length() == 6) {
-            showAlert("Success", "Account verification feature will be implemented soon!");
+            if (currentUsername == null || currentUsername.isEmpty()) {
+                showAlert("Error", "Username not found. Please restart registration.");
+                return;
+            }
+            
+            try {
+                int verificationResult = ClientMenu.verify_user(currentUsername, code.toString());
+                
+                switch (verificationResult) {
+                    case 0:
+                        showAlert("Success", "Email verification completed successfully!");
+                        handleBackToLogin();
+                        break;
+                    case 1:
+                        showAlert("Error", "Invalid verification code. Please try again.");
+                        clearDigitFields();
+                        break;
+                    case 2:
+                        showAlert("Error", "Connection error. Please try again.");
+                        break;
+                    default:
+                        showAlert("Error", "Unexpected error occurred. Please try again.");
+                        break;
+                }
+            } catch (Exception e) {
+                System.err.println("Verification error: " + e.getMessage());
+                showAlert("Error", "Failed to verify code. Please check your connection.");
+            }
         } else {
             showAlert("Error", "Please enter the complete 6-digit code.");
         }
+    }
+    
+    /**
+     * Kod alanlarını temizler
+     */
+    private void clearDigitFields() {
+        digitFields.forEach(field -> field.clear());
+        digitFields.get(0).requestFocus();
     }
 
     private void handleBackToLogin() {

@@ -381,6 +381,7 @@ public class RegisterController {
 
     private void openVerificationScreen() {
         try {
+            
             // Mevcut kayıt penceresini kapat
             Stage currentStage = (Stage) rootPane.getScene().getWindow();
             currentStage.close();
@@ -388,7 +389,14 @@ public class RegisterController {
             // Yeni bir doğrulama penceresi aç
             Stage verifyStage = new Stage();
             verifyStage.initStyle(StageStyle.TRANSPARENT);
-            Parent root = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("/view/VerifyEmailView.fxml")));
+            
+            // FXMLLoader kullanarak controller'a erişim sağla
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/VerifyEmailView.fxml"));
+            Parent root = loader.load();
+            
+            // VerifyEmailController'a username'i geç
+            VerifyEmailController verifyController = loader.getController();
+            verifyController.setUsername(usernameField.getText().trim());
 
             // Sürükleme özelliği
             root.setOnMousePressed(event -> {
