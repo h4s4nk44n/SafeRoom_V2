@@ -18,6 +18,9 @@ import java.net.URL;
 import java.util.Objects;
 import java.util.Properties;
 
+import com.saferoom.oauth.OAuthManager;
+import com.saferoom.oauth.UserInfo;
+
 public class LoginController {
 
     // --- FXML Değişkenleri ---
@@ -251,8 +254,104 @@ private void logSecurityIncident(String attemptedUsername) {
             showError("Failed to load forgot password screen.");
         }
     }
-    private void handleGoogleLogin() { showAlert("Google ile Giriş", "Bu özellik yakında eklenecektir."); }
-    private void handleGitHubLogin() { showAlert("GitHub ile Giriş", "Bu özellik yakında eklenecektir."); }
+    private void handleGoogleLogin() { 
+        System.out.println("Starting Google OAuth...");
+        
+        // Show loading state
+        googleLoginButton.setDisable(true);
+        googleLoginButton.setText("Connecting...");
+        
+        OAuthManager.authenticateWithGoogle(userInfo -> {
+            // Reset button state
+            googleLoginButton.setDisable(false);
+            googleLoginButton.setText("Google");
+            
+            if (userInfo != null) {
+                System.out.println("Google OAuth successful: " + userInfo);
+                
+                // Check if user exists in database, if not create account
+                handleOAuthSuccess(userInfo);
+            } else {
+                showError("Google authentication failed. Please try again.");
+            }
+        });
+    }
+    
+    private void handleGitHubLogin() { 
+        System.out.println("Starting GitHub OAuth...");
+        
+        // Show loading state
+        githubLoginButton.setDisable(true);
+        githubLoginButton.setText("Connecting...");
+        
+        OAuthManager.authenticateWithGitHub(userInfo -> {
+            // Reset button state
+            githubLoginButton.setDisable(false);
+            githubLoginButton.setText("GitHub");
+            
+            if (userInfo != null) {
+                System.out.println("GitHub OAuth successful: " + userInfo);
+                
+                // Check if user exists in database, if not create account
+                handleOAuthSuccess(userInfo);
+            } else {
+                showError("GitHub authentication failed. Please try again.");
+            }
+        });
+    }
+    
+    /**
+     * Handle successful OAuth authentication
+     */
+    private void handleOAuthSuccess(UserInfo userInfo) {
+        try {
+            // TODO: Check if user exists in database
+            // If not, create user account with OAuth info
+            
+            // For now, directly proceed to main view
+            proceedToMainView(userInfo);
+            
+        } catch (Exception e) {
+            System.err.println("OAuth success handling error: " + e.getMessage());
+            showError("Authentication completed but login failed. Please try again.");
+        }
+    }
+    
+    /**
+     * Proceed to main application view
+     */
+    private void proceedToMainView(UserInfo userInfo) {
+        try {
+            Stage loginStage = (Stage) rootPane.getScene().getWindow();
+            loginStage.close();
+            
+            Stage mainStage = new Stage();
+            mainStage.initStyle(StageStyle.TRANSPARENT);
+            mainStage.setTitle("SafeRoom - " + userInfo.getName());
+            
+            Parent mainRoot = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("/view/MainView.fxml")));
+            Scene mainScene = new Scene(mainRoot, 1280, 800);
+            mainScene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+            
+            String cssPath = "/styles/styles.css";
+            URL cssUrl = getClass().getResource(cssPath);
+            if (cssUrl != null) {
+                mainScene.getStylesheets().add(cssUrl.toExternalForm());
+            }
+            
+            mainStage.setScene(mainScene);
+            mainStage.setResizable(true);
+            mainStage.setMinWidth(1024);
+            mainStage.setMinHeight(768);
+            mainStage.show();
+            
+            System.out.println("Successfully logged in with " + userInfo.getProvider() + ": " + userInfo.getEmail());
+            
+        } catch (IOException e) {
+            e.printStackTrace();
+            showError("Ana sayfa yüklenemedi.");
+        }
+    }
     private void showAlert(String title, String content) { AlertUtils.showInfo(title, content); }
     private void showError(String message) { AlertUtils.showError("Hata", message); }
 
