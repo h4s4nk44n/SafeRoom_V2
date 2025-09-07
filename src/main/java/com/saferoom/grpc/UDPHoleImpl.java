@@ -151,13 +151,13 @@ public class UDPHoleImpl extends UDPHoleGrpc.UDPHoleImplBase {
 	@Override 
 	public void verifyUser(Verification verify_code, StreamObserver<Status> responseObserver)
 	{
-		String username = verify_code.getUsername();
+		String usernameOrEmail = verify_code.getUsername(); // Artık username veya email olabilir
 		String verCode = verify_code.getVerify();
 		try {
-		String db_search = DBManager.getVerificationCode(username);
+		String db_search = DBManager.getVerificationCode(usernameOrEmail);
 		if(verCode.equals(db_search)) {
-			DBManager.Verify(username);
-	        DBManager.updateVerificationAttempts(username);
+			DBManager.Verify(usernameOrEmail);
+	        DBManager.updateVerificationAttempts(usernameOrEmail);
 
 			Status situtation = Status.newBuilder()
 					.setCode(0)

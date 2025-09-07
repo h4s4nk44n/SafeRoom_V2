@@ -154,8 +154,8 @@ public class DBManager {
 		String query = "UPDATE users SET verification_code = (?) WHERE username = (?)";
 		try(Connection conn = getConnection();
 				PreparedStatement stmt = conn.prepareStatement(query)){
-					stmt.setString(1, username);
-					stmt.setString(2, new_code);
+					stmt.setString(1, new_code);
+					stmt.setString(2, username);
 					
 					if(stmt.executeUpdate() > 0){
 						return true;
@@ -259,13 +259,14 @@ public class DBManager {
 	    }
 	}
 	
-	public static String getVerificationCode(String username) throws SQLException{
-		String query = "SELECT verification_code FROM users WHERE username = (?);";
+	public static String getVerificationCode(String usernameOrEmail) throws SQLException{
+		String query = "SELECT verification_code FROM users WHERE username = (?) OR email = (?)";
 		String code = null;
 		
 		try(Connection contact = getConnection();
 				PreparedStatement ptpt = contact.prepareStatement(query)){
-			ptpt.setString(1, username);
+			ptpt.setString(1, usernameOrEmail);
+			ptpt.setString(2, usernameOrEmail);
 			
 			try(ResultSet rs = ptpt.executeQuery()){
 				
@@ -280,14 +281,15 @@ public class DBManager {
 		}
 	}
 	
-	public static boolean Verify(String username) throws SQLException {
+	public static boolean Verify(String usernameOrEmail) throws SQLException {
 		
-		String query = "UPDATE users SET is_verified = TRUE WHERE username = (?);";
+		String query = "UPDATE users SET is_verified = TRUE WHERE username = (?) OR email = (?)";
 		
 		try(Connection contact = getConnection();
 				PreparedStatement ptpt = contact.prepareStatement(query)){
 			
-			ptpt.setString(1, username);
+			ptpt.setString(1, usernameOrEmail);
+			ptpt.setString(2, usernameOrEmail);
 			
 			return ptpt.executeUpdate() > 0;
 		}
@@ -369,7 +371,10 @@ public class DBManager {
 	        return usernameOrEmail; // Fallback
 	    }
 	}
-	public static boolean updateVerificationAttempts(String username) throws Exception {
+	public static boolean updateVerificationAttempts(String usernameOrEmail) throws Exception {
+	    // Önce gerçek username'i bul (email girilmişse)
+	    String actualUsername = getUsernameFromUsernameOrEmail(usernameOrEmail);
+	    
 	    String selectQuery = "SELECT attempts, last_attempt FROM verification_attempts WHERE username = ?;";
 	    String insertQuery = "INSERT INTO verification_attempts (username, attempts, last_attempt) VALUES (?, 1, CURRENT_TIMESTAMP) " +
 	                         "ON DUPLICATE KEY UPDATE attempts = attempts + 1, last_attempt = CURRENT_TIMESTAMP;";
@@ -378,7 +383,7 @@ public class DBManager {
 	    try (Connection conn = getConnection()) {
 
 	    	try (PreparedStatement selectStmt = conn.prepareStatement(selectQuery)) {
-	            selectStmt.setString(1, username);
+	            selectStmt.setString(1, actualUsername);
 	            ResultSet rs = selectStmt.executeQuery();
 
 	            int attempts = 0;
@@ -395,17 +400,17 @@ public class DBManager {
 
 	            if (attempts + 1 >= 3) {
 	                try (PreparedStatement blockStmt = conn.prepareStatement(blockQuery)) {
-	                    blockStmt.setString(1, username);
+	                    blockStmt.setString(1, actualUsername);
 	                    blockStmt.executeUpdate();
 	                }
 
-	                EmailSender.notifyAccountLock(username);  
+	                EmailSender.notifyAccountLock(actualUsername);  
 	                return false;
 	            }
 	            
 
 	            try (PreparedStatement insertStmt = conn.prepareStatement(insertQuery)) {
-	                insertStmt.setString(1, username);
+	                insertStmt.setString(1, actualUsername);
 	                insertStmt.executeUpdate();
 	                
 	                if (checkGlobalAnomaly("LOGIN")) {

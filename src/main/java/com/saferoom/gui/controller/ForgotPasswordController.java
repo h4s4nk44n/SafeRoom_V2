@@ -81,7 +81,7 @@ public class ForgotPasswordController {
 
         boolean is_mail_exists = ClientMenu.verify_email(email);
 
-        if(is_mail_exists){
+        if(!is_mail_exists){
             // Email exists, send reset code and navigate to verification
             System.out.println("Email exists! Sending reset code to: " + email);
             
@@ -99,10 +99,8 @@ public class ForgotPasswordController {
 
     private void navigateToVerifyResetCode(String email) throws IOException {
         
-        System.out.println("YYYYYYY");
         Stage currentStage = (Stage) rootPane.getScene().getWindow();
         currentStage.close();
-        System.out.println("XXXXXXX");
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/VerifyResetCodeView.fxml"));
         Parent root = loader.load();
         

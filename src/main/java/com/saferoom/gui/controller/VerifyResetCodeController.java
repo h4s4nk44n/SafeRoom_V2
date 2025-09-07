@@ -8,6 +8,8 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+
+import com.saferoom.client.ClientMenu;
 import com.saferoom.gui.utils.AlertUtils;
 import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
@@ -172,8 +174,9 @@ public class VerifyResetCodeController {
             return;
         }
         
+        int result_from_server = ClientMenu.verify_user(this.userEmail, enteredCode); 
         // Verify the code
-        if (enteredCode.equals(generatedCode)) {
+        if (result_from_server == 0) {
             System.out.println("Reset code verified successfully for: " + userEmail);
             
             try {
@@ -246,9 +249,8 @@ public class VerifyResetCodeController {
         clearDigitFields();
         digitFields.get(0).requestFocus();
         
-        System.out.println("New reset code sent to: " + userEmail);
-        System.out.println("New code: " + generatedCode + " (for testing)");
-        
+        ClientMenu.verify_email(this.userEmail);
+        System.out.println("New reset code sent to: " + userEmail);        
         startResendTimer();
         
         showInfo("Verification code resent to " + userEmail);
