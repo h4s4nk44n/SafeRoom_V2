@@ -10,25 +10,59 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 public class OAuthManager {
     
-    // OAuth Configuration - Bu değerleri Google/GitHub'dan alacaksın
-    private static final String GOOGLE_CLIENT_ID = "your-google-client-id.apps.googleusercontent.com";
-    private static final String GOOGLE_CLIENT_SECRET = "your-google-client-secret";
-    private static final String GITHUB_CLIENT_ID = "your-github-client-id";
-    private static final String GITHUB_CLIENT_SECRET = "your-github-client-secret";
-    
-    private static final String REDIRECT_URI = "http://localhost:8080/callback";
-    private static final int CALLBACK_PORT = 8080;
+    // OAuth Configuration - loaded from properties file
+    private static String GOOGLE_CLIENT_ID;
+    private static String GOOGLE_CLIENT_SECRET;
+    private static String GITHUB_CLIENT_ID;
+    private static String GITHUB_CLIENT_SECRET;
+    private static String REDIRECT_URI;
+    private static int CALLBACK_PORT;
     
     private static HttpServer callbackServer;
     private static CompletableFuture<String> authCodeFuture;
+    
+    // Static block to load configuration
+    static {
+        loadOAuthConfiguration();
+    }
+    
+    /**
+     * Load OAuth configuration from properties file
+     */
+    private static void loadOAuthConfiguration() {
+        try {
+            Properties props = new Properties();
+            props.load(OAuthManager.class.getResourceAsStream("/oauthconfig.properties"));
+            
+            GOOGLE_CLIENT_ID = props.getProperty("google.client.id");
+            GOOGLE_CLIENT_SECRET = props.getProperty("google.client.secret");
+            GITHUB_CLIENT_ID = props.getProperty("github.client.id");
+            GITHUB_CLIENT_SECRET = props.getProperty("github.client.secret");
+            REDIRECT_URI = props.getProperty("oauth.redirect.uri");
+            CALLBACK_PORT = Integer.parseInt(props.getProperty("oauth.callback.port"));
+            
+            System.out.println("✅ OAuth configuration loaded successfully");
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to load OAuth configuration: " + e.getMessage());
+            // Fallback values
+            REDIRECT_URI = "http://localhost:8080/callback";
+            CALLBACK_PORT = 8080;
+        }
+    }
 
     /**
      * Google OAuth Authentication
@@ -38,13 +72,21 @@ public class OAuthManager {
             // Start callback server
             startCallbackServer();
             
-            // Build Google OAuth URL
+            // Wait for server to be fully ready
+            Thread.sleep(1000); // 1 second to ensure server is ready
+            
+            // Build Google OAuth URL with proper encoding
+            String redirectUri = URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8);
+            String scope = URLEncoder.encode("email profile", StandardCharsets.UTF_8);
+            
             String googleAuthUrl = "https://accounts.google.com/oauth/authorize?" +
                 "client_id=" + GOOGLE_CLIENT_ID + "&" +
-                "redirect_uri=" + REDIRECT_URI + "&" +
-                "scope=email profile&" +
+                "redirect_uri=" + redirectUri + "&" +
+                "scope=" + scope + "&" +
                 "response_type=code&" +
                 "access_type=offline";
+            
+            System.out.println("Opening Google OAuth URL: " + googleAuthUrl);
             
             // Open browser
             openBrowser(googleAuthUrl);
@@ -75,11 +117,19 @@ public class OAuthManager {
             // Start callback server
             startCallbackServer();
             
-            // Build GitHub OAuth URL
+            // Wait for server to be fully ready
+            Thread.sleep(1000); // 1 second to ensure server is ready
+            
+            // Build GitHub OAuth URL with proper encoding
+            String redirectUri = URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8);
+            String scope = URLEncoder.encode("user:email", StandardCharsets.UTF_8);
+            
             String githubAuthUrl = "https://github.com/login/oauth/authorize?" +
                 "client_id=" + GITHUB_CLIENT_ID + "&" +
-                "redirect_uri=" + REDIRECT_URI + "&" +
-                "scope=user:email";
+                "redirect_uri=" + redirectUri + "&" +
+                "scope=" + scope;
+            
+            System.out.println("Opening GitHub OAuth URL: " + githubAuthUrl);
             
             // Open browser
             openBrowser(githubAuthUrl);
@@ -106,23 +156,77 @@ public class OAuthManager {
      * Start localhost callback server
      */
     private static void startCallbackServer() throws IOException {
-        authCodeFuture = new CompletableFuture<>();
-        
-        callbackServer = HttpServer.create(new InetSocketAddress(CALLBACK_PORT), 0);
-        callbackServer.createContext("/callback", new CallbackHandler());
-        callbackServer.start();
-        
-        System.out.println("OAuth callback server started on port " + CALLBACK_PORT);
+        try {
+            authCodeFuture = new CompletableFuture<>();
+            
+            // Stop any existing server first
+            stopCallbackServer();
+            
+            // Create server - use localhost (127.0.0.1) for binding but localhost URL for display
+            InetSocketAddress address = new InetSocketAddress("127.0.0.1", CALLBACK_PORT);
+            callbackServer = HttpServer.create(address, 0);
+            callbackServer.createContext("/callback", new CallbackHandler());
+            
+            // Use a more stable thread pool
+            ExecutorService executor = Executors.newFixedThreadPool(4);
+            callbackServer.setExecutor(executor);
+            callbackServer.start();
+            
+            System.out.println("✅ OAuth callback server STARTED on http://localhost:" + CALLBACK_PORT + "/callback");
+            System.out.println("✅ Server will stay alive until callback received or 5 minutes timeout");
+            
+            // Verify server is actually listening
+            Thread.sleep(500); // Give server time to bind to port
+            
+            // Server timeout - 5 minutes
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Thread.sleep(300000); // 5 minutes
+                    if (!authCodeFuture.isDone()) {
+                        System.out.println("⏰ OAuth server timeout - stopping server");
+                        stopCallbackServer();
+                        authCodeFuture.complete(null);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, executor);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to start callback server: " + e.getMessage());
+            e.printStackTrace();
+            throw new IOException("Cannot start OAuth callback server", e);
+        }
     }
 
     /**
      * Stop callback server
      */
     private static void stopCallbackServer() {
-        if (callbackServer != null) {
-            callbackServer.stop(0);
-            callbackServer = null;
-            System.out.println("OAuth callback server stopped");
+        try {
+            if (callbackServer != null) {
+                System.out.println("Stopping OAuth callback server...");
+                
+                // Gracefully stop the server
+                callbackServer.stop(3); // Give 3 seconds to finish requests
+                
+                // Give time for proper shutdown
+                Thread.sleep(100);
+                
+                callbackServer = null;
+                System.out.println("✅ OAuth callback server stopped gracefully");
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Error stopping callback server: " + e.getMessage());
+            // Force stop if graceful stop fails
+            if (callbackServer != null) {
+                try {
+                    callbackServer.stop(0); // Force immediate stop
+                    callbackServer = null;
+                } catch (Exception ex) {
+                    System.err.println("Failed to force stop server: " + ex.getMessage());
+                }
+            }
         }
     }
 
@@ -130,16 +234,29 @@ public class OAuthManager {
      * Open system browser
      */
     private static void openBrowser(String url) {
-        try {
-            if (Desktop.isDesktopSupported()) {
-                Desktop.getDesktop().browse(URI.create(url));
-            } else {
-                // Fallback for Linux systems
-                Runtime.getRuntime().exec("xdg-open " + url);
+        // Run browser opening in background thread to avoid blocking UI
+        CompletableFuture.runAsync(() -> {
+            try {
+                System.out.println("Attempting to open browser with URL: " + url);
+                
+                if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                    Desktop.getDesktop().browse(URI.create(url));
+                    System.out.println("Browser opened using Desktop API");
+                } else {
+                    // Fallback for Linux systems
+                    System.out.println("Desktop API not supported, trying xdg-open...");
+                    ProcessBuilder pb = new ProcessBuilder("xdg-open", url);
+                    pb.start(); // Don't wait for process to complete
+                    System.out.println("Browser command executed using xdg-open");
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to open browser: " + e.getMessage());
+                
+                // Manual fallback - print URL for user to copy
+                System.out.println("Please manually open this URL in your browser:");
+                System.out.println(url);
             }
-        } catch (Exception e) {
-            System.err.println("Failed to open browser: " + e.getMessage());
-        }
+        });
     }
 
     /**
@@ -253,13 +370,18 @@ public class OAuthManager {
                         String userBody = userResponse.body();
                         
                         UserInfo userInfo = new UserInfo();
-                        userInfo.setId(parseJsonValue(userBody, "id"));
+                        userInfo.setId(parseJsonValue(userBody, "node_id")); // GitHub uses node_id
                         userInfo.setEmail(parseJsonValue(userBody, "email"));
                         userInfo.setName(parseJsonValue(userBody, "name"));
                         userInfo.setProvider("GitHub");
                         
+                        System.out.println("GitHub OAuth successful: " + userInfo);
+                        System.out.println("Successfully logged in with GitHub: " + userInfo.getEmail());
+                        
                         Platform.runLater(() -> callback.accept(userInfo));
                     } else {
+                        System.err.println("Failed to get GitHub user info. Status: " + 
+                            (userResponse != null ? userResponse.statusCode() : "null"));
                         Platform.runLater(() -> callback.accept(null));
                     }
                 })
@@ -300,32 +422,90 @@ public class OAuthManager {
     private static class CallbackHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            String query = exchange.getRequestURI().getQuery();
-            String authCode = null;
-            
-            if (query != null && query.contains("code=")) {
-                // Extract auth code
-                String[] params = query.split("&");
-                for (String param : params) {
-                    if (param.startsWith("code=")) {
-                        authCode = param.substring(5);
-                        break;
+            try {
+                System.out.println("🔄 Received OAuth callback request: " + exchange.getRequestURI());
+                System.out.println("🔍 Request method: " + exchange.getRequestMethod());
+                System.out.println("🔍 Remote address: " + exchange.getRemoteAddress());
+                
+                String query = exchange.getRequestURI().getQuery();
+                String authCode = null;
+                String error = null;
+                
+                if (query != null) {
+                    System.out.println("🔍 Query parameters: " + query);
+                    // Parse parameters
+                    String[] params = query.split("&");
+                    for (String param : params) {
+                        if (param.startsWith("code=")) {
+                            authCode = param.substring(5);
+                            System.out.println("Authorization code received successfully");
+                        } else if (param.startsWith("error=")) {
+                            error = param.substring(6);
+                            System.err.println("OAuth error received: " + error);
+                        }
                     }
                 }
+                
+                // Send response to browser
+                String response;
+                int statusCode;
+                
+                if (authCode != null) {
+                    response = """
+                        <html>
+                        <head><title>SafeRoom OAuth</title></head>
+                        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                            <h2 style="color: green;">✅ Authentication Successful!</h2>
+                            <p>You can close this window and return to SafeRoom.</p>
+                            <p>Redirecting to SafeRoom...</p>
+                            <script>setTimeout(() => window.close(), 3000);</script>
+                        </body>
+                        </html>
+                        """;
+                    statusCode = 200;
+                } else {
+                    response = """
+                        <html>
+                        <head><title>SafeRoom OAuth</title></head>
+                        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                            <h2 style="color: red;">❌ Authentication Failed!</h2>
+                            <p>Error: """ + (error != null ? error : "Unknown error") + """
+                            </p>
+                            <p>Please try again.</p>
+                            <script>setTimeout(() => window.close(), 5000);</script>
+                        </body>
+                        </html>
+                        """;
+                    statusCode = 400;
+                }
+                
+                // Set response headers
+                exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
+                exchange.getResponseHeaders().set("Cache-Control", "no-cache");
+                
+                // Send response
+                byte[] responseBytes = response.getBytes("UTF-8");
+                exchange.sendResponseHeaders(statusCode, responseBytes.length);
+                
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(responseBytes);
+                    os.flush();
+                }
+                
+                // Complete the future with result
+                authCodeFuture.complete(authCode);
+                
+                System.out.println("OAuth callback response sent successfully");
+                
+            } catch (Exception e) {
+                System.err.println("Error in OAuth callback handler: " + e.getMessage());
+                e.printStackTrace();
+                
+                // Complete with null in case of error
+                if (authCodeFuture != null && !authCodeFuture.isDone()) {
+                    authCodeFuture.complete(null);
+                }
             }
-            
-            // Send success response to browser
-            String response = authCode != null ? 
-                "<html><body><h2>✅ Authentication Successful!</h2><p>You can close this window and return to SafeRoom.</p></body></html>" :
-                "<html><body><h2>❌ Authentication Failed!</h2><p>Please try again.</p></body></html>";
-            
-            exchange.sendResponseHeaders(200, response.getBytes().length);
-            OutputStream os = exchange.getResponseBody();
-            os.write(response.getBytes());
-            os.close();
-            
-            // Complete the future
-            authCodeFuture.complete(authCode);
         }
     }
 }

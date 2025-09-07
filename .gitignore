@@ -1,2 +1,7 @@
 /.gradle/
 /build/
+
+# Sensitive configuration files
+src/main/resources/oauthconfig.properties
+src/main/resources/dbconfig.properties  
+src/main/resources/emailconfig.properties
