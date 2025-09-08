@@ -877,9 +877,9 @@ public void sendFriendRequest(FriendRequest request, StreamObserver<FriendRespon
 					.setReceiver((String) sentRequest.get("receiver"))
 					.setMessage((String) sentRequest.get("message"))
 					.setSentAt(dateFormat.format((Timestamp) sentRequest.get("sentAt")))
-					.setSenderEmail((String) sentRequest.get("receiverEmail"))
+					.setSenderEmail((String) sentRequest.get("receiverEmail")) // Receiver's email in sender field for display
 					.setSenderLastSeen(sentRequest.get("receiverLastSeen") != null ? 
-						dateFormat.format((Timestamp) sentRequest.get("receiverLastSeen")) : "")
+						dateFormat.format((Timestamp) sentRequest.get("receiverLastSeen")) : "") // Receiver's last seen
 					.build();
 				
 				responseBuilder.addRequests(friendRequestInfo);
