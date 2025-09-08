@@ -12,11 +12,15 @@
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <!-- ✅ FriendsView.fxml - Responsive Alt ScrollPane -->
-<VBox styleClass="page-container" spacing="20.0"
+<VBox styleClass="page-container" spacing="20.0" stylesheets="@../styles/styles.css"
       xmlns="http://javafx.com/javafx/17"
       xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.saferoom.gui.controller.FriendsController"
       VBox.vgrow="ALWAYS">
+
+    <padding>
+        <Insets bottom="32.0" left="32.0" right="32.0" top="32.0" />
+    </padding>
 
     <children>
         <!-- Arama ve Kısayol Butonu -->
@@ -25,7 +29,7 @@
                 <VBox HBox.hgrow="ALWAYS">
                     <children>
                         <TextField fx:id="searchField" promptText="Search friends..." styleClass="search-field" />
-                        <ListView fx:id="searchResultsList" visible="false" prefHeight="200" styleClass="search-results-list" />
+                        <ListView fx:id="searchResultsList" visible="false" prefHeight="200" styleClass="search-results-list" maxHeight="200" />
                     </children>
                 </VBox>
                 <JFXButton styleClass="icon-button-filled">

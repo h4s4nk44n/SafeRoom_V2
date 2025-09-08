@@ -28,6 +28,7 @@ import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -132,17 +133,24 @@ public class FriendsController {
         String searchTerm = searchField.getText().trim();
         if (searchTerm.length() < 2) return;
         
+        System.out.println("🔍 Searching for: '" + searchTerm + "'");
+        
         // Background thread'de arama yap
         CompletableFuture.supplyAsync(() -> {
             try {
                 String currentUser = UserSession.getInstance().getDisplayName();
-                return ClientMenu.searchUsers(searchTerm, currentUser);
+                System.out.println("📡 Sending search request to server...");
+                List<Map<String, Object>> results = ClientMenu.searchUsers(searchTerm, currentUser);
+                System.out.println("✅ Got " + results.size() + " results from server");
+                return results;
             } catch (Exception e) {
-                System.err.println("Search error: " + e.getMessage());
+                System.err.println("❌ Search error: " + e.getMessage());
+                e.printStackTrace();
                 return Collections.<Map<String, Object>>emptyList();
             }
         }).thenAcceptAsync(results -> {
             Platform.runLater(() -> {
+                System.out.println("🎨 Updating UI with " + results.size() + " results");
                 searchResultsList.getItems().clear();
                 searchResultsList.getItems().addAll(results);
             });

@@ -327,8 +327,14 @@ public class UDPHoleImpl extends UDPHoleGrpc.UDPHoleImplBase {
 			String searchTerm = request.getSearchTerm();
 			String currentUser = request.getCurrentUser();
 			
+			// Debug log
+			System.out.println("🔍 User Search Request:");
+			System.out.println("  Search Term: '" + searchTerm + "'");
+			System.out.println("  Current User: '" + currentUser + "'");
+			
 			// Minimum 2 karakter kontrolü
 			if (searchTerm.length() < 2) {
+				System.out.println("❌ Search term too short (less than 2 characters)");
 				responseObserver.onNext(SearchResponse.newBuilder()
 					.setSuccess(false)
 					.setMessage("En az 2 karakter girin")
@@ -338,6 +344,13 @@ public class UDPHoleImpl extends UDPHoleGrpc.UDPHoleImplBase {
 			}
 			
 			List<java.util.Map<String, Object>> results = DBManager.searchUsers(searchTerm, currentUser, 10);
+			
+			// Debug: Results log
+			System.out.println("📊 Search Results:");
+			System.out.println("  Found " + results.size() + " users:");
+			for (java.util.Map<String, Object> user : results) {
+				System.out.println("    - " + user.get("username") + " (" + user.get("email") + ")");
+			}
 
 			SearchResponse.Builder responseBuilder = SearchResponse.newBuilder().setSuccess(true);
 				
@@ -350,10 +363,13 @@ public class UDPHoleImpl extends UDPHoleGrpc.UDPHoleImplBase {
 					.build());
 			}
 			
+			System.out.println("✅ Search completed successfully, sending response to client");
 			responseObserver.onNext(responseBuilder.build());
 			responseObserver.onCompleted();
 			
 		} catch (Exception e) {
+			System.err.println("❌ Search Error: " + e.getMessage());
+			e.printStackTrace();
 			responseObserver.onError(e);
 		}
 	}
