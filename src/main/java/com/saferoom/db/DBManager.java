@@ -1232,11 +1232,10 @@ public class DBManager {
      */
     public static boolean updateHeartbeat(String username, String sessionId) throws SQLException {
         String query = """
-            INSERT INTO user_sessions (username, session_id, last_heartbeat, status) 
-            VALUES (?, ?, CURRENT_TIMESTAMP, 'online')
+            INSERT INTO user_sessions (username, session_id, last_heartbeat) 
+            VALUES (?, ?, CURRENT_TIMESTAMP)
             ON DUPLICATE KEY UPDATE 
-                last_heartbeat = CURRENT_TIMESTAMP,
-                status = 'online'
+                last_heartbeat = CURRENT_TIMESTAMP
         """;
         
         try (Connection conn = getConnection();
@@ -1256,7 +1255,6 @@ public class DBManager {
         String query = """
             SELECT COUNT(*) FROM user_sessions 
             WHERE username = ? 
-            AND status = 'online'
             AND last_heartbeat >= DATE_SUB(NOW(), INTERVAL 30 SECOND)
         """;
         
