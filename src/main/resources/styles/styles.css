@@ -3429,13 +3429,13 @@
   -fx-fill: #10b981;
 }
 
-.stats-icon-security {
-  -fx-icon-color: #f59e0b;
-  -fx-fill: #f59e0b;
+.stats-icon-activity {
+  -fx-icon-color: #8b5cf6;
+  -fx-fill: #8b5cf6;
 }
 
-.security-progress {
-  -fx-accent: #f59e0b;
+.activity-progress {
+  -fx-accent: #8b5cf6;
 }
 
 /* Activity Section */

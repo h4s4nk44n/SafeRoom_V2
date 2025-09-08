@@ -148,13 +148,13 @@
                                        </children>
                                     </VBox>
                                     
-                                    <!-- Security Stats -->
+                                    <!-- Activity Stats -->
                                     <VBox styleClass="stats-card" HBox.hgrow="ALWAYS">
                                        <children>
                                           <HBox alignment="CENTER_LEFT" spacing="10.0">
                                              <children>
-                                                <FontIcon iconLiteral="fas-shield-alt" iconSize="24" styleClass="stats-icon-security" />
-                                                <Label styleClass="stats-title" text="Security" />
+                                                <FontIcon iconLiteral="fas-chart-line" iconSize="24" styleClass="stats-icon-activity" />
+                                                <Label styleClass="stats-title" text="Activity" />
                                              </children>
                                           </HBox>
                                           <VBox spacing="8.0">
@@ -165,7 +165,7 @@
                                                       <Label styleClass="stats-description" text="Score" />
                                                    </children>
                                                 </HBox>
-                                                <ProgressBar fx:id="securityProgressBar" prefWidth="120.0" styleClass="security-progress" />
+                                                <ProgressBar fx:id="securityProgressBar" prefWidth="120.0" styleClass="activity-progress" />
                                              </children>
                                           </VBox>
                                        </children>

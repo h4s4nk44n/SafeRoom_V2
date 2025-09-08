@@ -14,6 +14,7 @@ import javafx.scene.layout.VBox;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.CompletableFuture;
 
@@ -142,9 +143,9 @@ public class ProfileController {
             messagesSentLabel.setText(String.valueOf(stats.getMessagesSent()));
             filesSharedLabel.setText(String.valueOf(stats.getFilesShared()));
             
-            double securityScore = stats.getSecurityScore();
-            securityScoreLabel.setText(String.format("%.1f", securityScore));
-            securityProgressBar.setProgress(securityScore / 10.0); // Assuming score is out of 10
+            double activityScore = stats.getSecurityScore(); // Proto'da hala securityScore ama activity olarak kullanıyoruz
+            securityScoreLabel.setText(String.format("%.1f", activityScore));
+            securityProgressBar.setProgress(activityScore / 10.0); // 10 üzerinden score
         }
         
         // Update friend action button
@@ -366,11 +367,30 @@ public class ProfileController {
     // Utility methods for date formatting
     private String formatDate(String dateStr) {
         try {
-            // Assuming the date comes in ISO format
-            LocalDateTime date = LocalDateTime.parse(dateStr);
+            // Try different date formats
+            if (dateStr == null || dateStr.isEmpty()) {
+                return "Unknown";
+            }
+            
+            // Remove any trailing timezone info and parse
+            String cleanDateStr = dateStr.replace("T", " ").split("\\.")[0];
+            
+            // Parse MySQL timestamp format
+            LocalDateTime date = LocalDateTime.parse(cleanDateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
             return date.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"));
         } catch (Exception e) {
-            return dateStr; // Return as-is if parsing fails
+            // Fallback: try to extract just the date part
+            try {
+                if (dateStr.contains(" ")) {
+                    String datePart = dateStr.split(" ")[0];
+                    LocalDate date = LocalDate.parse(datePart);
+                    return date.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"));
+                }
+            } catch (Exception e2) {
+                // If all parsing fails, return a cleaned version
+                return dateStr.split("T")[0]; // Just return YYYY-MM-DD
+            }
+            return "Unknown";
         }
     }
     

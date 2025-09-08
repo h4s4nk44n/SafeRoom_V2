@@ -638,7 +638,7 @@ public class DBManager {
 				   COALESCE(s.rooms_joined, 0) as rooms_joined,
 				   COALESCE(s.files_shared, 0) as files_shared,
 				   COALESCE(s.messages_sent, 0) as messages_sent,
-				   COALESCE(s.security_score, 0.0) as security_score
+				   COALESCE(s.activity_score, 0.0) as activity_score
 			FROM users u
 			LEFT JOIN user_stats s ON u.username = s.username
 			WHERE u.username = ? AND u.is_verified = TRUE
@@ -664,7 +664,7 @@ public class DBManager {
 				stats.put("roomsJoined", rs.getInt("rooms_joined"));
 				stats.put("filesShared", rs.getInt("files_shared"));
 				stats.put("messagesSent", rs.getInt("messages_sent"));
-				stats.put("securityScore", rs.getDouble("security_score"));
+				stats.put("activityScore", rs.getDouble("activity_score"));
 				profile.put("stats", stats);
 				
 				// Friend status
@@ -825,18 +825,40 @@ public class DBManager {
 	/**
 	 * Kullanıcı aktivitesi kaydet
 	 */
+	/**
+	 * Kullanıcı aktivitesini logla - Gizlilik odaklı, detay bilgi yok
+	 */
 	public static void logUserActivity(String username, String activityType, String description, String activityData) {
-		String query = "INSERT INTO user_activities (username, activity_type, activity_description, activity_data) VALUES (?, ?, ?, ?)";
+		// Gizlilik için detay bilgileri kaydetme - sadece genel aktivite türü
+		String privacyFriendlyDescription = getPrivacyFriendlyDescription(activityType);
+		
+		String query = "INSERT INTO user_activities (username, activity_type, activity_description) VALUES (?, ?, ?)";
 		try (Connection conn = getConnection();
 			 PreparedStatement stmt = conn.prepareStatement(query)) {
 			stmt.setString(1, username);
 			stmt.setString(2, activityType);
-			stmt.setString(3, description);
-			stmt.setString(4, activityData);
+			stmt.setString(3, privacyFriendlyDescription);
 			stmt.executeUpdate();
 		} catch (SQLException e) {
 			System.out.println( e.getMessage());
 		}
+	}
+	
+	/**
+	 * Aktivite türü için gizlilik dostu açıklama
+	 */
+	private static String getPrivacyFriendlyDescription(String activityType) {
+		return switch (activityType) {
+			case "room_created" -> "Created a secure room";
+			case "room_joined" -> "Joined a room";
+			case "file_shared" -> "Shared a file";
+			case "message_sent" -> "Sent a message";
+			case "login" -> "Logged in";
+			case "logout" -> "Logged out";
+			case "friend_request_sent" -> "Sent a friend request";
+			case "friend_request_received" -> "Received a friend request";
+			default -> "Activity performed";
+		};
 	}
 	
 	/**
