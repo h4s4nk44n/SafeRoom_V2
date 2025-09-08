@@ -15,6 +15,8 @@ rpc VerifyEmail(Request_Client) returns (Status);
 
 rpc ChangePassword(Request_Client) returns (Status);
 
+rpc SearchUsers(SearchRequest) returns (SearchResponse);
+
 rpc RegisterClient(Stun_Info) returns (Status);
 
 rpc GetStunInfo(Request_Client) returns (Stun_Info);
@@ -129,4 +131,22 @@ message DecryptedPacket{
  string recvedBy = 2;
  string plaintext = 3;
 
+}
+
+message SearchRequest {
+    string searchTerm = 1;
+    string currentUser = 2;
+}
+
+message UserResult {
+    string username = 1;
+    string email = 2;
+    bool isOnline = 3;
+    string lastSeen = 4;
+}
+
+message SearchResponse {
+    bool success = 1;
+    string message = 2;
+    repeated UserResult users = 3;
 }

@@ -582,4 +582,46 @@ public class DBManager {
 			
 		}
 	
-	}}
+	}
+		/**
+	 * Kullanıcı arama metodu - username veya email'e göre arama yapar
+	 */
+	public static java.util.List<java.util.Map<String, Object>> searchUsers(String searchTerm, String currentUser, int limit) throws SQLException {
+		String query = """
+			SELECT username, email, last_login, is_verified 
+			FROM users 
+			WHERE (username LIKE ? OR email LIKE ?) 
+			AND username != ? 
+			AND is_verified = TRUE 
+			ORDER BY 
+				CASE WHEN username LIKE ? THEN 1 ELSE 2 END,
+				last_login DESC 
+			LIMIT ?
+		""";
+		
+		java.util.List<java.util.Map<String, Object>> results = new java.util.ArrayList<>();
+		String searchPattern = "%" + searchTerm + "%";
+		String exactPattern = searchTerm + "%";
+		
+		try (Connection conn = getConnection();
+			 PreparedStatement stmt = conn.prepareStatement(query)) {
+			
+			stmt.setString(1, searchPattern);
+			stmt.setString(2, searchPattern); 
+			stmt.setString(3, currentUser);
+			stmt.setString(4, exactPattern);
+			stmt.setInt(5, limit);
+			
+			ResultSet rs = stmt.executeQuery();
+			while (rs.next()) {
+				java.util.Map<String, Object> user = new java.util.HashMap<>();
+				user.put("username", rs.getString("username"));
+				user.put("email", rs.getString("email"));
+				user.put("lastLogin", rs.getTimestamp("last_login"));
+				user.put("isVerified", rs.getBoolean("is_verified"));
+				results.add(user);
+			}
+		}
+		return results;
+	}
+}

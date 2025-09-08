@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Base64;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -26,6 +27,9 @@ import com.saferoom.grpc.SafeRoomProto.Create_User;
 import com.saferoom.grpc.SafeRoomProto.DecryptedPacket;
 import com.saferoom.grpc.SafeRoomProto.EncryptedAESKeyMessage;
 import com.saferoom.grpc.SafeRoomProto.EncryptedPacket;
+import com.saferoom.grpc.SafeRoomProto.SearchRequest;
+import com.saferoom.grpc.SafeRoomProto.SearchResponse;
+import com.saferoom.grpc.SafeRoomProto.UserResult;
 import com.saferoom.db.*;
 import com.saferoom.email.EmailSender;
 import com.saferoom.sessions.*;
@@ -271,7 +275,6 @@ public class UDPHoleImpl extends UDPHoleGrpc.UDPHoleImplBase {
 				return;
 			}
 			
-			// Password'u değiştir
 			if (DBManager.change_users_password(email, newPassword)) {
 				System.out.println("Password successfully changed for: " + email);
 				
@@ -318,6 +321,42 @@ public class UDPHoleImpl extends UDPHoleGrpc.UDPHoleImplBase {
 	    responseObserver.onCompleted();
 	}
 
+	@Override
+	public void searchUsers(SearchRequest request, StreamObserver<SearchResponse> responseObserver) {
+		try {
+			String searchTerm = request.getSearchTerm();
+			String currentUser = request.getCurrentUser();
+			
+			// Minimum 2 karakter kontrolü
+			if (searchTerm.length() < 2) {
+				responseObserver.onNext(SearchResponse.newBuilder()
+					.setSuccess(false)
+					.setMessage("En az 2 karakter girin")
+					.build());
+				responseObserver.onCompleted();
+				return;
+			}
+			
+			List<java.util.Map<String, Object>> results = DBManager.searchUsers(searchTerm, currentUser, 10);
+
+			SearchResponse.Builder responseBuilder = SearchResponse.newBuilder().setSuccess(true);
+				
+			for (java.util.Map<String, Object> user : results) {
+				responseBuilder.addUsers(UserResult.newBuilder()
+					.setUsername((String) user.get("username"))
+					.setEmail((String) user.get("email"))
+					.setIsOnline(false)
+					.setLastSeen(user.get("lastLogin") != null ? user.get("lastLogin").toString() : "")
+					.build());
+			}
+			
+			responseObserver.onNext(responseBuilder.build());
+			responseObserver.onCompleted();
+			
+		} catch (Exception e) {
+			responseObserver.onError(e);
+		}
+	}
 
 	@Override
 	public void punchTest(FromTo request, StreamObserver<Status> responseObserver) {

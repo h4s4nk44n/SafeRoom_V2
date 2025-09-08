@@ -22,7 +22,12 @@
         <!-- Arama ve Kısayol Butonu -->
         <HBox spacing="20.0">
             <children>
-                <TextField promptText="Search friends..." styleClass="search-field" HBox.hgrow="ALWAYS" />
+                <VBox HBox.hgrow="ALWAYS">
+                    <children>
+                        <TextField fx:id="searchField" promptText="Search friends..." styleClass="search-field" />
+                        <ListView fx:id="searchResultsList" visible="false" prefHeight="200" styleClass="search-results-list" />
+                    </children>
+                </VBox>
                 <JFXButton styleClass="icon-button-filled">
                     <graphic>
                         <FontIcon iconLiteral="fas-user-plus" styleClass="header-icon" />

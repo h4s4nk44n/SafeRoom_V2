@@ -208,5 +208,41 @@ public class ClientMenu{
 		}
 	}
 
+	public static java.util.List<java.util.Map<String, Object>> searchUsers(String searchTerm, String currentUser) throws Exception {
+		ManagedChannel channel = null;
+		try {
+			channel = ManagedChannelBuilder.forAddress(Server, Port)
+				.usePlaintext()
+				.build();
+			
+			UDPHoleGrpc.UDPHoleBlockingStub blockingStub = UDPHoleGrpc.newBlockingStub(channel)
+				.withDeadlineAfter(10, TimeUnit.SECONDS);
+			
+			SafeRoomProto.SearchRequest request = SafeRoomProto.SearchRequest.newBuilder()
+				.setSearchTerm(searchTerm)
+				.setCurrentUser(currentUser)
+				.build();
+				
+			SafeRoomProto.SearchResponse response = blockingStub.searchUsers(request);
+			
+			java.util.List<java.util.Map<String, Object>> results = new java.util.ArrayList<>();
+			if (response.getSuccess()) {
+				for (SafeRoomProto.UserResult user : response.getUsersList()) {
+					java.util.Map<String, Object> userMap = new java.util.HashMap<>();
+					userMap.put("username", user.getUsername());
+					userMap.put("email", user.getEmail());
+					userMap.put("isOnline", user.getIsOnline());
+					userMap.put("lastSeen", user.getLastSeen());
+					results.add(userMap);
+				}
+			}
+			return results;
+		} finally {
+			if (channel != null) {
+				channel.shutdown();
+			}
+		}
+	}
+
 	}
 
