@@ -104,7 +104,8 @@ public class FriendsController {
                             requestInfo.getSender(),
                             "Friend Request",
                             "Sent: " + requestInfo.getSentAt(),
-                            "Pending"
+                            "Pending",
+                            requestInfo.getRequestId() // requestId'yi ekle
                         );
                         pendingFriends.add(pendingFriend);
                     }
@@ -429,6 +430,7 @@ public class FriendsController {
                 return response;
             } catch (Exception e) {
                 System.err.println("❌ Error accepting friend request: " + e.getMessage());
+                e.printStackTrace();
                 return null;
             }
         }).thenAcceptAsync(response -> {
@@ -441,7 +443,8 @@ public class FriendsController {
                         instance.loadFriendsData();
                     }
                 } else {
-                    System.out.println("❌ Failed to accept friend request");
+                    String errorMsg = response != null ? response.getMessage() : "Unknown error";
+                    System.out.println("❌ Failed to accept friend request: " + errorMsg);
                 }
             });
         });
@@ -460,6 +463,7 @@ public class FriendsController {
                 return response;
             } catch (Exception e) {
                 System.err.println("❌ Error rejecting friend request: " + e.getMessage());
+                e.printStackTrace();
                 return null;
             }
         }).thenAcceptAsync(response -> {
@@ -472,7 +476,8 @@ public class FriendsController {
                         instance.loadFriendsData();
                     }
                 } else {
-                    System.out.println("❌ Failed to reject friend request");
+                    String errorMsg = response != null ? response.getMessage() : "Unknown error";
+                    System.out.println("❌ Failed to reject friend request: " + errorMsg);
                 }
             });
         });
@@ -600,10 +605,20 @@ public class FriendsController {
                 nameLabel.setText(friend.getName());
                 statusLabel.setText(friend.getStatus());
 
-                // Button actions - burada requestId'yi friend nesnesinden almamız gerekir
-                // Şimdilik friend name'i kullanıyoruz, gerçek uygulamada requestId olmalı
-                acceptButton.setOnAction(e -> acceptFriendRequest(1, friend.getName())); // TODO: Real requestId
-                rejectButton.setOnAction(e -> rejectFriendRequest(1, friend.getName())); // TODO: Real requestId
+                // Button actions - gerçek requestId kullan
+                int requestId = friend.getRequestId();
+                acceptButton.setOnAction(e -> {
+                    // Butonu devre dışı bırak
+                    acceptButton.setDisable(true);
+                    rejectButton.setDisable(true);
+                    acceptFriendRequest(requestId, friend.getName());
+                });
+                rejectButton.setOnAction(e -> {
+                    // Butonu devre dışı bırak
+                    acceptButton.setDisable(true);
+                    rejectButton.setDisable(true);
+                    rejectFriendRequest(requestId, friend.getName());
+                });
 
                 setGraphic(hbox);
                 setDisable(false);

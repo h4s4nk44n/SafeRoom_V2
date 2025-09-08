@@ -3723,3 +3723,64 @@
   -fx-alignment: center;
   -fx-padding: 40;
 }
+
+/* Friend Request Accept/Reject Buttons */
+.accept-button {
+  -fx-background-color: #22c55e;
+  -fx-background-radius: 8px;
+  -fx-text-fill: white;
+  -fx-font-size: 13px;
+  -fx-font-weight: bold;
+  -fx-padding: 8px 16px;
+  -fx-cursor: hand;
+  -fx-min-width: 80px;
+  -fx-pref-height: 32px;
+  -fx-effect: dropshadow(gaussian, rgba(34, 197, 94, 0.3), 8, 0.5, 0, 2);
+}
+
+.accept-button:hover {
+  -fx-background-color: #16a34a;
+  -fx-effect: dropshadow(gaussian, rgba(34, 197, 94, 0.5), 12, 0.7, 0, 3);
+}
+
+.accept-button:pressed {
+  -fx-background-color: #15803d;
+  -fx-effect: dropshadow(gaussian, rgba(34, 197, 94, 0.2), 4, 0.3, 0, 1);
+}
+
+.accept-button:disabled {
+  -fx-background-color: #4b5563;
+  -fx-text-fill: #9ca3af;
+  -fx-effect: none;
+  -fx-cursor: default;
+}
+
+.reject-button {
+  -fx-background-color: #ef4444;
+  -fx-background-radius: 8px;
+  -fx-text-fill: white;
+  -fx-font-size: 13px;
+  -fx-font-weight: bold;
+  -fx-padding: 8px 16px;
+  -fx-cursor: hand;
+  -fx-min-width: 80px;
+  -fx-pref-height: 32px;
+  -fx-effect: dropshadow(gaussian, rgba(239, 68, 68, 0.3), 8, 0.5, 0, 2);
+}
+
+.reject-button:hover {
+  -fx-background-color: #dc2626;
+  -fx-effect: dropshadow(gaussian, rgba(239, 68, 68, 0.5), 12, 0.7, 0, 3);
+}
+
+.reject-button:pressed {
+  -fx-background-color: #b91c1c;
+  -fx-effect: dropshadow(gaussian, rgba(239, 68, 68, 0.2), 4, 0.3, 0, 1);
+}
+
+.reject-button:disabled {
+  -fx-background-color: #4b5563;
+  -fx-text-fill: #9ca3af;
+  -fx-effect: none;
+  -fx-cursor: default;
+}
