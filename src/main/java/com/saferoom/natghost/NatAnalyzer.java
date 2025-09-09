@@ -21,7 +21,7 @@ public class NatAnalyzer {
     public static final String[][] stunServers = {
             {"stun1.l.google.com", "19302"},
             {"stun2.l.google.com", "19302"},
-            {"stun.stunprotocol.org", "3478"},
+            {"stun.stunprotocol.org", "3478"}
     };
 
     private static final int   MIN_CHANNELS       = 4;

@@ -31,6 +31,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class FriendsController {
@@ -698,9 +700,14 @@ public class FriendsController {
     
     /**
      * Message butonuna tıklandığında Messages sekmesine geç ve o kullanıcıyla sohbet başlat
+     * P2P bağlantı da başlatılır
      */
     private static void openMessagesWithUser(String username) {
         System.out.println("💬 Opening messages with: " + username);
+        
+        // P2P bağlantı kurmaya başla
+        startP2PConnection(username);
+        
         try {
             MainController mainController = MainController.getInstance();
             if (mainController != null) {
@@ -714,6 +721,46 @@ public class FriendsController {
         } catch (Exception e) {
             System.err.println("Error opening messages: " + e.getMessage());
         }
+    }
+    
+    /**
+     * P2P bağlantı başlat
+     */
+    private static void startP2PConnection(String targetUsername) {
+        System.out.println("🚀 Starting P2P connection to: " + targetUsername);
+        
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                // P2P bağlantı kur
+                com.saferoom.p2p.P2PConnectionManager p2pManager = 
+                    com.saferoom.p2p.P2PConnectionManager.getInstance();
+                
+                com.saferoom.p2p.P2PConnection connection = 
+                    p2pManager.connectToUser(targetUsername).get(); // Sync wait
+                
+                if (connection != null) {
+                    System.out.println("✅ P2P connection established with: " + targetUsername);
+                    return true;
+                } else {
+                    System.err.println("❌ Failed to establish P2P connection with: " + targetUsername);
+                    return false;
+                }
+            } catch (Exception e) {
+                System.err.println("❌ P2P connection error: " + e.getMessage());
+                e.printStackTrace();
+                return false;
+            }
+        }).thenAcceptAsync(success -> {
+            Platform.runLater(() -> {
+                if (success) {
+                    System.out.println("🎉 P2P ready for messaging with: " + targetUsername);
+                    // TODO: MessagesController'da P2P bağlantıyı aktif et
+                } else {
+                    System.err.println("⚠️ Messaging will use server relay for: " + targetUsername);
+                    // TODO: Fallback to server-based messaging
+                }
+            });
+        });
     }
     
     /**
