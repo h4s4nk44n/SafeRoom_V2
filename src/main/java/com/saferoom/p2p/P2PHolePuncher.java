@@ -81,7 +81,7 @@ public class P2PHolePuncher {
             ByteBuffer hello = createHelloPacket(ClientMenu.myUsername, targetUsername);
             channel.send(hello, serverAddr);
             
-            System.out.printf("📤 Sending HELLO to server: %s -> %s%n", ClientMenu.myUsername, targetUsername);
+            System.out.printf("📤 Sending HELLO to server: '%s' -> '%s'%n", ClientMenu.myUsername, targetUsername);
             
             Selector selector = Selector.open();
             channel.register(selector, SelectionKey.OP_READ);

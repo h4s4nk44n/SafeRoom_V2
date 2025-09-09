@@ -96,6 +96,10 @@ public class P2PSignalingServer extends Thread {
                             String target = (String) p.get(3);
                             byte signal = sig;
 
+                            // DEBUG: Packet içeriğini logla
+                            System.out.printf("🔍 DEBUG Packet: sender='%s' target='%s' (sig=%d)%n", 
+                                sender, target, signal);
+
                             // Sender için state oluştur/güncelle
                             PeerState me = STATES.compute(sender, (k, old) -> {
                                 if (old == null) return new PeerState(sender, target, signal, ip, port);
