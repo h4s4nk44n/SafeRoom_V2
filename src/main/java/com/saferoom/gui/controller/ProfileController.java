@@ -344,8 +344,24 @@ public class ProfileController {
     @FXML
     private void handleMessage() {
         System.out.println("💬 Opening message with: " + targetUsername);
-        // TODO: Implement messaging functionality
-        showNotification("Messaging feature coming soon!", "info");
+        
+        try {
+            MainController mainController = MainController.getInstance();
+            if (mainController != null) {
+                // Messages sekmesine geç
+                mainController.handleMessages();
+                
+                // TODO: MessagesController'da belirli kullanıcıyla sohbet başlatma işlevselliği
+                // Bu kısım daha sonra Messages controller'da implement edilecek
+                System.out.println("📱 Switched to Messages tab for user: " + targetUsername);
+                
+                // Notification göster
+                showNotification("Switched to Messages - Chat with " + targetUsername + " will be implemented soon!", "info");
+            }
+        } catch (Exception e) {
+            System.err.println("Error opening messages: " + e.getMessage());
+            showNotification("Error opening messages", "error");
+        }
     }
     
     @FXML

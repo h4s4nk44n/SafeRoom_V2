@@ -540,7 +540,7 @@ public class MainController {
 
     private void handleDashboard() { setActiveButton(dashboardButton); loadView("DashBoardView.fxml"); }
     public void handleRooms() { setActiveButton(roomsButton); loadView("RoomsView.fxml"); }
-    private void handleMessages() { setActiveButton(messagesButton); loadView("MessagesView.fxml"); }
+    public void handleMessages() { setActiveButton(messagesButton); loadView("MessagesView.fxml"); }
     public void handleFriends() { setActiveButton(friendsButton); loadView("FriendsView.fxml"); }
     public void handleFileVault() { setActiveButton(fileVaultButton); loadView("FileVaultView.fxml"); }
     

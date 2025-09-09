@@ -369,6 +369,8 @@ public class FriendsController {
             } else {
                 String username = (String) user.get("username");
                 String email = (String) user.get("email");
+                Boolean isFriend = (Boolean) user.get("is_friend");
+                Boolean hasPending = (Boolean) user.get("has_pending_request");
                 
                 nameLabel.setText(username);
                 emailLabel.setText(email);
@@ -386,6 +388,25 @@ public class FriendsController {
                     hbox.getChildren().set(0, avatarText);
                 }
                 
+                // Update button based on friendship status
+                if (isFriend != null && isFriend) {
+                    addButton.setText("Friends");
+                    addButton.getStyleClass().removeAll("search-add-button");
+                    addButton.getStyleClass().add("friends-button");
+                    addButton.setDisable(true);
+                } else if (hasPending != null && hasPending) {
+                    addButton.setText("Pending");
+                    addButton.getStyleClass().removeAll("search-add-button");
+                    addButton.getStyleClass().add("pending-button");
+                    addButton.setDisable(true);
+                } else {
+                    addButton.setText("Add Friend");
+                    addButton.getStyleClass().removeAll("friends-button", "pending-button");
+                    addButton.getStyleClass().add("search-add-button");
+                    addButton.setDisable(false);
+                    addButton.setOnAction(e -> sendFriendRequest(username));
+                }
+                
                 // Add click handler for profile view
                 setOnMouseClicked(e -> {
                     if (e.getClickCount() == 1) { // Single click to view profile
@@ -393,7 +414,6 @@ public class FriendsController {
                     }
                 });
                 
-                addButton.setOnAction(e -> sendFriendRequest(username));
                 setGraphic(hbox);
             }
         }
@@ -530,6 +550,18 @@ public class FriendsController {
             messageIcon.getStyleClass().add("action-icon");
             callIcon.getStyleClass().add("action-icon");
 
+            // Message button action - navigate to messages
+            messageIcon.setOnMouseClicked(e -> {
+                String friendName = nameLabel.getText();
+                if (friendName != null && !friendName.isEmpty()) {
+                    openMessagesWithUser(friendName);
+                }
+            });
+            
+            // Add hover effect for message icon
+            messageIcon.setOnMouseEntered(e -> messageIcon.setStyle("-fx-cursor: hand;"));
+            messageIcon.setOnMouseExited(e -> messageIcon.setStyle("-fx-cursor: default;"));
+
             actionButtons.getChildren().addAll(messageIcon, callIcon);
             actionButtons.setAlignment(Pos.CENTER);
 
@@ -657,5 +689,25 @@ public class FriendsController {
         }));
         friendsRefresher.setCycleCount(Timeline.INDEFINITE);
         friendsRefresher.play();
+    }
+    
+    /**
+     * Message butonuna tıklandığında Messages sekmesine geç ve o kullanıcıyla sohbet başlat
+     */
+    private static void openMessagesWithUser(String username) {
+        System.out.println("💬 Opening messages with: " + username);
+        try {
+            MainController mainController = MainController.getInstance();
+            if (mainController != null) {
+                // Messages sekmesine geç
+                mainController.handleMessages();
+                
+                // TODO: MessagesController'da belirli kullanıcıyla sohbet başlatma işlevselliği
+                // Bu kısım daha sonra Messages controller'da implement edilecek
+                System.out.println("📱 Switched to Messages tab for user: " + username);
+            }
+        } catch (Exception e) {
+            System.err.println("Error opening messages: " + e.getMessage());
+        }
     }
 }
