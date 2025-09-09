@@ -81,7 +81,11 @@ public class P2PHolePuncher {
             ByteBuffer hello = createHelloPacket(ClientMenu.myUsername, targetUsername);
             channel.send(hello, serverAddr);
             
-            System.out.printf("📤 Sending HELLO to server: '%s' -> '%s'%n", ClientMenu.myUsername, targetUsername);
+            // FIN packet da gönder (LLS protokol gerekliliği)
+            ByteBuffer finPacket = createFinPacket(ClientMenu.myUsername, targetUsername);
+            channel.send(finPacket, serverAddr);
+            
+            System.out.printf("📤 Sending HELLO+FIN to server: '%s' -> '%s'%n", ClientMenu.myUsername, targetUsername);
             
             Selector selector = Selector.open();
             channel.register(selector, SelectionKey.OP_READ);
@@ -95,8 +99,13 @@ public class P2PHolePuncher {
                 if (System.currentTimeMillis() - lastHello > 1000) {
                     hello.rewind();
                     channel.send(hello, serverAddr);
+                    
+                    // HELLO'dan sonra FIN de gönder (LLS protokol gerekliliği)
+                    ByteBuffer finResend = createFinPacket(ClientMenu.myUsername, targetUsername);
+                    channel.send(finResend, serverAddr);
+                    
                     lastHello = System.currentTimeMillis();
-                    System.out.println("🔄 Resending HELLO to server...");
+                    System.out.println("🔄 Resending HELLO+FIN to server...");
                 }
                 
                 selector.select(SELECT_BLOCK_MS);
