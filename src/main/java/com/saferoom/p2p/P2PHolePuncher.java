@@ -29,6 +29,10 @@ public class P2PHolePuncher {
     private static final byte SIG_PORT = 0x12;
     private static final byte SIG_ALL_DONE = 0x13;
     
+    // Well-known ports for firewall bypass
+    private static final int[] FIREWALL_FRIENDLY_PORTS = {443, 53, 80, 8080, 8443};
+    private static int currentPortIndex = 0;
+    
     // Timeouts
     private static final int SIGNALING_TIMEOUT_MS = 10_000;
     private static final int PUNCH_TIMEOUT_MS = 8_000;
@@ -89,7 +93,25 @@ public class P2PHolePuncher {
         try (DatagramChannel channel = DatagramChannel.open()) {
             
             channel.configureBlocking(false);
-            channel.bind(new InetSocketAddress(0));
+            
+            // Try to bind to firewall-friendly port
+            boolean bound = false;
+            for (int port : FIREWALL_FRIENDLY_PORTS) {
+                try {
+                    channel.bind(new InetSocketAddress(port));
+                    System.out.printf("🔓 Bound to firewall-friendly port: %d%n", port);
+                    bound = true;
+                    break;
+                } catch (Exception e) {
+                    System.out.printf("⚠️ Port %d busy, trying next...%n", port);
+                }
+            }
+            
+            if (!bound) {
+                // Fallback to random port
+                channel.bind(new InetSocketAddress(0));
+                System.out.println("⚠️ Using random port (firewall may block)");
+            }
             
             // STUN ile public IP/port al
             System.out.println("🌐 Getting public IP/port via STUN...");
@@ -268,7 +290,25 @@ public class P2PHolePuncher {
             for (int i = 0; i < Math.max(peerInfo.targetPorts.size(), MIN_CHANNELS); i++) {
                 DatagramChannel dc = DatagramChannel.open();
                 dc.configureBlocking(false);
-                dc.bind(new InetSocketAddress(0));
+                
+                // Try firewall-friendly ports for hole punching too
+                boolean bound = false;
+                for (int port : FIREWALL_FRIENDLY_PORTS) {
+                    try {
+                        dc.bind(new InetSocketAddress(port + i)); // Offset for multiple channels
+                        System.out.printf("🔓 Hole punch channel %d bound to port: %d%n", i, port + i);
+                        bound = true;
+                        break;
+                    } catch (Exception e) {
+                        // Port busy, try next
+                    }
+                }
+                
+                if (!bound) {
+                    dc.bind(new InetSocketAddress(0)); // Fallback
+                    System.out.printf("⚠️ Channel %d using random port%n", i);
+                }
+                
                 dc.register(selector, SelectionKey.OP_READ);
                 channels.add(dc);
             }

@@ -66,6 +66,7 @@ public class P2PSignalingServer extends Thread {
             channel.register(selector, SelectionKey.OP_READ);
 
             System.out.println("🎯 P2P Signaling Server running on port " + SIGNALING_PORT);
+            System.out.println("🔍 Waiting for client packets...");
 
             while (true) {
                 selector.select(5);
@@ -80,8 +81,13 @@ public class P2PSignalingServer extends Thread {
                     SocketAddress from = channel.receive(buf);
                     if (from == null) continue;
 
+                    System.out.printf("📥 Received packet from %s (size=%d)%n", from, buf.position());
+
                     buf.flip();
-                    if (!LLS.hasWholeFrame(buf)) continue;
+                    if (!LLS.hasWholeFrame(buf)) {
+                        System.out.printf("❌ Incomplete frame from %s (remaining=%d)%n", from, buf.remaining());
+                        continue;
+                    }
 
                     InetSocketAddress inet = (InetSocketAddress) from;
                     InetAddress ip = inet.getAddress();
