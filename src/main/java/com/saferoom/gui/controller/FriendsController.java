@@ -714,8 +714,8 @@ public class FriendsController {
                 // Messages sekmesine geç
                 mainController.handleMessages();
                 
-                // TODO: MessagesController'da belirli kullanıcıyla sohbet başlatma işlevselliği
-                // Bu kısım daha sonra Messages controller'da implement edilecek
+                // MessagesController'da belirli kullanıcıyla sohbet başlat
+                MessagesController.openChatWithUser(username);
                 System.out.println("📱 Switched to Messages tab for user: " + username);
             }
         } catch (Exception e) {
@@ -754,10 +754,12 @@ public class FriendsController {
             Platform.runLater(() -> {
                 if (success) {
                     System.out.println("🎉 P2P ready for messaging with: " + targetUsername);
-                    // TODO: MessagesController'da P2P bağlantıyı aktif et
+                    // MessagesController'da P2P bağlantıyı aktif et
+                    MessagesController.openChatWithUser(targetUsername);
                 } else {
                     System.err.println("⚠️ Messaging will use server relay for: " + targetUsername);
-                    // TODO: Fallback to server-based messaging
+                    // Fallback to server-based messaging
+                    MessagesController.openChatWithUser(targetUsername);
                 }
             });
         });

@@ -1,11 +1,15 @@
 package com.saferoom.gui.controller;
 
 import com.saferoom.gui.view.cell.ContactCell;
+import com.saferoom.p2p.P2PConnectionManager;
+import com.saferoom.p2p.P2PConnection;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.ListView;
 import javafx.scene.control.SplitPane;
+import javafx.application.Platform;
+import java.util.concurrent.CompletableFuture;
 
 public class MessagesController {
 
@@ -13,9 +17,18 @@ public class MessagesController {
     @FXML private ListView<Contact> contactListView;
 
     @FXML private ChatViewController chatViewController;
+    
+    // Singleton instance için
+    private static MessagesController instance;
+    
+    // P2P Manager
+    private P2PConnectionManager p2pManager;
 
     @FXML
     public void initialize() {
+        instance = this;
+        p2pManager = P2PConnectionManager.getInstance();
+        
         mainSplitPane.setDividerPositions(0.30);
 
         setupModelAndListViews();
@@ -49,8 +62,84 @@ public class MessagesController {
                         newSelection.getAvatarChar(),
                         newSelection.isGroup()
                 );
+                
+                // P2P connection status bildirilim
+                checkP2PConnectionStatus(newSelection.getId());
             }
         });
+    }
+    
+    /**
+     * External controllers'dan çağrılır - belirli kullanıcıyla sohbet başlat
+     */
+    public static void openChatWithUser(String username) {
+        if (instance != null) {
+            Platform.runLater(() -> {
+                instance.selectOrAddUser(username);
+            });
+        }
+    }
+    
+    /**
+     * Kullanıcıyı contact listesinde seç veya ekle
+     */
+    private void selectOrAddUser(String username) {
+        // Önce mevcut kontaklarda ara
+        for (Contact contact : contactListView.getItems()) {
+            if (contact.getId().equals(username)) {
+                contactListView.getSelectionModel().select(contact);
+                System.out.println("📱 Selected existing contact: " + username);
+                return;
+            }
+        }
+        
+        // Bulunamazsa yeni contact ekle
+        Contact newContact = new Contact(username, username, "Online", "P2P bağlantı kuruluyor...", "now", 0, false);
+        contactListView.getItems().add(0, newContact); // En üste ekle
+        contactListView.getSelectionModel().select(newContact);
+        System.out.println("📱 Added new contact: " + username);
+        
+        // P2P bağlantı durumunu güncelle
+        updateContactStatus(username, "P2P bağlantı kuruluyor...");
+    }
+    
+    /**
+     * P2P bağlantı durumunu kontrol et ve bildir
+     */
+    private void checkP2PConnectionStatus(String username) {
+        if (p2pManager.hasActiveConnection(username)) {
+            System.out.println("✅ Active P2P connection with: " + username);
+            updateContactStatus(username, "P2P Aktif");
+        } else if (p2pManager.hasPendingConnection(username)) {
+            System.out.println("⏳ Pending P2P connection with: " + username);
+            updateContactStatus(username, "P2P bağlanıyor...");
+        } else {
+            System.out.println("📡 No P2P connection with: " + username);
+            updateContactStatus(username, "Server üzerinden");
+        }
+    }
+    
+    /**
+     * Contact status güncelle
+     */
+    private void updateContactStatus(String username, String newStatus) {
+        for (int i = 0; i < contactListView.getItems().size(); i++) {
+            Contact contact = contactListView.getItems().get(i);
+            if (contact.getId().equals(username)) {
+                Contact updatedContact = new Contact(
+                    contact.getId(),
+                    contact.getName(),
+                    newStatus,
+                    contact.getLastMessage(),
+                    contact.getTime(),
+                    contact.getUnreadCount(),
+                    contact.isGroup()
+                );
+                contactListView.getItems().set(i, updatedContact);
+                contactListView.refresh();
+                break;
+            }
+        }
     }
 
     // Geçici olarak Contact modelini burada tutuyoruz. İdealde bu da model paketinde olmalı.

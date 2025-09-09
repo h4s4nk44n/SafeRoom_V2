@@ -51,7 +51,7 @@ public class P2PConnectionManager {
                 
                 InetSocketAddress serverAddr = new InetSocketAddress(
                     SafeRoomServer.ServerIP, 
-                    SafeRoomServer.udpPort1
+                    45001  // P2P Signaling Server portu
                 );
                 
                 // P2P hole punching gerçekleştir
@@ -93,6 +93,20 @@ public class P2PConnectionManager {
      */
     public P2PConnection getConnection(String username) {
         return activeConnections.get(username);
+    }
+    
+    /**
+     * Aktif bağlantı var mı kontrol et
+     */
+    public boolean hasActiveConnection(String username) {
+        return activeConnections.containsKey(username);
+    }
+    
+    /**
+     * Bekleyen bağlantı var mı kontrol et
+     */
+    public boolean hasPendingConnection(String username) {
+        return pendingConnections.containsKey(username);
     }
     
     /**

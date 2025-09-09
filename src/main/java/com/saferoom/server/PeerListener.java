@@ -45,7 +45,10 @@ public class PeerListener extends Thread {
 
         void add(InetAddress ip, int port) {
             this.ip = ip;
-            this.ports.add(port);
+            // Duplicate port kontrolü - aynı portu tekrar ekleme
+            if (!this.ports.contains(port)) {
+                this.ports.add(port);
+            }
             this.lastSeenMs = System.currentTimeMillis();
         }
     }

@@ -2,9 +2,9 @@ package com.saferoom.p2p;
 
 import com.saferoom.client.ClientMenu;
 import com.saferoom.natghost.KeepAliveManager;
-import com.saferoom.natghost.LLS;
-import com.saferoom.natghost.NatAnalyzer;
+import com.saferoom.server.P2PSignalingServer;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
@@ -16,68 +16,183 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * P2P Hole Puncher - NatAnalyzer'dan uyarlanan NAT hole punching implementasyonu
+ * Doğru P2P Hole Puncher - Signaling server kullanarak peer bilgilerini alır
+ * sonra direkt peer'lar arasında UDP hole punching yapar
  */
 public class P2PHolePuncher {
     
     private static final int MIN_CHANNELS = 4;
-    private static final long MATCH_TIMEOUT_MS = 20_000;
-    private static final long RESEND_INTERVAL_MS = 1_000;
+    private static final long SIGNALING_TIMEOUT_MS = 10_000;
+    private static final long PUNCH_TIMEOUT_MS = 15_000;
+    private static final long RESEND_INTERVAL_MS = 500;
     private static final long SELECT_BLOCK_MS = 50;
     
+    // P2P Protocol signals (peer-to-peer direkt)
+    private static final byte SIG_P2P_HELLO = 0x20;
+    private static final byte SIG_P2P_HELLO_ACK = 0x21;
+    private static final byte SIG_P2P_ESTABLISHED = 0x22;
+    
     /**
-     * P2P bağlantı kurar - NatAnalyzer multiplexer metodundan uyarlanmıştır
+     * P2P bağlantı kurar - Doğru NAT hole punching protokolü
      */
     public static P2PConnection establishConnection(String targetUsername, InetSocketAddress serverAddr) {
         try {
-            System.out.println("🚀 Starting P2P hole punching to: " + targetUsername);
+            System.out.println("🚀 Starting P2P connection to: " + targetUsername);
             
-            // NAT analiz yap (basitleştirilmiş)
-            analyzeNAT();
+            // 1) SIGNALING PHASE: Server'dan target peer bilgilerini al
+            PeerConnectionInfo targetInfo = requestPeerInfo(targetUsername, serverAddr);
+            if (targetInfo == null) {
+                System.err.println("❌ Could not get peer info for: " + targetUsername);
+                return null;
+            }
             
-            int holeCount = Math.max(NatAnalyzer.Public_PortList.size(), MIN_CHANNELS);
+            System.out.printf("📡 Target peer info: %s @ %s (ports: %s)%n", 
+                targetUsername, targetInfo.address.getHostAddress(), targetInfo.ports);
+            
+            // 2) P2P PHASE: Direkt peer ile hole punching yap
+            return performHolePunching(targetUsername, targetInfo);
+            
+        } catch (Exception e) {
+            System.err.println("❌ P2P connection error: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+    
+    /**
+     * Signaling server'dan peer bilgilerini iste
+     */
+    private static PeerConnectionInfo requestPeerInfo(String targetUsername, InetSocketAddress serverAddr) {
+        try (DatagramChannel channel = DatagramChannel.open()) {
+            
+            channel.configureBlocking(false);
+            channel.bind(new InetSocketAddress(0));
+            
+            // Request peer packet oluştur ve gönder
+            ByteBuffer request = P2PSignalingServer.createRequestPeerPacket(targetUsername);
+            channel.send(request, serverAddr);
+            
+            System.out.println("📤 Requesting peer info for: " + targetUsername);
             
             Selector selector = Selector.open();
-            List<DatagramChannel> channels = new ArrayList<>(holeCount);
+            channel.register(selector, SelectionKey.OP_READ);
             
-            // KeepAliveManager kuruluyor
+            long start = System.currentTimeMillis();
+            
+            while (System.currentTimeMillis() - start < SIGNALING_TIMEOUT_MS) {
+                selector.select(SELECT_BLOCK_MS);
+                
+                Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+                while (it.hasNext()) {
+                    SelectionKey key = it.next(); 
+                    it.remove();
+                    
+                    if (!key.isReadable()) continue;
+                    
+                    ByteBuffer buf = ByteBuffer.allocate(1024);
+                    SocketAddress from = channel.receive(buf);
+                    if (from == null) continue;
+                    
+                    buf.flip();
+                    if (buf.remaining() < 1) continue;
+                    
+                    byte signal = buf.get(0);
+                    
+                    if (signal == 0x12) { // SIG_PEER_INFO
+                        return parsePeerInfo(buf);
+                    } else if (signal == 0x13) { // SIG_PEER_NOT_FOUND
+                        System.err.println("❌ Peer not found: " + targetUsername);
+                        return null;
+                    }
+                }
+            }
+            
+            System.err.println("⏰ Signaling timeout for: " + targetUsername);
+            return null;
+            
+        } catch (Exception e) {
+            System.err.println("❌ Signaling error: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Peer info response'unu parse et
+     */
+    private static PeerConnectionInfo parsePeerInfo(ByteBuffer buf) {
+        try {
+            buf.position(1); // Skip signal
+            
+            // Username
+            short usernameLen = buf.getShort();
+            byte[] usernameBytes = new byte[usernameLen];
+            buf.get(usernameBytes);
+            String username = new String(usernameBytes);
+            
+            // IP address
+            byte ipLen = buf.get();
+            byte[] ipBytes = new byte[ipLen];
+            buf.get(ipBytes);
+            InetAddress address = InetAddress.getByAddress(ipBytes);
+            
+            // Ports
+            short portCount = buf.getShort();
+            List<Integer> ports = new ArrayList<>();
+            for (int i = 0; i < portCount; i++) {
+                ports.add(buf.getInt());
+            }
+            
+            return new PeerConnectionInfo(username, address, ports);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error parsing peer info: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Direkt peer ile hole punching gerçekleştir
+     */
+    private static P2PConnection performHolePunching(String targetUsername, PeerConnectionInfo targetInfo) {
+        try {
+            System.out.println("🔫 Starting UDP hole punching...");
+            
+            List<DatagramChannel> channels = new ArrayList<>();
+            Selector selector = Selector.open();
             KeepAliveManager KAM = new KeepAliveManager(2_000);
             
-            ByteBuffer hello = LLS.New_Hello_Packet(ClientMenu.myUsername, targetUsername, LLS.SIG_HELLO);
-            
-            // 1) HELLO paketleri gönder
-            for (int i = 0; i < holeCount; i++) {
+            // Her target port için bir channel oluştur
+            for (int i = 0; i < targetInfo.ports.size(); i++) {
                 DatagramChannel dc = DatagramChannel.open();
                 dc.configureBlocking(false);
                 dc.bind(new InetSocketAddress(0));
-                dc.send(hello.duplicate(), serverAddr);
                 dc.register(selector, SelectionKey.OP_READ);
                 channels.add(dc);
-                
-                InetSocketAddress local = (InetSocketAddress) dc.getLocalAddress();
-                System.out.println("[P2P] HELLO sent from local port: " + local.getPort());
             }
-            
-            // 2) FIN paketi gönder
-            channels.get(0).send(
-                LLS.New_Fin_Packet(ClientMenu.myUsername, targetUsername).duplicate(),
-                serverAddr
-            );
             
             long start = System.currentTimeMillis();
             long lastSend = start;
-            boolean allDone = false;
+            boolean connectionEstablished = false;
+            DatagramChannel successfulChannel = null;
+            InetSocketAddress successfulTarget = null;
             
-            Set<Integer> remotePorts = new LinkedHashSet<>();
-            InetSocketAddress remoteAddress = null;
+            System.out.println("📡 Sending P2P HELLO packets...");
             
-            // Round-robin index for channel assignment
-            int rrIdx = 0;
-            
-            System.out.println("🔍 Waiting for remote peer ports...");
-            
-            // 3) Server'dan karşı tarafın port bilgilerini al
-            while (System.currentTimeMillis() - start < MATCH_TIMEOUT_MS && !allDone) {
+            while (System.currentTimeMillis() - start < PUNCH_TIMEOUT_MS && !connectionEstablished) {
+                
+                // Her 500ms'de HELLO paketleri gönder
+                if (System.currentTimeMillis() - lastSend > RESEND_INTERVAL_MS) {
+                    for (int i = 0; i < channels.size() && i < targetInfo.ports.size(); i++) {
+                        DatagramChannel dc = channels.get(i);
+                        int targetPort = targetInfo.ports.get(i);
+                        InetSocketAddress targetAddr = new InetSocketAddress(targetInfo.address, targetPort);
+                        
+                        ByteBuffer hello = createP2PHelloPacket(ClientMenu.myUsername, targetUsername);
+                        dc.send(hello, targetAddr);
+                    }
+                    lastSend = System.currentTimeMillis();
+                }
+                
                 selector.select(SELECT_BLOCK_MS);
                 
                 Iterator<SelectionKey> it = selector.selectedKeys().iterator();
@@ -91,116 +206,115 @@ public class P2PHolePuncher {
                     ByteBuffer buf = ByteBuffer.allocate(512);
                     SocketAddress from = dc.receive(buf);
                     if (from == null) continue;
+                    
                     buf.flip();
+                    if (buf.remaining() < 1) continue;
                     
-                    if (!LLS.hasWholeFrame(buf)) continue;
-                    byte type = LLS.peekType(buf);
+                    byte signal = buf.get(0);
                     
-                    if (type == LLS.SIG_PORT) {
-                        List<Object> info = LLS.parsePortInfo(buf.duplicate());
-                        InetSocketAddress peerAddr = new InetSocketAddress(
-                            (java.net.InetAddress) info.get(0), 
-                            (Integer) info.get(1)
-                        );
+                    if (signal == SIG_P2P_HELLO) {
+                        // HELLO ACK gönder
+                        ByteBuffer ack = createP2PHelloAckPacket(ClientMenu.myUsername, targetUsername);
+                        dc.send(ack, from);
                         
-                        if (remoteAddress == null) {
-                            remoteAddress = peerAddr;
-                        }
+                        System.out.printf("✅ P2P HELLO received from %s, sending ACK%n", from);
                         
-                        if (remotePorts.add(peerAddr.getPort())) {
-                            System.out.printf("[P2P] <<< PORT %s:%d\\n", 
-                                            peerAddr.getAddress().getHostAddress(), peerAddr.getPort());
-                            
-                            // Channel seç ve keep-alive kaydet
-                            DatagramChannel chosen = channels.get(rrIdx % channels.size());
-                            rrIdx++;
-                            
-                            KAM.register(chosen, peerAddr);
-                        }
+                    } else if (signal == SIG_P2P_HELLO_ACK) {
+                        // Bağlantı kuruldu!
+                        ByteBuffer established = createP2PEstablishedPacket(ClientMenu.myUsername, targetUsername);
+                        dc.send(established, from);
                         
-                    } else if (type == LLS.SIG_ALL_DONE) {
-                        List<Object> info = LLS.parseAllDone(buf.duplicate());
-                        String who = (String) info.get(0);
-                        System.out.println("[P2P] <<< ALL_DONE from " + who);
-                        allDone = true;
+                        connectionEstablished = true;
+                        successfulChannel = dc;
+                        successfulTarget = (InetSocketAddress) from;
+                        
+                        System.out.printf("🎉 P2P connection established with %s via %s%n", targetUsername, from);
+                        break;
+                        
+                    } else if (signal == SIG_P2P_ESTABLISHED) {
+                        connectionEstablished = true;
+                        successfulChannel = dc;
+                        successfulTarget = (InetSocketAddress) from;
+                        
+                        System.out.printf("🎉 P2P connection confirmed with %s via %s%n", targetUsername, from);
+                        break;
+                    }
+                }
+            }
+            
+            // Sonuç
+            if (connectionEstablished && successfulChannel != null) {
+                // Diğer kanalları kapat
+                for (DatagramChannel dc : channels) {
+                    if (dc != successfulChannel) {
+                        try { dc.close(); } catch (Exception e) {}
                     }
                 }
                 
-                // Cevap yoksa resend
-                if (!allDone && remotePorts.isEmpty() &&
-                    (System.currentTimeMillis() - lastSend) > RESEND_INTERVAL_MS) {
-                    
-                    for (DatagramChannel dc : channels) {
-                        dc.send(hello.duplicate(), serverAddr);
-                    }
-                    channels.get(0).send(
-                        LLS.New_Fin_Packet(ClientMenu.myUsername, targetUsername).duplicate(),
-                        serverAddr
-                    );
-                    lastSend = System.currentTimeMillis();
-                }
-            }
-            
-            // 4) Sonuç kontrolü
-            if (!allDone || remoteAddress == null) {
-                System.err.println("❌ P2P hole punching failed - timeout or no remote address");
+                // P2P connection oluştur
+                P2PConnection connection = new P2PConnection(targetUsername, successfulTarget, successfulChannel);
+                connection.setKeepAliveManager(KAM);
+                
+                System.out.println("✅ P2P hole punching successful!");
+                return connection;
+                
+            } else {
+                System.err.println("❌ P2P hole punching failed - timeout");
                 KAM.close();
-                closeChannels(channels);
+                for (DatagramChannel dc : channels) {
+                    try { dc.close(); } catch (Exception e) {}
+                }
                 return null;
             }
             
-            System.out.println("✅ P2P hole punching successful!");
-            System.out.println("📡 Remote address: " + remoteAddress);
-            System.out.println("🔌 Remote ports: " + remotePorts);
-            
-            // 5) P2PConnection oluştur (ilk kanal kullan)
-            DatagramChannel primaryChannel = channels.get(0);
-            P2PConnection connection = new P2PConnection(targetUsername, remoteAddress, primaryChannel);
-            
-            // KeepAliveManager'ı connection'a ata
-            connection.setKeepAliveManager(KAM);
-            
-            // Diğer kanalları kapat
-            for (int i = 1; i < channels.size(); i++) {
-                try {
-                    channels.get(i).close();
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to close channel " + i);
-                }
-            }
-            
-            System.out.println("🎉 P2P connection established with: " + targetUsername);
-            return connection;
-            
         } catch (Exception e) {
-            System.err.println("❌ P2P hole punching error: " + e.getMessage());
+            System.err.println("❌ Hole punching error: " + e.getMessage());
             e.printStackTrace();
             return null;
         }
     }
     
     /**
-     * Kanalları temizle
+     * P2P protokol paketleri
      */
-    private static void closeChannels(List<DatagramChannel> channels) {
-        for (DatagramChannel dc : channels) {
-            try {
-                if (dc.isOpen()) {
-                    dc.close();
-                }
-            } catch (Exception e) {
-                System.err.println("Warning: Failed to close channel: " + e.getMessage());
-            }
-        }
+    private static ByteBuffer createP2PHelloPacket(String sender, String target) {
+        return createP2PPacket(SIG_P2P_HELLO, sender, target);
+    }
+    
+    private static ByteBuffer createP2PHelloAckPacket(String sender, String target) {
+        return createP2PPacket(SIG_P2P_HELLO_ACK, sender, target);
+    }
+    
+    private static ByteBuffer createP2PEstablishedPacket(String sender, String target) {
+        return createP2PPacket(SIG_P2P_ESTABLISHED, sender, target);
+    }
+    
+    private static ByteBuffer createP2PPacket(byte signal, String sender, String target) {
+        byte[] senderBytes = sender.getBytes();
+        byte[] targetBytes = target.getBytes();
+        
+        ByteBuffer packet = ByteBuffer.allocate(1 + 2 + senderBytes.length + 2 + targetBytes.length);
+        packet.put(signal);
+        packet.putShort((short) senderBytes.length);
+        packet.put(senderBytes);
+        packet.putShort((short) targetBytes.length);
+        packet.put(targetBytes);
+        
+        packet.flip();
+        return packet;
     }
     
     /**
-     * Basitleştirilmiş NAT analizi - gerçek implementasyonda NatAnalyzer.analyzer() kullanılabilir
+     * Peer connection bilgileri
      */
-    private static byte analyzeNAT() {
-        // NatAnalyzer.analyzer(stunServers) çağrısının basitleştirilmiş versiyonu
-        // Gerçek implementasyonda bu metot kullanılabilir
-        return (byte) 0x01; // Örnek signal
+    private static class PeerConnectionInfo {
+        final InetAddress address;
+        final List<Integer> ports;
+        
+        PeerConnectionInfo(String username, InetAddress address, List<Integer> ports) {
+            this.address = address;
+            this.ports = ports;
+        }
     }
     
     /**
