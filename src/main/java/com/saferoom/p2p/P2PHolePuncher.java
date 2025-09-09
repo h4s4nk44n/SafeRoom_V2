@@ -2,6 +2,7 @@ package com.saferoom.p2p;
 
 import com.saferoom.client.ClientMenu;
 import com.saferoom.natghost.KeepAliveManager;
+import com.saferoom.natghost.LLS;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -154,24 +155,26 @@ public class P2PHolePuncher {
     }
     
     /**
-     * PORT_INFO paketini parse et
+     * PORT_INFO paketini parse et - LLS format
      */
     private static List<Integer> parsePortInfo(ByteBuffer buf) {
         try {
-            buf.position(1); // Skip signal
+            // LLS packet format: [signal][len][username_20][target_20][ip_4][port_4]
+            List<Object> parsed = LLS.parseLLSPacket(buf);
             
-            // Port sayısı
-            short portCount = buf.getShort();
+            // parsed[0] = signal, parsed[1] = len, parsed[2] = username, 
+            // parsed[3] = target, parsed[4] = IP, parsed[5] = port
+            Integer port = (Integer) parsed.get(5);
+            
+            System.out.printf("🔍 Parsed PORT_INFO: port=%d%n", port);
+            
             List<Integer> ports = new ArrayList<>();
-            
-            for (int i = 0; i < portCount; i++) {
-                ports.add(buf.getInt());
-            }
-            
+            ports.add(port);
             return ports;
             
         } catch (Exception e) {
             System.err.println("❌ Error parsing PORT_INFO: " + e.getMessage());
+            e.printStackTrace();
             return new ArrayList<>();
         }
     }
