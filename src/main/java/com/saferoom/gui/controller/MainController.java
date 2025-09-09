@@ -129,6 +129,13 @@ public class MainController {
         if (userAvatar != null) {
             userAvatar.setText("U"); // You can replace this with actual username first letter
         }
+        
+        // 🎯 P2P Registration: Register self to signaling server
+        String currentUsername = UserSession.getInstance().getDisplayName();
+        if (currentUsername != null && !currentUsername.equals("Username")) {
+            com.saferoom.p2p.P2PConnectionManager.getInstance().registerSelf(currentUsername);
+            System.out.println("📝 Registered P2P user: " + currentUsername);
+        }
 
         // Build user menu and bind to profile box
         buildUserContextMenu();

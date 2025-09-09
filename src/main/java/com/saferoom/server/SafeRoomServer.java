@@ -8,21 +8,21 @@ public class SafeRoomServer {
 	
 	public static void main(String[] args) throws Exception{
 	
-		// Eski PeerListener (HELLO/FIN sonsuz loop sorunu var)
-		PeerListener Datagram = new PeerListener();
+		// ❌ Eski PeerListener (HELLO/FIN sonsuz loop sorunu var) - DEVRE DIŞI
+		// PeerListener Datagram = new PeerListener();
 		
-		// Yeni P2P Signaling Server (sadece peer bilgilerini eşleştirme)
+		// ✅ Yeni P2P Signaling Server (sadece peer bilgilerini eşleştirme)
 		P2PSignalingServer SignalingServer = new P2PSignalingServer();
 		
 		StreamListener Stream = new StreamListener();
 		
-		Datagram.start();
+		// Datagram.start(); // ❌ DEVRE DIŞI
 		SignalingServer.start();
 		Stream.start();
 		
 		System.out.println("🚀 SafeRoom Server started:");
 		System.out.println("   📡 gRPC Server: " + ServerIP + ":" + grpcPort);
-		System.out.println("   🔗 Legacy UDP: " + udpPort1);
 		System.out.println("   🎯 P2P Signaling: " + P2PSignalingServer.SIGNALING_PORT);
+		// System.out.println("   🔗 Legacy UDP: " + udpPort1); // ❌ DEVRE DIŞI
 	}
 }

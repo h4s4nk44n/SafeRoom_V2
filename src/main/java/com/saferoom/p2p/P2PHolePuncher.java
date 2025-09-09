@@ -327,4 +327,28 @@ public class P2PHolePuncher {
         return CompletableFuture.supplyAsync(() -> establishConnection(targetUsername, serverAddr))
                 .orTimeout(30, TimeUnit.SECONDS);
     }
+    
+    /**
+     * Kendimizi signaling server'a register et
+     */
+    public static void registerPeerToServer(String username, InetSocketAddress serverAddr) {
+        try (DatagramChannel channel = DatagramChannel.open()) {
+            
+            channel.configureBlocking(false);
+            channel.bind(new InetSocketAddress(0));
+            
+            // Get our local port
+            int localPort = ((InetSocketAddress) channel.getLocalAddress()).getPort();
+            
+            // Register peer packet oluştur ve gönder
+            ByteBuffer registerPacket = P2PSignalingServer.createRegisterPeerPacket(username, localPort);
+            channel.send(registerPacket, serverAddr);
+            
+            System.out.printf("📝 Registered peer: %s with port %d to server%n", username, localPort);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to register peer: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
 }

@@ -23,6 +23,27 @@ public class P2PConnectionManager {
     }
     
     /**
+     * Kendimizi signaling server'a register et
+     */
+    public void registerSelf(String username) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                System.out.println("📝 Registering self to signaling server: " + username);
+                
+                InetSocketAddress serverAddr = new InetSocketAddress(
+                    SafeRoomServer.ServerIP, 
+                    45001  // P2P Signaling Server portu
+                );
+                
+                P2PHolePuncher.registerPeerToServer(username, serverAddr);
+                
+            } catch (Exception e) {
+                System.err.println("❌ Failed to register self: " + e.getMessage());
+            }
+        });
+    }
+    
+    /**
      * Belirtilen kullanıcıyla P2P bağlantı kurar
      */
     public CompletableFuture<P2PConnection> connectToUser(String targetUsername) {
