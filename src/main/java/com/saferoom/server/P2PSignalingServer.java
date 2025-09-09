@@ -207,9 +207,21 @@ public class P2PSignalingServer extends Thread {
      * Cross-match bulunduktan sonra PORT_INFO ve ALL_DONE paketlerini gönder
      */
     private void pushAllIfReady(DatagramChannel ch, PeerState from, PeerState to) throws Exception {
-        if (!from.finished) return;
-        if (from.allDoneSentToTarget) return;
-        if (to.ports.isEmpty()) return;
+        System.out.printf("🔍 pushAllIfReady: %s → %s (finished=%b, allDoneSent=%b, toPorts=%s)%n", 
+            from.host, to.host, from.finished, from.allDoneSentToTarget, to.ports);
+            
+        if (!from.finished) {
+            System.out.printf("⏳ %s not finished yet, waiting for FIN%n", from.host);
+            return;
+        }
+        if (from.allDoneSentToTarget) {
+            System.out.printf("✅ %s already sent ALL_DONE to %s%n", from.host, to.host);
+            return;
+        }
+        if (to.ports.isEmpty()) {
+            System.out.printf("❌ %s has no ports to send to%n", to.host);
+            return;
+        }
 
         // Henüz gönderilmemiş portları bul
         List<Integer> unsent = new ArrayList<>();

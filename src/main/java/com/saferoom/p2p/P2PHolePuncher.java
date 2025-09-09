@@ -29,8 +29,8 @@ public class P2PHolePuncher {
     private static final byte SIG_PORT = 0x12;
     private static final byte SIG_ALL_DONE = 0x13;
     
-    // Well-known ports for firewall bypass
-    private static final int[] FIREWALL_FRIENDLY_PORTS = {443, 53, 80, 8080, 8443};
+    // UFW allowed ports for firewall bypass
+    private static final int[] FIREWALL_FRIENDLY_PORTS = {4000, 4001, 4002, 4003, 4004, 4005};
     private static int currentPortIndex = 0;
     
     // Timeouts

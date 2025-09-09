@@ -64,6 +64,9 @@ public class P2PConnectionManager {
                     45001  // P2P Signaling Server portu
                 );
                 
+                System.out.printf("🎯 Connecting to P2P server: %s:%d%n", 
+                    SafeRoomServer.ServerIP, 45001);
+                
                 // P2P hole punching gerçekleştir
                 P2PConnection connection = P2PHolePuncher.establishConnection(targetUsername, serverAddr);
                 
