@@ -38,6 +38,9 @@ public class ClientMenu{
 			switch(code){
 				case 0:
 					System.out.println("Success!");
+					// ÖNEMLI: Login başarılıysa username'i güncelle!
+					myUsername = username;
+					System.out.printf("✅ Logged in as: %s%n", myUsername);
 					return message; // Server'dan gelen eksik bilgiyi döndür (email veya username)
 				case 1:
 					if(message.equals("N_REGISTER")){
