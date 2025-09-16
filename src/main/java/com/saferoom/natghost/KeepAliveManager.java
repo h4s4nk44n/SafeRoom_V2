@@ -119,6 +119,17 @@ public final class KeepAliveManager implements AutoCloseable {
                             } catch (Exception e) {
                                 System.err.println("[KA] Error forwarding message: " + e.getMessage());
                             }
+                        } else if (type == LLS.SIG_P2P_NOTIFY) {
+                            System.out.println("[KA] 📢 SIG_P2P_NOTIFY detected - forwarding to NatAnalyzer");
+                            // Forward P2P notification to NatAnalyzer for processing
+                            try {
+                                java.lang.reflect.Method method = Class.forName("com.saferoom.natghost.NatAnalyzer")
+                                    .getDeclaredMethod("handleIncomingP2PNotification", ByteBuffer.class, SocketAddress.class);
+                                method.setAccessible(true);
+                                method.invoke(null, buf.duplicate(), from);
+                            } catch (Exception e) {
+                                System.err.println("[KA] Error forwarding P2P notification: " + e.getMessage());
+                            }
                         } else if (type == LLS.SIG_DNS_QUERY) {
                             // Keep-alive DNS packet - ignore
                             System.out.printf("[KA] 🔄 Keep-alive DNS from %s (ignoring)%n", from);

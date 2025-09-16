@@ -1,6 +1,7 @@
 package com.saferoom.server;
 
 import com.saferoom.natghost.LLS;
+import com.saferoom.natghost.RegisteredUser;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -56,6 +57,10 @@ public class P2PSignalingServer extends Thread {
     // Modern hashmap for peer matching: <host_username, target_username> -> PeerInfo
     private static final Map<String, PeerInfo> PEER_REQUESTS = new ConcurrentHashMap<>();
     
+    // NEW: Registered users for unidirectional P2P initiation
+    private static final Map<String, RegisteredUser> REGISTERED_USERS = new ConcurrentHashMap<>();
+    private static final long USER_REGISTRATION_TIMEOUT_MS = 300_000; // 5 minutes
+    
     private static final long CLEANUP_INTERVAL_MS = 30_000;
     private long lastCleanup = System.currentTimeMillis();
     
@@ -95,6 +100,126 @@ public class P2PSignalingServer extends Thread {
             } else {
                 return username + "->" + targetUsername + " (public: " + publicIP + ":" + publicPort + ")";
             }
+        }
+    }
+    
+    /**
+     * Handle user registration (SIG_REGISTER)
+     * Client registers with server on startup with NAT info
+     */
+    private void handleUserRegistration(ByteBuffer buf, DatagramChannel channel, InetSocketAddress from) {
+        try {
+            List<Object> parsed = LLS.parseRegisterPacket(buf);
+            String username = (String) parsed.get(2);
+            InetAddress publicIP = (InetAddress) parsed.get(4);
+            int publicPort = (Integer) parsed.get(5);
+            InetAddress localIP = (InetAddress) parsed.get(6);
+            int localPort = (Integer) parsed.get(7);
+            
+            RegisteredUser user = new RegisteredUser(username, publicIP, publicPort, localIP, localPort, from);
+            REGISTERED_USERS.put(username, user);
+            
+            System.out.printf("📝 USER_REGISTERED: %s%n", user);
+            
+            // Send acknowledgment back to client
+            ByteBuffer ack = LLS.New_Multiplex_Packet(LLS.SIG_ALL_DONE, "server", username);
+            channel.send(ack, from);
+            
+        } catch (Exception e) {
+            System.err.printf("❌ Error handling user registration from %s: %s%n", from, e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Handle P2P connection request (SIG_P2P_REQUEST)
+     * Client requests P2P connection to target - UNIDIRECTIONAL initiation
+     */
+    private void handleP2PRequest(ByteBuffer buf, DatagramChannel channel, InetSocketAddress from) {
+        try {
+            List<Object> parsed = LLS.parseP2PRequestPacket(buf);
+            String requester = (String) parsed.get(2);
+            String target = (String) parsed.get(3);
+            
+            System.out.printf("🎯 P2P_REQUEST: %s wants to connect to %s%n", requester, target);
+            
+            // Check if both users are registered
+            RegisteredUser requesterUser = REGISTERED_USERS.get(requester);
+            RegisteredUser targetUser = REGISTERED_USERS.get(target);
+            
+            if (requesterUser == null) {
+                System.err.printf("❌ Requester %s not registered%n", requester);
+                return;
+            }
+            
+            if (targetUser == null) {
+                System.err.printf("❌ Target %s not registered%n", target);
+                return;
+            }
+            
+            // Check if registrations are still valid
+            if (!requesterUser.isValid(USER_REGISTRATION_TIMEOUT_MS)) {
+                System.err.printf("❌ Requester %s registration expired%n", requester);
+                REGISTERED_USERS.remove(requester);
+                return;
+            }
+            
+            if (!targetUser.isValid(USER_REGISTRATION_TIMEOUT_MS)) {
+                System.err.printf("❌ Target %s registration expired%n", target);
+                REGISTERED_USERS.remove(target);
+                return;
+            }
+            
+            System.out.printf("✅ Both users registered and valid - initiating P2P connection%n");
+            
+            // Send target's info to requester
+            boolean sameNAT = requesterUser.publicIP.equals(targetUser.publicIP);
+            System.out.printf("🔍 Same NAT detection: %s%n", sameNAT ? "YES - using local IPs" : "NO - using public IPs");
+            
+            if (sameNAT) {
+                // Use local IPs for same-NAT communication
+                ByteBuffer targetInfoPacket = LLS.New_PortInfo_Packet(
+                    target, requester, LLS.SIG_PORT, 
+                    targetUser.localIP, targetUser.localPort
+                );
+                channel.send(targetInfoPacket, from);
+                System.out.printf("📤 Sent %s's LOCAL info (%s:%d) to %s%n", 
+                    target, targetUser.localIP.getHostAddress(), targetUser.localPort, requester);
+            } else {
+                // Use public IPs for different NATs
+                ByteBuffer targetInfoPacket = LLS.New_PortInfo_Packet(
+                    target, requester, LLS.SIG_PORT, 
+                    targetUser.publicIP, targetUser.publicPort
+                );
+                channel.send(targetInfoPacket, from);
+                System.out.printf("📤 Sent %s's PUBLIC info (%s:%d) to %s%n", 
+                    target, targetUser.publicIP.getHostAddress(), targetUser.publicPort, requester);
+            }
+            
+            // Send notification to target about incoming P2P request
+            ByteBuffer notificationPacket;
+            if (sameNAT) {
+                notificationPacket = LLS.New_P2PNotify_Packet(
+                    requester, target,
+                    requesterUser.localIP, requesterUser.localPort,
+                    requesterUser.localIP, requesterUser.localPort
+                );
+            } else {
+                notificationPacket = LLS.New_P2PNotify_Packet(
+                    requester, target,
+                    requesterUser.publicIP, requesterUser.publicPort,
+                    requesterUser.localIP, requesterUser.localPort
+                );
+            }
+            
+            channel.send(notificationPacket, targetUser.clientAddress);
+            System.out.printf("📤 Sent P2P notification to %s about %s's request%n", target, requester);
+            
+            System.out.printf("🎉 Unidirectional P2P initiation complete for %s -> %s%n", requester, target);
+            
+        } catch (Exception e) {
+            System.err.printf("❌ Error handling P2P request from %s: %s%n", from, e.getMessage());
+            e.printStackTrace();
         }
     }
     
@@ -249,6 +374,14 @@ public class P2PSignalingServer extends Thread {
                     byte sig = LLS.peekType(buf);
 
                     switch (sig) {
+                        case LLS.SIG_REGISTER -> {
+                            // User registration - client registers with server on startup
+                            handleUserRegistration(buf.duplicate(), channel, inet);
+                        }
+                        case LLS.SIG_P2P_REQUEST -> {
+                            // P2P connection request - unidirectional initiation
+                            handleP2PRequest(buf.duplicate(), channel, inet);
+                        }
                         case LLS.SIG_HOLE -> {
                             // Modern hole punch request - single packet with IP/port info
                             handleHolePunchRequest(buf.duplicate(), channel, inet);
@@ -341,15 +474,33 @@ public class P2PSignalingServer extends Thread {
                     }
                 }
 
-                // Cleanup old states
+                // Cleanup old states and expired registrations
                 long now = System.currentTimeMillis();
                 if (now - lastCleanup > CLEANUP_INTERVAL_MS) {
-                    int oldSize = STATES.size();
+                    // Clean up old peer states
+                    int oldStatesSize = STATES.size();
                     STATES.entrySet().removeIf(e -> (now - e.getValue().lastSeenMs) > 120_000);
-                    int newSize = STATES.size();
-                    if (oldSize > newSize) {
-                        System.out.printf("🧹 Cleaned up %d old peer states%n", oldSize - newSize);
+                    int newStatesSize = STATES.size();
+                    if (oldStatesSize > newStatesSize) {
+                        System.out.printf("🧹 Cleaned up %d old peer states%n", oldStatesSize - newStatesSize);
                     }
+                    
+                    // Clean up expired user registrations
+                    int oldUsersSize = REGISTERED_USERS.size();
+                    REGISTERED_USERS.entrySet().removeIf(e -> !e.getValue().isValid(USER_REGISTRATION_TIMEOUT_MS));
+                    int newUsersSize = REGISTERED_USERS.size();
+                    if (oldUsersSize > newUsersSize) {
+                        System.out.printf("🧹 Cleaned up %d expired user registrations%n", oldUsersSize - newUsersSize);
+                    }
+                    
+                    // Clean up old peer requests
+                    int oldRequestsSize = PEER_REQUESTS.size();
+                    PEER_REQUESTS.entrySet().removeIf(e -> (now - e.getValue().timestamp) > 120_000);
+                    int newRequestsSize = PEER_REQUESTS.size();
+                    if (oldRequestsSize > newRequestsSize) {
+                        System.out.printf("🧹 Cleaned up %d old peer requests%n", oldRequestsSize - newRequestsSize);
+                    }
+                    
                     lastCleanup = now;
                 }
             }

@@ -166,6 +166,22 @@ private void logSecurityIncident(String attemptedUsername) {
                // Start heartbeat service
                heartbeatService.startHeartbeat(traditionalUser.getName());
                
+               // Register user for P2P communication
+               Platform.runLater(() -> {
+                   new Thread(() -> {
+                       try {
+                           boolean registered = com.saferoom.client.ClientMenu.registerP2PUser(traditionalUser.getName());
+                           if (registered) {
+                               System.out.println("✅ P2P registration successful for user: " + traditionalUser.getName());
+                           } else {
+                               System.err.println("⚠️ P2P registration failed for user: " + traditionalUser.getName());
+                           }
+                       } catch (Exception e) {
+                           System.err.println("❌ P2P registration error: " + e.getMessage());
+                       }
+                   }).start();
+               });
+               
                try {
                  Stage loginStage = (Stage) rootPane.getScene().getWindow();
                  loginStage.close();
@@ -349,6 +365,22 @@ private void logSecurityIncident(String attemptedUsername) {
             
             // Start heartbeat service
             com.saferoom.gui.utils.HeartbeatService.getInstance().startHeartbeat(userInfo.getName());
+            
+            // Register user for P2P communication
+            Platform.runLater(() -> {
+                new Thread(() -> {
+                    try {
+                        boolean registered = com.saferoom.client.ClientMenu.registerP2PUser(userInfo.getName());
+                        if (registered) {
+                            System.out.println("✅ P2P registration successful for OAuth user: " + userInfo.getName());
+                        } else {
+                            System.err.println("⚠️ P2P registration failed for OAuth user: " + userInfo.getName());
+                        }
+                    } catch (Exception e) {
+                        System.err.println("❌ P2P registration error: " + e.getMessage());
+                    }
+                }).start();
+            });
             
             // TODO: Check if user exists in database
             // If not, create user account with OAuth info

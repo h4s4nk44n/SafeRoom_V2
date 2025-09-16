@@ -18,6 +18,9 @@ public class LLS {
     public static final byte SIG_HOLE      = 0x15; // client -> server (hole punch request with IP/port)
     public static final byte SIG_MESSAGE   = 0x16; // client <-> client (P2P text message)
     public static final byte SIG_MSG_ACK   = 0x17; // client <-> client (message acknowledgment)
+    public static final byte SIG_REGISTER  = 0x18; // client -> server (register user with NAT info)
+    public static final byte SIG_P2P_REQUEST = 0x19; // client -> server (request P2P connection to target)
+    public static final byte SIG_P2P_NOTIFY = 0x1A; // server -> client (notify about incoming P2P request)
 
     // ---- COMMON HELPERS ----
     private static void putFixedString(ByteBuffer buf, String str, int len) {
@@ -50,7 +53,7 @@ public class LLS {
     public static boolean hasWholeFrame(ByteBuffer bb) {
         int pos = bb.position();
         if (bb.remaining() < 3) return false;
-        byte  t = bb.get();
+        bb.get(); // type byte - not used here
         short l = bb.getShort();
         boolean ok = bb.remaining() >= l - 3; // already consumed 3
         bb.position(pos);
@@ -191,6 +194,51 @@ public class LLS {
         putFixedString(packet, sender, 20);
         putFixedString(packet, receiver, 20);
         packet.putLong(messageId);
+        packet.flip();
+        return packet;
+    }
+    
+    // NEW: User registration packet - client registers with server on startup
+    public static ByteBuffer New_Register_Packet(String username, 
+                                                 InetAddress publicIp, int publicPort,
+                                                 InetAddress localIp, int localPort) {
+        ByteBuffer packet = ByteBuffer.allocate(EXTENDED_LEN);
+        packet.put(SIG_REGISTER);
+        packet.putShort((short) EXTENDED_LEN);
+        putFixedString(packet, username, 20);
+        putFixedString(packet, "", 20); // target field empty for registration
+        packet.put(publicIp.getAddress()); // 4 bytes - public IP
+        packet.putInt(publicPort);          // 4 bytes - public port
+        packet.put(localIp.getAddress());  // 4 bytes - local IP
+        packet.putInt(localPort);           // 4 bytes - local port
+        packet.flip();
+        return packet;
+    }
+    
+    // NEW: P2P connection request packet - client requests connection to target
+    public static ByteBuffer New_P2PRequest_Packet(String requester, String target) {
+        ByteBuffer packet = ByteBuffer.allocate(MULTIPLEX_LEN);
+        packet.put(SIG_P2P_REQUEST);
+        packet.putShort((short) MULTIPLEX_LEN);
+        putFixedString(packet, requester, 20);
+        putFixedString(packet, target, 20);
+        packet.flip();
+        return packet;
+    }
+    
+    // NEW: P2P notification packet - server notifies target about incoming request
+    public static ByteBuffer New_P2PNotify_Packet(String requester, String target,
+                                                   InetAddress requesterPublicIp, int requesterPublicPort,
+                                                   InetAddress requesterLocalIp, int requesterLocalPort) {
+        ByteBuffer packet = ByteBuffer.allocate(EXTENDED_LEN);
+        packet.put(SIG_P2P_NOTIFY);
+        packet.putShort((short) EXTENDED_LEN);
+        putFixedString(packet, requester, 20);
+        putFixedString(packet, target, 20);
+        packet.put(requesterPublicIp.getAddress()); // 4 bytes
+        packet.putInt(requesterPublicPort);          // 4 bytes
+        packet.put(requesterLocalIp.getAddress());  // 4 bytes
+        packet.putInt(requesterLocalPort);           // 4 bytes
         packet.flip();
         return packet;
     }
@@ -377,6 +425,24 @@ public class LLS {
         parsed.add(localPort);
         
         return parsed; // [type, len, sender, target, publicIP, publicPort, localIP, localPort]
+    }
+    
+    // NEW: Parse user registration packet
+    public static List<Object> parseRegisterPacket(ByteBuffer buffer) throws UnknownHostException {
+        // Same structure as extended hole packet but used for registration
+        return parseExtendedHolePacket(buffer); // [type, len, username, "", publicIP, publicPort, localIP, localPort]
+    }
+    
+    // NEW: Parse P2P request packet
+    public static List<Object> parseP2PRequestPacket(ByteBuffer buffer) {
+        // Same structure as multiplex packet
+        return parseMultiple_Packet(buffer); // [type, len, requester, target]
+    }
+    
+    // NEW: Parse P2P notification packet
+    public static List<Object> parseP2PNotifyPacket(ByteBuffer buffer) throws UnknownHostException {
+        // Same structure as extended hole packet
+        return parseExtendedHolePacket(buffer); // [type, len, requester, target, publicIP, publicPort, localIP, localPort]
     }
 
 }

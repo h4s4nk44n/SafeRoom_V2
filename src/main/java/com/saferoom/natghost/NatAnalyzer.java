@@ -1,6 +1,5 @@
 package com.saferoom.natghost;
 
-import com.saferoom.client.ClientMenu;
 import com.saferoom.server.SafeRoomServer;
 
 import java.net.*;
@@ -31,14 +30,7 @@ public class NatAnalyzer {
     public static final String[][] stunServers = {
             {"stun.l.google.com", "19302"},
             {"stun.l.google.com", "5349"},
-            {"stun1.l.google.com", "3478"},
-            {"stun1.l.google.com", "5349"},
-            {"stun2.l.google.com", "19302"},
-            {"stun2.l.google.com", "5349"},
-            {"stun3.l.google.com", "3478"},
-            {"stun3.l.google.com", "5349"},
-            {"stun4.l.google.com", "19302"},
-            {"stun4.l.google.com", "5349"}
+            {"stun1.l.google.com", "3478"}
     };
 
     private static final long  STUN_TIMEOUT_MS    = 5_000;
@@ -497,6 +489,321 @@ public class NatAnalyzer {
             multiplexer(serverAddr, args[0], args[1]);
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+    
+    // ============================================
+    // USER REGISTRATION AND UNIDIRECTIONAL P2P
+    // ============================================
+    
+    /**
+     * Register user with signaling server on application startup
+     * Performs STUN discovery and sends registration packet to server
+     * @param username Username to register
+     * @param signalingServer Signaling server address
+     * @return true if registration successful
+     */
+    public static boolean registerWithServer(String username, InetSocketAddress signalingServer) {
+        try {
+            System.out.println("[P2P] Registering user: " + username);
+            
+            // Step 1: Perform STUN discovery to get NAT info
+            byte natType = analyzeSinglePort(stunServers);
+            if (natType == (byte)0xFE) {
+                System.err.println("[P2P] NAT analysis failed during registration");
+                return false;
+            }
+            
+            if (myPublicIP == null || Public_PortList.isEmpty() || stunChannel == null) {
+                System.err.println("[P2P] No public IP/port discovered during registration");
+                return false;
+            }
+            
+            int myPublicPort = Public_PortList.get(0);
+            InetAddress localIP = getRealLocalIP();
+            
+            System.out.printf("[P2P] Registration info - Public: %s:%d, Local: %s:%d%n", 
+                myPublicIP, myPublicPort, localIP.getHostAddress(), localPort);
+            
+            // Step 2: Send registration packet to server
+            ByteBuffer registerPacket = LLS.New_Register_Packet(username, 
+                InetAddress.getByName(myPublicIP), myPublicPort, localIP, localPort);
+            stunChannel.send(registerPacket, signalingServer);
+            
+            System.out.println("[P2P] Registration packet sent to server");
+            
+            // Step 3: Wait for acknowledgment from server
+            Selector regSelector = Selector.open();
+            stunChannel.register(regSelector, SelectionKey.OP_READ);
+            
+            long deadline = System.currentTimeMillis() + 5000; // 5 second timeout
+            boolean ackReceived = false;
+            
+            while (System.currentTimeMillis() < deadline && !ackReceived) {
+                if (regSelector.select(100) == 0) continue;
+                
+                Iterator<SelectionKey> it = regSelector.selectedKeys().iterator();
+                while (it.hasNext()) {
+                    SelectionKey key = it.next();
+                    it.remove();
+                    
+                    if (!key.isReadable()) continue;
+                    
+                    DatagramChannel dc = (DatagramChannel) key.channel();
+                    ByteBuffer buf = ByteBuffer.allocate(512);
+                    SocketAddress from = dc.receive(buf);
+                    if (from == null) continue;
+                    
+                    buf.flip();
+                    if (!LLS.hasWholeFrame(buf)) continue;
+                    
+                    byte type = LLS.peekType(buf);
+                    if (type == LLS.SIG_ALL_DONE) {
+                        ackReceived = true;
+                        System.out.println("[P2P] ✅ Registration acknowledged by server");
+                        break;
+                    }
+                }
+            }
+            
+            regSelector.close();
+            
+            if (!ackReceived) {
+                System.err.println("[P2P] Registration timeout - no acknowledgment from server");
+                return false;
+            }
+            
+            System.out.println("[P2P] ✅ User registration complete: " + username);
+            return true;
+            
+        } catch (Exception e) {
+            System.err.println("[P2P] Registration error: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    /**
+     * Request P2P connection to target user - UNIDIRECTIONAL initiation
+     * @param myUsername Current user's username
+     * @param targetUsername Target user to connect to
+     * @param signalingServer Signaling server address
+     * @return true if P2P connection established successfully
+     */
+    public static boolean requestP2PConnection(String myUsername, String targetUsername, 
+                                             InetSocketAddress signalingServer) {
+        try {
+            System.out.printf("[P2P] Requesting P2P connection: %s -> %s%n", myUsername, targetUsername);
+            
+            // Ensure we have an active channel (from registration)
+            if (stunChannel == null || !stunChannel.isOpen()) {
+                System.err.println("[P2P] No active channel - user not registered?");
+                return false;
+            }
+            
+            // Step 1: Send P2P request to server
+            ByteBuffer requestPacket = LLS.New_P2PRequest_Packet(myUsername, targetUsername);
+            stunChannel.send(requestPacket, signalingServer);
+            System.out.println("[P2P] P2P connection request sent to server");
+            
+            // Step 2: Wait for peer info from server
+            Selector peerSelector = Selector.open();
+            stunChannel.register(peerSelector, SelectionKey.OP_READ);
+            
+            long deadline = System.currentTimeMillis() + HOLE_TIMEOUT_MS;
+            InetAddress peerIP = null;
+            int peerPort = 0;
+            boolean peerInfoReceived = false;
+            
+            while (System.currentTimeMillis() < deadline && !peerInfoReceived) {
+                if (peerSelector.select(SELECT_BLOCK_MS) == 0) continue;
+                
+                Iterator<SelectionKey> it = peerSelector.selectedKeys().iterator();
+                while (it.hasNext()) {
+                    SelectionKey key = it.next();
+                    it.remove();
+                    
+                    if (!key.isReadable()) continue;
+                    
+                    DatagramChannel dc = (DatagramChannel) key.channel();
+                    ByteBuffer buf = ByteBuffer.allocate(512);
+                    SocketAddress from = dc.receive(buf);
+                    if (from == null) continue;
+                    buf.flip();
+                    
+                    if (!LLS.hasWholeFrame(buf)) continue;
+                    byte type = LLS.peekType(buf);
+                    
+                    if (type == LLS.SIG_PORT) {
+                        List<Object> info = LLS.parsePortInfo(buf.duplicate());
+                        peerIP = (InetAddress) info.get(0);
+                        peerPort = (Integer) info.get(1);
+                        peerInfoReceived = true;
+                        System.out.printf("[P2P] Peer info received: %s:%d%n", peerIP, peerPort);
+                        break;
+                    }
+                }
+            }
+            
+            if (!peerInfoReceived) {
+                System.err.println("[P2P] Timeout waiting for peer info");
+                peerSelector.close();
+                return false;
+            }
+            
+            // Step 3: Start hole punching process (same as before)
+            InetSocketAddress peerAddr = new InetSocketAddress(peerIP, peerPort);
+            boolean success = performDirectHolePunching(peerAddr, targetUsername);
+            
+            peerSelector.close();
+            return success;
+            
+        } catch (Exception e) {
+            System.err.printf("[P2P] P2P request error: %s%n", e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    /**
+     * Handle incoming P2P notification from server
+     * Called when another user wants to establish P2P connection
+     */
+    public static void handleIncomingP2PNotification(ByteBuffer buf, SocketAddress from) {
+        try {
+            List<Object> parsed = LLS.parseP2PNotifyPacket(buf);
+            String requester = (String) parsed.get(2);
+            String target = (String) parsed.get(3);
+            InetAddress requesterPublicIP = (InetAddress) parsed.get(4);
+            int requesterPublicPort = (Integer) parsed.get(5);
+            InetAddress requesterLocalIP = (InetAddress) parsed.get(6);
+            int requesterLocalPort = (Integer) parsed.get(7);
+            
+            System.out.printf("[P2P] 📢 P2P notification: %s wants to connect to %s%n", requester, target);
+            System.out.printf("[P2P] Requester info - Public: %s:%d, Local: %s:%d%n", 
+                requesterPublicIP.getHostAddress(), requesterPublicPort,
+                requesterLocalIP.getHostAddress(), requesterLocalPort);
+            
+            // Choose appropriate IP based on NAT situation
+            InetAddress targetIP;
+            int targetPort;
+            
+            // Simple same-NAT detection - compare with our public IP
+            if (myPublicIP != null && requesterPublicIP.getHostAddress().equals(myPublicIP)) {
+                // Same NAT - use local IP
+                targetIP = requesterLocalIP;
+                targetPort = requesterLocalPort;
+                System.out.println("[P2P] Same NAT detected - using local IP for connection");
+            } else {
+                // Different NAT - use public IP
+                targetIP = requesterPublicIP;
+                targetPort = requesterPublicPort;
+                System.out.println("[P2P] Different NAT detected - using public IP for connection");
+            }
+            
+            // Start hole punching to requester
+            InetSocketAddress requesterAddr = new InetSocketAddress(targetIP, targetPort);
+            boolean success = performDirectHolePunching(requesterAddr, requester);
+            
+            if (success) {
+                System.out.printf("[P2P] ✅ P2P connection established with %s (incoming request)%n", requester);
+                
+                // Notify GUI about new P2P connection
+                try {
+                    javafx.application.Platform.runLater(() -> {
+                        // Open chat with the requester automatically
+                        com.saferoom.gui.controller.MessagesController.openChatWithUser(requester);
+                    });
+                } catch (Exception e) {
+                    System.err.println("[P2P] Error notifying GUI: " + e.getMessage());
+                }
+            } else {
+                System.err.printf("[P2P] ❌ Failed to establish P2P connection with %s%n", requester);
+            }
+            
+        } catch (Exception e) {
+            System.err.printf("[P2P] Error handling P2P notification from %s: %s%n", from, e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Perform direct hole punching to specific peer address
+     */
+    private static boolean performDirectHolePunching(InetSocketAddress peerAddr, String targetUsername) {
+        try {
+            System.out.printf("[P2P] Starting direct hole punching to %s%n", peerAddr);
+            
+            // Setup selector for concurrent burst + response listening
+            Selector burstSelector = Selector.open();
+            stunChannel.register(burstSelector, SelectionKey.OP_READ);
+            
+            long burstStart = System.currentTimeMillis();
+            long burstDuration = 10000; // 10 seconds
+            long burstInterval = 100;    // Every 100ms
+            long lastSend = 0;
+            int packetCount = 0;
+            boolean responseReceived = false;
+            
+            // CONCURRENT: Send STUN Binding burst + Listen for response
+            while ((System.currentTimeMillis() - burstStart) < burstDuration && !responseReceived) {
+                // Send STUN Binding packet if it's time
+                if ((System.currentTimeMillis() - lastSend) >= burstInterval) {
+                    ByteBuffer stunBinding = stunPacket();
+                    stunChannel.send(stunBinding, peerAddr);
+                    packetCount++;
+                    System.out.printf("[P2P] STUN burst #%d sent to %s from port %d%n", 
+                        packetCount, peerAddr, localPort);
+                    lastSend = System.currentTimeMillis();
+                }
+                
+                // Check for response (non-blocking)
+                if (burstSelector.selectNow() > 0) {
+                    Iterator<SelectionKey> it = burstSelector.selectedKeys().iterator();
+                    while (it.hasNext()) {
+                        SelectionKey key = it.next();
+                        it.remove();
+                        
+                        if (!key.isReadable()) continue;
+                        
+                        DatagramChannel dc = (DatagramChannel) key.channel();
+                        ByteBuffer buf = ByteBuffer.allocate(1024);
+                        SocketAddress from = dc.receive(buf);
+                        if (from == null) continue;
+                        
+                        buf.flip();
+                        System.out.printf("[P2P] 📥 Response received during burst from %s - hole punch confirmed!%n", from);
+                        responseReceived = true;
+                        break;
+                    }
+                }
+                
+                Thread.sleep(10); // Small sleep to prevent busy loop
+            }
+            
+            burstSelector.close();
+            
+            if (!responseReceived) {
+                System.err.printf("[P2P] ❌ No response received during burst to %s%n", peerAddr);
+                return false;
+            }
+            
+            // Setup keep-alive and messaging
+            KeepAliveManager keepAlive = new KeepAliveManager(3_000);
+            keepAlive.installShutdownHook();
+            keepAlive.register(stunChannel, peerAddr);
+            keepAlive.startMessageListening(stunChannel);
+            
+            // Store peer address for messaging
+            activePeers.put(targetUsername, peerAddr);
+            lastActivity.put(targetUsername, System.currentTimeMillis());
+            
+            System.out.printf("[P2P] ✅ Direct hole punching successful to %s%n", targetUsername);
+            return true;
+            
+        } catch (Exception e) {
+            System.err.printf("[P2P] Direct hole punching error: %s%n", e.getMessage());
+            return false;
         }
     }
     

@@ -567,31 +567,81 @@ public class ClientMenu{
 	// ============================================
 	
 	/**
-	 * Start P2P hole punching process with target user
+	 * Register user with P2P signaling server on application startup
+	 * @param username Username to register
+	 * @return true if registration successful
+	 */
+	public static boolean registerP2PUser(String username) {
+		try {
+			System.out.println("[P2P] Registering user with server: " + username);
+			
+			InetSocketAddress signalingServer = new InetSocketAddress(Server, 45001); // P2PSignalingServer.SIGNALING_PORT
+			return NatAnalyzer.registerWithServer(username, signalingServer);
+			
+		} catch (Exception e) {
+			System.err.println("[P2P] Error during user registration: " + e.getMessage());
+			e.printStackTrace();
+			return false;
+		}
+	}
+	
+	/**
+	 * Start P2P hole punching process with target user - NEW UNIDIRECTIONAL VERSION
 	 * @param myUsername Current user's username
 	 * @param targetUsername Target user to connect to
 	 * @return true if hole punch successful, false if should use server relay
 	 */
 	public static boolean startP2PHolePunch(String myUsername, String targetUsername) {
 		try {
-			System.out.println("[P2P] Initiating hole punch: " + myUsername + " -> " + targetUsername);
+			System.out.println("[P2P] Initiating UNIDIRECTIONAL P2P request: " + myUsername + " -> " + targetUsername);
 			
 			// Create signaling server address - use correct P2P signaling port
 			InetSocketAddress signalingServer = new InetSocketAddress(Server, 45001); // P2PSignalingServer.SIGNALING_PORT
 			
-			// Perform hole punch using NatAnalyzer
-			boolean success = NatAnalyzer.performHolePunch(myUsername, targetUsername, signalingServer);
+			// Use new unidirectional P2P request system
+			boolean success = NatAnalyzer.requestP2PConnection(myUsername, targetUsername, signalingServer);
 			
 			if (success) {
-				System.out.println("[P2P] ✅ Hole punch successful - P2P connection established");
+				System.out.println("[P2P] ✅ Unidirectional P2P connection successful");
 				return true;
 			} else {
-				System.out.println("[P2P] ❌ Hole punch failed - will use server relay");
+				System.out.println("[P2P] ❌ Unidirectional P2P failed - will use server relay");
 				return false;
 			}
 			
 		} catch (Exception e) {
-			System.err.println("[P2P] Error during hole punch: " + e.getMessage());
+			System.err.println("[P2P] Error during unidirectional P2P: " + e.getMessage());
+			e.printStackTrace();
+			return false;
+		}
+	}
+	
+	/**
+	 * Legacy hole punch method for backward compatibility
+	 * @param myUsername Current user's username
+	 * @param targetUsername Target user to connect to
+	 * @return true if hole punch successful, false if should use server relay
+	 */
+	public static boolean startLegacyP2PHolePunch(String myUsername, String targetUsername) {
+		try {
+			System.out.println("[P2P] Initiating LEGACY hole punch: " + myUsername + " -> " + targetUsername);
+			
+			// Create signaling server address - use correct P2P signaling port
+			InetSocketAddress signalingServer = new InetSocketAddress(Server, 45001); // P2PSignalingServer.SIGNALING_PORT
+			
+			// Perform hole punch using NatAnalyzer (old method)
+			boolean success = NatAnalyzer.performHolePunch(myUsername, targetUsername, signalingServer);
+			
+			if (success) {
+				System.out.println("[P2P] ✅ Legacy hole punch successful - P2P connection established");
+				return true;
+			} else {
+				System.out.println("[P2P] ❌ Legacy hole punch failed - will use server relay");
+				return false;
+			}
+			
+		} catch (Exception e) {
+			System.err.println("[P2P] Error during legacy hole punch: " + e.getMessage());
 			e.printStackTrace();
 			return false;
 		}
