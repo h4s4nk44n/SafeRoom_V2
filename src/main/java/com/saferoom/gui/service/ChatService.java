@@ -143,19 +143,9 @@ public class ChatService {
         System.out.printf("[Chat] ✅ P2P message added to channel: %s%n", sender);
     }
 
-    // Sahte verileri oluşturan özel metot
+    // No dummy messages - start with clean slate
     private void setupDummyMessages() {
-        channelMessages.put("zeynep_kaya", FXCollections.observableArrayList(
-                new Message("Selam, projenin son durumu hakkında bilgi alabilir miyim?", "zeynep1", "Z"),
-                new Message("Tabii, raporu hazırlıyorum. Yarın sabah sende olur.", "currentUser123", "Y"),
-                new Message("Harika, teşekkürler! Kolay gelsin.", "zeynep1", "Z")
-        ));
-        channelMessages.put("ahmet_celik", FXCollections.observableArrayList(
-                new Message("Raporu yarın sabah gönderirim.", "ahmet1", "A")
-        ));
-        channelMessages.put("meeting_phoenix", FXCollections.observableArrayList(
-                new Message("Toplantı 15:00'te başlıyor arkadaşlar.", "zeynep1", "Z"),
-                new Message("Ben hazır ve beklemedeyim.", "ahmet1", "A")
-        ));
+        // All chat channels start empty - real messages will be added via P2P
+        System.out.println("[ChatService] 🧹 Started with clean message history - no dummy messages");
     }
 }

@@ -11,6 +11,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -46,6 +48,11 @@ public class ChatViewController {
                 }
             }
         });
+        
+        // Add Enter key handler for message input
+        if (messageInputField != null) {
+            messageInputField.setOnKeyPressed(this::handleKeyPressed);
+        }
     }
 
     public void initChannel(String channelId) {
@@ -65,6 +72,12 @@ public class ChatViewController {
 
         if (!messages.isEmpty()) {
             messageListView.scrollTo(messages.size() - 1);
+        }
+        
+        // Ensure Enter key handler is set (in case initialize didn't work)
+        if (messageInputField != null) {
+            messageInputField.setOnKeyPressed(this::handleKeyPressed);
+            System.out.println("[ChatView] ⌨️ Enter key handler set for message input");
         }
     }
 
@@ -114,6 +127,20 @@ public class ChatViewController {
         chatService.sendMessage(currentChannelId, text, currentUser);
 
         messageInputField.clear();
+    }
+    
+    /**
+     * Handle key presses in message input field
+     */
+    private void handleKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            // Check if Shift+Enter (for new line) or just Enter (for send)
+            if (!event.isShiftDown()) {
+                handleSendMessage();
+                event.consume(); // Prevent default behavior
+            }
+            // If Shift+Enter, allow default behavior (new line)
+        }
     }
 
     private void updatePlaceholderVisibility() {

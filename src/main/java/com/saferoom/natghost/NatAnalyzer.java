@@ -729,10 +729,9 @@ public class NatAnalyzer {
                                 mainController.switchToMessages(); // This method needs to be added
                             }
                             
-                            // Then open chat with the requester and send notification message
+                            // Then open chat with the requester (no bot message)
                             System.out.printf("[P2P] 💬 Opening chat with requester: %s%n", requester);
-                            String notificationMsg = "🔗 " + requester + " initiated P2P connection with you. You can now chat securely!";
-                            com.saferoom.gui.controller.MessagesController.openChatWithUserAndNotify(requester, notificationMsg);
+                            com.saferoom.gui.controller.MessagesController.openChatWithUser(requester);
                                 
                         } catch (Exception e) {
                             System.err.println("[P2P] Error in GUI notification: " + e.getMessage());

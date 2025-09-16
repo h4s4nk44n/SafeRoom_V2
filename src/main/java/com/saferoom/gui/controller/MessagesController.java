@@ -212,12 +212,11 @@ public class MessagesController {
      * Try to establish P2P connection with user
      */
     private void tryP2PConnection(String username) {
-        // Skip P2P for groups, bots, dummy users, or if already connected
+        // Skip P2P for groups or if already connected
         if (username.contains("Grubu") || 
-            username.contains("_") || // Skip dummy users like zeynep_kaya, ahmet_celik
             username.equals("meeting_phoenix") ||
             "P2P Active".equals(connectionStatus.get(username))) {
-            System.out.printf("[P2P] Skipping P2P for dummy/bot user: %s%n", username);
+            System.out.printf("[P2P] Skipping P2P for group or already connected user: %s%n", username);
             return;
         }
         
