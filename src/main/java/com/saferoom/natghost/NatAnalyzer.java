@@ -315,25 +315,71 @@ public class NatAnalyzer {
             return false;
         }
         
-        // Step 4: Start DNS packet exchange using SAME channel
+        // Step 4: Start DNS packet exchange using SAME channel WITH response listening
         InetSocketAddress peerAddr = new InetSocketAddress(peerIP, peerPort);
-        System.out.println("[P2P] Starting 1.5-second DNS burst to peer using local port: " + localPort);
+        System.out.println("[P2P] Starting 1.5-second DNS burst with response listening on port: " + localPort);
         
-        // Send DNS queries in burst mode - CRITICAL: same source port for 1.5 seconds!
+        // Setup selector for concurrent burst + response listening
+        Selector burstSelector = Selector.open();
+        stunChannel.register(burstSelector, SelectionKey.OP_READ);
+        
         long burstStart = System.currentTimeMillis();
         long burstDuration = 1500; // 1.5 seconds
         long burstInterval = 50;   // Every 50ms
+        long lastSend = 0;
         int packetCount = 0;
+        boolean responseReceived = false;
         
-        while ((System.currentTimeMillis() - burstStart) < burstDuration) {
-            ByteBuffer dnsQuery = LLS.New_DNSQuery_Packet();
-            stunChannel.send(dnsQuery, peerAddr);
-            packetCount++;
-            System.out.println("[P2P] DNS burst packet #" + packetCount + " sent to " + peerAddr + " from port " + localPort);
-            Thread.sleep(burstInterval);
+        // CONCURRENT: Send DNS burst + Listen for response
+        while ((System.currentTimeMillis() - burstStart) < burstDuration && !responseReceived) {
+            // Send DNS packet if it's time
+            if ((System.currentTimeMillis() - lastSend) >= burstInterval) {
+                ByteBuffer dnsQuery = LLS.New_DNSQuery_Packet();
+                stunChannel.send(dnsQuery, peerAddr);
+                packetCount++;
+                System.out.println("[P2P] DNS burst packet #" + packetCount + " sent to " + peerAddr + " from port " + localPort);
+                lastSend = System.currentTimeMillis();
+            }
+            
+            // Check for response (non-blocking)
+            if (burstSelector.selectNow() > 0) {
+                Iterator<SelectionKey> it = burstSelector.selectedKeys().iterator();
+                while (it.hasNext()) {
+                    SelectionKey key = it.next();
+                    it.remove();
+                    
+                    if (!key.isReadable()) continue;
+                    
+                    DatagramChannel dc = (DatagramChannel) key.channel();
+                    ByteBuffer buf = ByteBuffer.allocate(1024);
+                    SocketAddress from = dc.receive(buf);
+                    if (from == null) continue;
+                    
+                    buf.flip();
+                    System.out.printf("[P2P] 📥 Response received during burst from %s - hole punch confirmed!%n", from);
+                    responseReceived = true;
+                    break;
+                }
+            }
+            
+            Thread.sleep(10); // Small sleep to prevent busy loop
         }
         
+        burstSelector.close();
+        
         System.out.println("[P2P] DNS burst complete: " + packetCount + " packets sent over " + burstDuration + "ms");
+        
+        // Check if response was received during burst
+        if (!responseReceived) {
+            System.err.println("[P2P] ❌ No response received during burst - hole punch failed");
+            if (stunChannel != null) {
+                try {
+                    stunChannel.close();
+                } catch (Exception e) {}
+                stunChannel = null;
+            }
+            return false;
+        }
         
         // Setup keep-alive manager with integrated message listening
         KeepAliveManager keepAlive = new KeepAliveManager(3_000);
@@ -347,7 +393,7 @@ public class NatAnalyzer {
         activePeers.put(targetUsername, peerAddr);
         lastActivity.put(targetUsername, System.currentTimeMillis());
         
-        System.out.println("[P2P] ✅ Hole punch successful! P2P connection established with " + targetUsername);
+        System.out.println("[P2P] ✅ Hole punch confirmed! P2P connection established with " + targetUsername);
         System.out.println("[P2P] Connection details: Local:" + localPort + " -> Peer:" + peerAddr);
         System.out.println("[P2P] 🎉 P2P messaging now available with " + targetUsername + "!");
         return true;
