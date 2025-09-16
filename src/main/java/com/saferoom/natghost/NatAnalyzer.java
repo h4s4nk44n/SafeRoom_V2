@@ -317,15 +317,15 @@ public class NatAnalyzer {
         
         // Step 4: Start DNS packet exchange using SAME channel WITH response listening
         InetSocketAddress peerAddr = new InetSocketAddress(peerIP, peerPort);
-        System.out.println("[P2P] Starting 1.5-second STUN Binding burst with response listening on port: " + localPort);
+        System.out.println("[P2P] Starting 10-second STUN Binding burst with response listening on port: " + localPort);
         
         // Setup selector for concurrent burst + response listening
         Selector burstSelector = Selector.open();
         stunChannel.register(burstSelector, SelectionKey.OP_READ);
         
         long burstStart = System.currentTimeMillis();
-        long burstDuration = 1500; // 1.5 seconds
-        long burstInterval = 50;   // Every 50ms
+        long burstDuration = 10000; // 10 seconds - much longer for hole punch
+        long burstInterval = 100;    // Every 100ms
         long lastSend = 0;
         int packetCount = 0;
         boolean responseReceived = false;
@@ -367,7 +367,7 @@ public class NatAnalyzer {
         
         burstSelector.close();
         
-        System.out.println("[P2P] STUN Binding burst complete: " + packetCount + " packets sent over " + burstDuration + "ms");
+        System.out.println("[P2P] STUN Binding burst complete: " + packetCount + " packets sent over " + (System.currentTimeMillis() - burstStart) + "ms");
         
         // Check if response was received during burst
         if (!responseReceived) {
