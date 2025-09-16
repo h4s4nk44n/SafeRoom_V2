@@ -1,6 +1,7 @@
 package com.saferoom.gui.controller;
 
 import com.saferoom.gui.view.cell.ContactCell;
+import com.saferoom.gui.service.ContactService;
 import com.saferoom.client.ClientMenu;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -29,6 +30,9 @@ public class MessagesController {
     
     // P2P connection status tracking
     private final Map<String, String> connectionStatus = new ConcurrentHashMap<>();
+    
+    // Contact service for persistent storage
+    private final ContactService contactService = ContactService.getInstance();
 
     @FXML
     public void initialize() {
@@ -45,21 +49,24 @@ public class MessagesController {
     }
 
     private void setupModelAndListViews() {
-        ObservableList<Contact> contacts = FXCollections.observableArrayList(
-                new Contact("zeynep_kaya", "Zeynep Kaya", "Online", "Harika, teşekkürler!", "5m", 2, false),
-                new Contact("ahmet_celik", "Ahmet Çelik", "Offline", "Raporu yarın sabah gönderirim.", "1d", 0, false),
-                new Contact("sarah_idle", "Sarah Johnson", "Idle", "I'll be back in 10 minutes", "15m", 0, false),
-                new Contact("mike_busy", "Mike Davis", "Busy", "In a meeting right now", "30m", 1, false),
-                new Contact("lisa_dnd", "Lisa Chen", "Do Not Disturb", "Working on important project", "1h", 0, false),
-                new Contact("meeting_phoenix", "Proje Phoenix Grubu", "3 Online", "Toplantı 15:00'te.", "2h", 5, true)
-        );
-        contactListView.setItems(contacts);
+        // Use ContactService for persistent contact management
+        contactListView.setItems(contactService.getContactList());
         contactListView.setCellFactory(param -> new ContactCell());
+        
+        System.out.println("[MessagesController] 📱 Initialized with persistent contact service");
     }
 
     private void setupContactSelectionListener() {
         contactSelectionListener = (obs, oldSelection, newSelection) -> {
+            // Clear previous active chat
+            if (oldSelection != null) {
+                contactService.clearActiveChat();
+            }
+            
             if (newSelection != null && chatViewController != null) {
+                // Set new active chat and mark as read
+                contactService.setActiveChat(newSelection.getId());
+                
                 chatViewController.initChannel(newSelection.getId());
                 chatViewController.setHeader(
                         newSelection.getName(),
@@ -70,6 +77,8 @@ public class MessagesController {
                 
                 // Try to establish P2P connection for new chats
                 tryP2PConnection(newSelection.getId());
+                
+                System.out.printf("[MessagesController] 👁️ Selected chat: %s (marked as read)%n", newSelection.getId());
             }
         };
         contactListView.getSelectionModel().selectedItemProperty().addListener(contactSelectionListener);
@@ -124,20 +133,23 @@ public class MessagesController {
      * Kullanıcıyı contact listesinde seç veya ekle
      */
     private void selectOrAddUser(String username) {
-        // Önce mevcut kontaklarda ara
-        for (Contact contact : contactListView.getItems()) {
-            if (contact.getId().equals(username)) {
-                contactListView.getSelectionModel().select(contact);
-                System.out.println("📱 Selected existing contact: " + username);
-                return;
+        // ContactService kullanarak persistent contact management
+        if (contactService.hasContact(username)) {
+            // Existing contact - just select it
+            Contact existingContact = contactService.getContact(username);
+            contactListView.getSelectionModel().select(existingContact);
+            System.out.printf("📱 Selected existing contact: %s%n", username);
+        } else {
+            // New contact - add to service
+            contactService.addNewContact(username);
+            
+            // Find and select the newly added contact
+            Contact newContact = contactService.getContact(username);
+            if (newContact != null) {
+                contactListView.getSelectionModel().select(newContact);
+                System.out.printf("📱 Added and selected new contact: %s%n", username);
             }
         }
-        
-        // Bulunamazsa yeni contact ekle
-        Contact newContact = new Contact(username, username, "Online", "Starting conversation...", "now", 0, false);
-        contactListView.getItems().add(0, newContact); // En üste ekle
-        contactListView.getSelectionModel().select(newContact);
-        System.out.println("📱 Added new contact: " + username);
     }
     
     /**

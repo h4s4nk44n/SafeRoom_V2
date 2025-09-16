@@ -76,6 +76,14 @@ public class ChatService {
             // TODO: Implement server relay messaging
         }
 
+        // Update contact's last message (from me)
+        try {
+            com.saferoom.gui.service.ContactService.getInstance()
+                .updateLastMessage(channelId, text, true);
+        } catch (Exception e) {
+            System.err.println("[Chat] Error updating contact last message: " + e.getMessage());
+        }
+
         // Yeni mesaj geldiğini tüm dinleyenlere haber ver!
         newMessageProperty.set(newMessage);
     }
@@ -109,6 +117,25 @@ public class ChatService {
         // Mesajı doğru channel'a ekle
         ObservableList<Message> messages = getMessagesForChannel(sender);
         messages.add(incomingMessage);
+        
+        // Update contact's last message (not from me - will increment unread if not active)
+        try {
+            com.saferoom.gui.service.ContactService contactService = 
+                com.saferoom.gui.service.ContactService.getInstance();
+            
+            // Add contact if doesn't exist
+            if (!contactService.hasContact(sender)) {
+                contactService.addNewContact(sender);
+            }
+            
+            // Update last message (isFromMe = false)
+            contactService.updateLastMessage(sender, messageText, false);
+            
+            System.out.printf("[Chat] 📬 Updated contact last message for %s%n", sender);
+            
+        } catch (Exception e) {
+            System.err.println("[Chat] Error updating contact for P2P message: " + e.getMessage());
+        }
         
         // GUI'yi güncelle
         newMessageProperty.set(incomingMessage);
