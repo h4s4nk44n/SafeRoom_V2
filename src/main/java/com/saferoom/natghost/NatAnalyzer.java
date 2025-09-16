@@ -303,8 +303,14 @@ public class NatAnalyzer {
         
         if (!peerInfoReceived) {
             System.err.println("[P2P] Timeout waiting for peer info");
-            stunChannel.close();
-            stunChannel = null;
+            if (stunChannel != null) {
+                try {
+                    stunChannel.close();
+                } catch (Exception e) {
+                    System.err.println("[P2P] Error closing stunChannel: " + e.getMessage());
+                }
+                stunChannel = null;
+            }
             peerSelector.close();
             return false;
         }

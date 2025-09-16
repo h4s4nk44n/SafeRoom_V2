@@ -576,8 +576,8 @@ public class ClientMenu{
 		try {
 			System.out.println("[P2P] Initiating hole punch: " + myUsername + " -> " + targetUsername);
 			
-			// Create signaling server address
-			InetSocketAddress signalingServer = new InetSocketAddress(Server, UDP_Port);
+			// Create signaling server address - use correct P2P signaling port
+			InetSocketAddress signalingServer = new InetSocketAddress(Server, 45001); // P2PSignalingServer.SIGNALING_PORT
 			
 			// Perform hole punch using NatAnalyzer
 			boolean success = NatAnalyzer.performHolePunch(myUsername, targetUsername, signalingServer);
