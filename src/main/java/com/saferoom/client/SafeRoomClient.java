@@ -13,7 +13,7 @@ import com.saferoom.client.DecryptedMessageHandler;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
-import com.saferoom.p2p.*;
+// import com.saferoom.p2p.*; // P2P system removed
 import com.saferoom.sessions.SessionInfo;
 
 import java.net.*;
@@ -48,9 +48,12 @@ public class SafeRoomClient {
 	public static ExecutorService threadPool = Executors.newFixedThreadPool(5);
 	
 	 public static void run(String myUsername, String targetUsername) throws Exception{
-
-	        info = MultiStunClient.StunClient();
+	        // P2P system removed - method disabled
+	        System.out.println("⚠️ P2P system disabled - using server relay only");
+	        return; // Temporarily disabled
 	        
+	        /*
+	        info = MultiStunClient.StunClient();
 
 	        if (!info[0].equals("true")) {
 	            System.out.println("❌ STUN başarısız. Test durduruldu.");
@@ -63,7 +66,10 @@ public class SafeRoomClient {
 	        boolean myState = Boolean.parseBoolean(info[3]);
 
 	        System.out.println("🌐 STUN IP: " + myIp + ", Port: " + myPort + ", OpenAccess: " + myState);
-
+	        */
+	        
+	        // All remaining P2P code disabled - will be reimplemented
+	        /*
 	        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 50051)//server
 	                .usePlaintext()
 	                .build();
@@ -95,7 +101,8 @@ public class SafeRoomClient {
 
 	        String punchMessage = "HOLE_PUNCH:" + myUsername;
 	        UDPSender.sendPunch(myUsername, targetUsername, myIp, targetInfo.getIp(), myPort, targetInfo.getPort(), punchMessage);
-
+	        
+	        // Remaining P2P handshake code also disabled
 	        hs = SafeRoomProto.HandshakeConfirm.newBuilder()
 	                .setClientId(myUsername)
 	                .setTargetId(targetUsername)
@@ -108,6 +115,7 @@ public class SafeRoomClient {
 	        channel.shutdown();
 
 	        System.out.println("✅ SafeRoomClient işlemi tamamlandı.");
+	        */
 	    }
 	
 	private ThreadPoolExecutor newFixedPool(int i) {

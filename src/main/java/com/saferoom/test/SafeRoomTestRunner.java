@@ -2,8 +2,6 @@ package com.saferoom.test;
 
 import com.saferoom.client.UDPSender;
 import com.saferoom.grpc.*;
-
-import com.saferoom.p2p.*;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
@@ -12,9 +10,12 @@ public class SafeRoomTestRunner {
     public static void runP2PTest(String myUsername, String targetUsername) {
         System.out.println("🚀 SafeRoom P2P Test Başlıyor: " + myUsername + " → " + targetUsername);
 
-        // 1️⃣ STUN Tespiti
-        String[] info = MultiStunClient.StunClient();
+        // 1️⃣ STUN Tespiti - DISABLED (P2P system removed)
+        // String[] info = MultiStunClient.StunClient();
+        System.out.println("⚠️ P2P system disabled - test skipped");
+        return; // Exit early since P2P is disabled
 
+        /*
         if (!info[0].equals("true")) {
             System.out.println("❌ STUN başarısız, test durduruldu.");
             return;
@@ -25,7 +26,10 @@ public class SafeRoomTestRunner {
         boolean myState = Boolean.parseBoolean(info[3]);
 
         System.out.println("🌐 STUN IP: " + myIp + " PORT: " + myPort + " OpenAccess: " + myState);
-
+        */
+        
+        // All P2P test code disabled - will be reimplemented
+        /*
         // 2️⃣ GRPC Kanal Oluştur
         ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 50051)
                 .usePlaintext()
@@ -75,5 +79,6 @@ public class SafeRoomTestRunner {
         channel.shutdown();
 
         System.out.println("✅ P2P Test Başarıyla Tamamlandı.");
+        */
     }
 }

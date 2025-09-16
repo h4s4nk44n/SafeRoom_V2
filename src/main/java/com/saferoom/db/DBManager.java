@@ -5,7 +5,7 @@ import java.io.IOException;
 
 import java.util.Properties;
 
-import com.saferoom.p2p.*;
+// import com.saferoom.p2p.*; // P2P system removed
 import com.saferoom.crypto.CryptoUtils;
 import com.saferoom.email.*;
 import com.saferoom.log.Logger;
@@ -69,6 +69,11 @@ public class DBManager {
 	
 	
 	public static boolean setSTUN_INFO(String myUsername) throws SQLException{
+		// P2P system removed - method disabled
+		System.out.println("⚠️ STUN_INFO setting disabled - P2P system removed");
+		return false; // Temporarily disabled
+		
+		/*
 		String query = "INSERT INTO STUN_INFO(Public_IP, Public_Port) VALUES(?, ?) WHERE username = (?);";
 		String[] returns = MultiStunClient.StunClient();
 		
@@ -89,6 +94,7 @@ public class DBManager {
 		}
 	
 		return false;
+		*/
 	}
 	
 	public static String[] getSTUN_INFO(String username) throws SQLException{

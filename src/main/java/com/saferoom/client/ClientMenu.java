@@ -6,16 +6,16 @@ import com.saferoom.grpc.SafeRoomProto.Status;
 import com.saferoom.grpc.UDPHoleGrpc;
 import com.saferoom.grpc.SafeRoomProto.Verification;
 import com.saferoom.server.SafeRoomServer;
+import com.saferoom.natghost.NatAnalyzer;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 public class ClientMenu{
 	public static String Server = SafeRoomServer.ServerIP;
 	public static int Port = SafeRoomServer.grpcPort;
 	public static int UDP_Port = SafeRoomServer.udpPort1;
-	public static String myUsername = "abkarada";
-	public static String target_username = "james";
 
 		public static String Login(String username, String Password)
 		{
@@ -38,9 +38,7 @@ public class ClientMenu{
 			switch(code){
 				case 0:
 					System.out.println("Success!");
-					// ÖNEMLI: Login başarılıysa username'i güncelle!
-					myUsername = username;
-					System.out.printf("✅ Logged in as: %s%n", myUsername);
+					System.out.printf("✅ Logged in as: %s%n", username);
 					return message; // Server'dan gelen eksik bilgiyi döndür (email veya username)
 				case 1:
 					if(message.equals("N_REGISTER")){
@@ -563,5 +561,91 @@ public class ClientMenu{
 			}
 		}
 	}
+	
+	// ============================================
+	// P2P HOLE PUNCHING METHODS
+	// ============================================
+	
+	/**
+	 * Start P2P hole punching process with target user
+	 * @param myUsername Current user's username
+	 * @param targetUsername Target user to connect to
+	 * @return true if hole punch successful, false if should use server relay
+	 */
+	public static boolean startP2PHolePunch(String myUsername, String targetUsername) {
+		try {
+			System.out.println("[P2P] Initiating hole punch: " + myUsername + " -> " + targetUsername);
+			
+			// Create signaling server address
+			InetSocketAddress signalingServer = new InetSocketAddress(Server, UDP_Port);
+			
+			// Perform hole punch using NatAnalyzer
+			boolean success = NatAnalyzer.performHolePunch(myUsername, targetUsername, signalingServer);
+			
+			if (success) {
+				System.out.println("[P2P] ✅ Hole punch successful - P2P connection established");
+				return true;
+			} else {
+				System.out.println("[P2P] ❌ Hole punch failed - will use server relay");
+				return false;
+			}
+			
+		} catch (Exception e) {
+			System.err.println("[P2P] Error during hole punch: " + e.getMessage());
+			e.printStackTrace();
+			return false;
+		}
+	}
+	
+	/**
+	 * Analyze NAT type for current network
+	 * @return NAT type: 0x00=Full Cone/Restricted, 0x11=Symmetric, 0xFE=Error
+	 */
+	public static byte analyzeNAT() {
+		try {
+			System.out.println("[P2P] Analyzing NAT type...");
+			byte natType = NatAnalyzer.analyzeSinglePort(NatAnalyzer.stunServers);
+			
+			String natTypeStr = switch (natType) {
+				case (byte)0x00 -> "Full Cone/Restricted NAT (P2P Friendly)";
+				case (byte)0x11 -> "Symmetric NAT (P2P Challenging)";
+				case (byte)0xFE -> "NAT Analysis Failed";
+				default -> "Unknown NAT Type";
+			};
+			
+			System.out.println("[P2P] NAT Type: " + natTypeStr);
+			return natType;
+			
+		} catch (Exception e) {
+			System.err.println("[P2P] NAT analysis error: " + e.getMessage());
+			return (byte)0xFE;
+		}
+	}
+	
+	/**
+	 * Get current public IP and port info
+	 * @return String array [publicIP, publicPort, natType] or null if failed
+	 */
+	public static String[] getPublicInfo() {
+		try {
+			byte natType = analyzeNAT();
+			if (natType == (byte)0xFE || NatAnalyzer.myPublicIP == null || NatAnalyzer.Public_PortList.isEmpty()) {
+				return null;
+			}
+			
+			return new String[] {
+				NatAnalyzer.myPublicIP,
+				String.valueOf(NatAnalyzer.Public_PortList.get(0)),
+				String.format("0x%02X", natType)
+			};
+			
+		} catch (Exception e) {
+			System.err.println("[P2P] Error getting public info: " + e.getMessage());
+			return null;
+		}
+	}
 
 }
+
+
+	

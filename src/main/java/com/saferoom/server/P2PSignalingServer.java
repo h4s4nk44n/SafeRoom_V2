@@ -53,8 +53,99 @@ public class P2PSignalingServer extends Thread {
     private static final Map<String, PeerState> STATES = new ConcurrentHashMap<>();
     public static final int SIGNALING_PORT = 45001;
     
+    // Modern hashmap for peer matching: <host_username, target_username> -> PeerInfo
+    private static final Map<String, PeerInfo> PEER_REQUESTS = new ConcurrentHashMap<>();
+    
     private static final long CLEANUP_INTERVAL_MS = 30_000;
     private long lastCleanup = System.currentTimeMillis();
+    
+    // Simple peer info for modern hole punching
+    static class PeerInfo {
+        final String username;
+        final String targetUsername;
+        final InetAddress publicIP;
+        final int publicPort;
+        final InetSocketAddress clientAddress; // Track where to send response
+        final long timestamp;
+        
+        PeerInfo(String username, String targetUsername, InetAddress publicIP, int publicPort, InetSocketAddress clientAddress) {
+            this.username = username;
+            this.targetUsername = targetUsername;
+            this.publicIP = publicIP;
+            this.publicPort = publicPort;
+            this.clientAddress = clientAddress;
+            this.timestamp = System.currentTimeMillis();
+        }
+        
+        @Override
+        public String toString() {
+            return username + "->" + targetUsername + " (" + publicIP + ":" + publicPort + ")";
+        }
+    }
+    
+    /**
+     * Handle modern hole punch request (SIG_HOLE)
+     * Implements the hashmap-based peer matching system
+     */
+    private void handleHolePunchRequest(ByteBuffer buf, DatagramChannel channel, InetSocketAddress from) {
+        try {
+            // Parse hole punch packet
+            List<Object> parsed = LLS.parseLLSPacket(buf);
+            String sender = (String) parsed.get(2);
+            String target = (String) parsed.get(3);
+            InetAddress publicIP = (InetAddress) parsed.get(4);
+            int publicPort = (Integer) parsed.get(5);
+            
+            System.out.printf("🎯 HOLE_PUNCH: %s -> %s (public: %s:%d)%n", 
+                sender, target, publicIP.getHostAddress(), publicPort);
+            
+            // Store this peer's info with client address
+            String senderKey = sender + "->" + target;
+            PeerInfo senderInfo = new PeerInfo(sender, target, publicIP, publicPort, from);
+            PEER_REQUESTS.put(senderKey, senderInfo);
+            
+            // Check if target is also waiting for this sender
+            String targetKey = target + "->" + sender;
+            PeerInfo targetInfo = PEER_REQUESTS.get(targetKey);
+            
+            if (targetInfo != null) {
+                // MATCH FOUND! Both peers are ready for hole punching
+                System.out.printf("✅ PEER MATCH: %s <-> %s%n", sender, target);
+                
+                // Send target's info to sender
+                ByteBuffer targetInfoPacket = LLS.New_PortInfo_Packet(
+                    target, sender, LLS.SIG_PORT, 
+                    targetInfo.publicIP, targetInfo.publicPort
+                );
+                channel.send(targetInfoPacket, from);
+                System.out.printf("📤 Sent %s's info (%s:%d) to %s%n", 
+                    target, targetInfo.publicIP.getHostAddress(), targetInfo.publicPort, sender);
+                
+                // Send sender's info to target
+                ByteBuffer senderInfoPacket = LLS.New_PortInfo_Packet(
+                    sender, target, LLS.SIG_PORT,
+                    senderInfo.publicIP, senderInfo.publicPort
+                );
+                channel.send(senderInfoPacket, targetInfo.clientAddress);
+                System.out.printf("📤 Sent %s's info (%s:%d) to %s%n", 
+                    sender, senderInfo.publicIP.getHostAddress(), senderInfo.publicPort, target);
+                
+                // Clean up the matched pair
+                PEER_REQUESTS.remove(senderKey);
+                PEER_REQUESTS.remove(targetKey);
+                
+                System.out.printf("🎉 Hole punch coordination complete for %s <-> %s%n", sender, target);
+                
+            } else {
+                // Target not ready yet, just wait
+                System.out.printf("⏳ %s waiting for %s to request hole punch%n", sender, target);
+            }
+            
+        } catch (Exception e) {
+            System.err.printf("❌ Error handling hole punch from %s: %s%n", from, e.getMessage());
+            e.printStackTrace();
+        }
+    }
 
     @Override
     public void run() {
@@ -96,6 +187,10 @@ public class P2PSignalingServer extends Thread {
                     byte sig = LLS.peekType(buf);
 
                     switch (sig) {
+                        case LLS.SIG_HOLE -> {
+                            // Modern hole punch request - single packet with IP/port info
+                            handleHolePunchRequest(buf.duplicate(), channel, inet);
+                        }
                         case LLS.SIG_HELLO, LLS.SIG_FIN -> {
                             String tempSender;
                             String tempTarget;

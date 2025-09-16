@@ -10,11 +10,12 @@ import java.util.List;
 public class LLS {
 
     // ---- PACKET TYPES (signal byte) ----
-    public static final byte SIG_HELLO    = 0x10; // client -> server (port header'dan okunacak)
-    public static final byte SIG_FIN      = 0x11; // client -> server ("tüm portları yolladım")
-    public static final byte SIG_PORT     = 0x12; // server -> client (tek bir karşı port bilgisi)
-    public static final byte SIG_ALL_DONE = 0x13; // server -> client ("from tarafı için bitti")
-    public static final byte SIG_DNS_QUERY= 0x14; // DNS query for firewall bypass
+    public static final byte SIG_HELLO     = 0x10; // client -> server (port header'dan okunacak)
+    public static final byte SIG_FIN       = 0x11; // client -> server ("tüm portları yolladım")
+    public static final byte SIG_PORT      = 0x12; // server -> client (tek bir karşı port bilgisi)
+    public static final byte SIG_ALL_DONE  = 0x13; // server -> client ("from tarafı için bitti")
+    public static final byte SIG_DNS_QUERY = 0x14; // DNS query for firewall bypass
+    public static final byte SIG_HOLE      = 0x15; // client -> server (hole punch request with IP/port)
 
     // ---- COMMON HELPERS ----
     private static void putFixedString(ByteBuffer buf, String str, int len) {
@@ -130,6 +131,20 @@ public class LLS {
         packet.flip();
         return packet;
     }
+    
+    // NEW: Hole punch request packet - includes public IP/port info
+    public static ByteBuffer New_Hole_Packet(String username, String target, 
+                                             InetAddress publicIp, int publicPort) {
+        ByteBuffer packet = ByteBuffer.allocate(LLS_LEN);
+        packet.put(SIG_HOLE);
+        packet.putShort((short) LLS_LEN);
+        putFixedString(packet, username, 20);
+        putFixedString(packet, target, 20);
+        packet.put(publicIp.getAddress()); // 4 bytes
+        packet.putInt(publicPort);          // 4 bytes
+        packet.flip();
+        return packet;
+    }
 
 
     // ---- PARSERS ----
@@ -178,7 +193,6 @@ public class LLS {
 
         return parsed;
     }
- // 1) Sabitlerin yanına
     public static final byte SIG_KEEP = 0x1E; // client <-> client/server keepalive ping
 
     // 2) Builder metotların yanına

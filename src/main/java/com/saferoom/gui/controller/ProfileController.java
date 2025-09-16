@@ -373,7 +373,8 @@ public class ProfileController {
         
         CompletableFuture.supplyAsync(() -> {
             try {
-                // P2P bağlantı kur
+                // P2P bağlantı kur - DISABLED (P2P system removed)
+                /*
                 com.saferoom.p2p.P2PConnectionManager p2pManager = 
                     com.saferoom.p2p.P2PConnectionManager.getInstance();
                 
@@ -387,6 +388,9 @@ public class ProfileController {
                     System.err.println("❌ Failed to establish P2P connection with: " + targetUsername);
                     return false;
                 }
+                */
+                System.out.println("⚠️ P2P system disabled - using server relay only");
+                return true; // Temporarily return success for server-based messaging
             } catch (Exception e) {
                 System.err.println("❌ P2P connection error: " + e.getMessage());
                 e.printStackTrace();

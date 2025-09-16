@@ -1,8 +1,7 @@
 package com.saferoom.gui.controller;
 
 import com.saferoom.gui.view.cell.ContactCell;
-import com.saferoom.p2p.P2PConnectionManager;
-import com.saferoom.p2p.P2PConnection;
+import com.saferoom.client.ClientMenu;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -12,6 +11,8 @@ import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 
 public class MessagesController {
 
@@ -23,16 +24,15 @@ public class MessagesController {
     // Singleton instance için
     private static MessagesController instance;
     
-    // P2P Manager
-    private P2PConnectionManager p2pManager;
-    
     // Contact selection listener - infinite loop prevention için
     private ChangeListener<Contact> contactSelectionListener;
+    
+    // P2P connection status tracking
+    private final Map<String, String> connectionStatus = new ConcurrentHashMap<>();
 
     @FXML
     public void initialize() {
         instance = this;
-        p2pManager = P2PConnectionManager.getInstance();
         
         mainSplitPane.setDividerPositions(0.30);
 
@@ -68,8 +68,8 @@ public class MessagesController {
                         newSelection.isGroup()
                 );
                 
-                // P2P connection status bildirilim
-                checkP2PConnectionStatus(newSelection.getId());
+                // Try to establish P2P connection for new chats
+                tryP2PConnection(newSelection.getId());
             }
         };
         contactListView.getSelectionModel().selectedItemProperty().addListener(contactSelectionListener);
@@ -100,29 +100,10 @@ public class MessagesController {
         }
         
         // Bulunamazsa yeni contact ekle
-        Contact newContact = new Contact(username, username, "Online", "P2P bağlantı kuruluyor...", "now", 0, false);
+        Contact newContact = new Contact(username, username, "Online", "Starting conversation...", "now", 0, false);
         contactListView.getItems().add(0, newContact); // En üste ekle
         contactListView.getSelectionModel().select(newContact);
         System.out.println("📱 Added new contact: " + username);
-        
-        // P2P bağlantı durumunu güncelle
-        updateContactStatus(username, "P2P bağlantı kuruluyor...");
-    }
-    
-    /**
-     * P2P bağlantı durumunu kontrol et ve bildir
-     */
-    private void checkP2PConnectionStatus(String username) {
-        if (p2pManager.hasActiveConnection(username)) {
-            System.out.println("✅ Active P2P connection with: " + username);
-            updateContactStatus(username, "P2P Aktif");
-        } else if (p2pManager.hasPendingConnection(username)) {
-            System.out.println("⏳ Pending P2P connection with: " + username);
-            updateContactStatus(username, "P2P bağlanıyor...");
-        } else {
-            System.out.println("📡 No P2P connection with: " + username);
-            updateContactStatus(username, "Server üzerinden");
-        }
     }
     
     /**
@@ -175,5 +156,58 @@ public class MessagesController {
         public boolean isGroup() { return isGroup; }
         public String getAvatarChar() { return name.isEmpty() ? "" : name.substring(0, 1); }
         public boolean isOnline() { return status.equalsIgnoreCase("online"); }
+    }
+    
+    // ============================================
+    // P2P CONNECTION MANAGEMENT
+    // ============================================
+    
+    /**
+     * Try to establish P2P connection with user
+     */
+    private void tryP2PConnection(String username) {
+        // Skip P2P for groups or if already connected
+        if (username.contains("Grubu") || connectionStatus.containsKey(username)) {
+            return;
+        }
+        
+        connectionStatus.put(username, "Connecting...");
+        updateContactStatus(username, "P2P connecting...");
+        
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                String myUsername = com.saferoom.gui.utils.UserSession.getInstance().getDisplayName();
+                return ClientMenu.startP2PHolePunch(myUsername, username);
+            } catch (Exception e) {
+                System.err.println("[P2P] Connection error: " + e.getMessage());
+                return false;
+            }
+        }).thenAcceptAsync(success -> {
+            Platform.runLater(() -> {
+                if (success) {
+                    connectionStatus.put(username, "P2P Active");
+                    updateContactStatus(username, "🔗 P2P Connected");
+                    System.out.println("[P2P] ✅ P2P connection established with " + username);
+                } else {
+                    connectionStatus.put(username, "Server Relay");
+                    updateContactStatus(username, "📡 Server Relay");
+                    System.out.println("[P2P] ⚠️ Using server relay for " + username);
+                }
+            });
+        });
+    }
+    
+    /**
+     * Get connection status for a user
+     */
+    public String getConnectionStatus(String username) {
+        return connectionStatus.getOrDefault(username, "Unknown");
+    }
+    
+    /**
+     * Check if user has active P2P connection
+     */
+    public boolean hasP2PConnection(String username) {
+        return "P2P Active".equals(connectionStatus.get(username));
     }
 }

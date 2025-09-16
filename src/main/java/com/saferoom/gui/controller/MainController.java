@@ -133,8 +133,8 @@ public class MainController {
         // 🎯 P2P Registration: Register self to signaling server
         String currentUsername = UserSession.getInstance().getDisplayName();
         if (currentUsername != null && !currentUsername.equals("Username")) {
-            com.saferoom.p2p.P2PConnectionManager.getInstance().registerSelf(currentUsername);
-            System.out.println("📝 Registered P2P user: " + currentUsername);
+            // com.saferoom.p2p.P2PConnectionManager.getInstance().registerSelf(currentUsername); // P2P system removed
+            System.out.println("📝 P2P registration disabled - using server relay only");
         }
 
         // Build user menu and bind to profile box
