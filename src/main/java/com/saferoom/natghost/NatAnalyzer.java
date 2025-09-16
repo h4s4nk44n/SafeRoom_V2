@@ -317,7 +317,7 @@ public class NatAnalyzer {
         
         // Step 4: Start DNS packet exchange using SAME channel WITH response listening
         InetSocketAddress peerAddr = new InetSocketAddress(peerIP, peerPort);
-        System.out.println("[P2P] Starting 1.5-second DNS burst with response listening on port: " + localPort);
+        System.out.println("[P2P] Starting 1.5-second STUN Binding burst with response listening on port: " + localPort);
         
         // Setup selector for concurrent burst + response listening
         Selector burstSelector = Selector.open();
@@ -330,14 +330,14 @@ public class NatAnalyzer {
         int packetCount = 0;
         boolean responseReceived = false;
         
-        // CONCURRENT: Send DNS burst + Listen for response
+        // CONCURRENT: Send STUN Binding burst + Listen for response (ICE-like approach)
         while ((System.currentTimeMillis() - burstStart) < burstDuration && !responseReceived) {
-            // Send DNS packet if it's time
+            // Send STUN Binding packet if it's time
             if ((System.currentTimeMillis() - lastSend) >= burstInterval) {
-                ByteBuffer dnsQuery = LLS.New_DNSQuery_Packet();
-                stunChannel.send(dnsQuery, peerAddr);
+                ByteBuffer stunBinding = stunPacket(); // Use STUN Binding Request instead of DNS
+                stunChannel.send(stunBinding, peerAddr);
                 packetCount++;
-                System.out.println("[P2P] DNS burst packet #" + packetCount + " sent to " + peerAddr + " from port " + localPort);
+                System.out.println("[P2P] STUN Binding burst #" + packetCount + " sent to " + peerAddr + " from port " + localPort);
                 lastSend = System.currentTimeMillis();
             }
             
@@ -367,11 +367,11 @@ public class NatAnalyzer {
         
         burstSelector.close();
         
-        System.out.println("[P2P] DNS burst complete: " + packetCount + " packets sent over " + burstDuration + "ms");
+        System.out.println("[P2P] STUN Binding burst complete: " + packetCount + " packets sent over " + burstDuration + "ms");
         
         // Check if response was received during burst
         if (!responseReceived) {
-            System.err.println("[P2P] ❌ No response received during burst - hole punch failed");
+            System.err.println("[P2P] ❌ No STUN response received during burst - hole punch failed");
             if (stunChannel != null) {
                 try {
                     stunChannel.close();
