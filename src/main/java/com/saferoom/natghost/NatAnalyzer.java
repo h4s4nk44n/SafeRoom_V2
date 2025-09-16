@@ -335,19 +335,17 @@ public class NatAnalyzer {
         
         System.out.println("[P2P] DNS burst complete: " + packetCount + " packets sent over " + burstDuration + "ms");
         
-        // Setup keep-alive manager for ongoing connection
+        // Setup keep-alive manager with integrated message listening
         KeepAliveManager keepAlive = new KeepAliveManager(3_000);
         keepAlive.installShutdownHook();
         keepAlive.register(stunChannel, peerAddr);
+        keepAlive.startMessageListening(stunChannel); // Integrated message listening
         
         peerSelector.close();
         
         // Store peer address for messaging (multiple peer support)
         activePeers.put(targetUsername, peerAddr);
         lastActivity.put(targetUsername, System.currentTimeMillis());
-        
-        // Start message listener for incoming P2P messages
-        startMessageListener();
         
         System.out.println("[P2P] ✅ Hole punch successful! P2P connection established with " + targetUsername);
         System.out.println("[P2P] Connection details: Local:" + localPort + " -> Peer:" + peerAddr);
@@ -386,69 +384,12 @@ public class NatAnalyzer {
     // P2P MESSAGING FUNCTIONS
     // ============================================
     
-    private static Thread messageListenerThread = null;
+    // Message listening now integrated with KeepAliveManager
     
     /**
-     * Start background thread to listen for incoming P2P messages
+     * Handle incoming P2P message (called by KeepAliveManager)
      */
-    private static void startMessageListener() {
-        if (messageListenerThread != null && messageListenerThread.isAlive()) {
-            return; // Already running
-        }
-        
-        messageListenerThread = new Thread(() -> {
-            System.out.println("[P2P] 📡 Message listener started");
-            
-            try (Selector msgSelector = Selector.open()) {
-                stunChannel.register(msgSelector, SelectionKey.OP_READ);
-                
-                while (!Thread.currentThread().isInterrupted() && stunChannel != null && stunChannel.isOpen()) {
-                    if (msgSelector.select(1000) == 0) continue; // 1 second timeout
-                    
-                    Iterator<SelectionKey> it = msgSelector.selectedKeys().iterator();
-                    while (it.hasNext()) {
-                        SelectionKey key = it.next();
-                        it.remove();
-                        
-                        if (!key.isReadable()) continue;
-                        
-                        DatagramChannel dc = (DatagramChannel) key.channel();
-                        ByteBuffer buf = ByteBuffer.allocate(1024);
-                        SocketAddress from = dc.receive(buf);
-                        if (from == null) continue;
-                        
-                        buf.flip();
-                        
-                        if (!LLS.hasWholeFrame(buf)) continue;
-                        byte type = LLS.peekType(buf);
-                        
-                        System.out.printf("[P2P] 📡 Received packet type: 0x%02X from %s%n", type, from);
-                        
-                        if (type == LLS.SIG_MESSAGE) {
-                            System.out.println("[P2P] 🎯 SIG_MESSAGE detected - processing...");
-                            handleIncomingMessage(buf.duplicate(), from);
-                        } else if (type == LLS.SIG_DNS_QUERY) {
-                            System.out.printf("[P2P] 🔄 Keep-alive DNS from %s (ignoring)%n", from);
-                        } else {
-                            System.out.printf("[P2P] ❓ Unknown packet type 0x%02X from %s%n", type, from);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                System.err.println("[P2P] Message listener error: " + e.getMessage());
-            }
-            
-            System.out.println("[P2P] 📡 Message listener stopped");
-        }, "P2P-MessageListener");
-        
-        messageListenerThread.setDaemon(true);
-        messageListenerThread.start();
-    }
-    
-    /**
-     * Handle incoming P2P message
-     */
-    private static void handleIncomingMessage(ByteBuffer buf, SocketAddress from) {
+    public static void handleIncomingMessage(ByteBuffer buf, SocketAddress from) {
         try {
             List<Object> parsed = LLS.parseMessagePacket(buf);
             String sender = (String) parsed.get(2);
