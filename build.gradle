@@ -116,3 +116,17 @@ processResources {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
+// Test task for audio
+task testAudio(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.saferoom.voice_engine.SimpleAudioTest'
+    jvmArgs = ['-Djava.library.path=/usr/lib/x86_64-linux-gnu']
+}
+
+// UDP Audio task
+task udpAudio(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.saferoom.voice_engine.UDPAudio'
+    jvmArgs = ['-Djava.library.path=/usr/lib/x86_64-linux-gnu']
+}
+

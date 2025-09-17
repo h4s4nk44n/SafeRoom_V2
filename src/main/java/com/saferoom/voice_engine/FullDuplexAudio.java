@@ -7,8 +7,8 @@ public class FullDuplexAudio {
 
   // sadece bunları doldur (CLI'dan da alabiliyorum)
   private static String PEER_IP  = "192.168.1.29";
-  private static int    PEER_PORT         = 7000;   // karşı tarafın dinlediği SRT portu
-  private static int    MY_LISTENING_PORT = 7001;  // bu tarafın dinlediği SRT portu
+  private static int    PEER_PORT         = 7001;   // karşı tarafın dinlediği SRT portu
+  private static int    MY_LISTENING_PORT = 7000;  // bu tarafın dinlediği SRT portu
 
   // makul varsayılanlar
   private static int DEFAULT_BITRATE   = 32000; // Opus - lower for stability
@@ -28,15 +28,40 @@ public class FullDuplexAudio {
       }
     }
 
+    // Critical: Initialize GStreamer with proper error handling
     try {
-      Gst.init("FullDuplex", args);
+      System.setProperty("jna.library.path", "/usr/lib/x86_64-linux-gnu/gstreamer-1.0");
+      Gst.init("FullDuplex", new String[]{"--gst-debug-level=2"});
+      
+      // Wait for GStreamer to fully initialize
+      Thread.sleep(1000);
+      
+      System.out.println("GStreamer initialized successfully");
     } catch (Exception e) {
       System.err.println("Failed to initialize GStreamer: " + e.getMessage());
+      e.printStackTrace();
       return;
     }
 
     // === TX: mic -> opus -> rtp -> srt (caller) ===
-    Element mic   = createElementSafely("autoaudiosrc", "mic");
+    System.out.println("Creating TX elements...");
+    
+    Element mic   = createElementSafely("pulsesrc", "mic");  // More stable than autoaudiosrc
+    if (mic == null) {
+      mic = createElementSafely("alsasrc", "mic");  // Fallback
+    }
+    if (mic == null) {
+      mic = createElementSafely("audiotestsrc", "mic");  // Test source as last resort
+      if (mic != null) {
+        try {
+          mic.set("wave", 0);  // Sine wave
+          mic.set("freq", 440); // 440Hz tone
+        } catch (Exception e) {
+          System.err.println("Failed to configure test source: " + e.getMessage());
+        }
+      }
+    }
+    
     Element aconv = createElementSafely("audioconvert", "aconv");
     Element ares  = createElementSafely("audioresample", "ares");
     Element enc   = createElementSafely("opusenc", "opusenc");
@@ -45,12 +70,19 @@ public class FullDuplexAudio {
       System.err.println("Failed to create TX audio elements");
       return;
     }
+    
+    System.out.println("TX elements created successfully");
 
     try {
+      // Conservative Opus settings to prevent crashes
       enc.set("bitrate", DEFAULT_BITRATE);
       enc.set("inband-fec", true);
-      enc.set("dtx", true);
+      enc.set("dtx", false);  // Disable DTX initially for stability
       enc.set("frame-size", DEFAULT_FRAME_MS);
+      enc.set("complexity", 5);  // Medium complexity
+      enc.set("packet-loss-percentage", 0);
+      
+      System.out.println("Opus encoder configured");
     } catch (Exception e) {
       System.err.println("Failed to configure opus encoder: " + e.getMessage());
       return;
@@ -90,6 +122,8 @@ public class FullDuplexAudio {
     }
 
     // === RX: srt (listener) -> rtp -> jitterbuffer -> opus -> hoparlör ===
+    System.out.println("Creating RX elements...");
+    
     Element srtIn  = createElementSafely("srtserversrc", "srtserversrc");
     if (srtIn == null) {
       System.err.println("Failed to create SRT server source");
@@ -143,37 +177,75 @@ public class FullDuplexAudio {
     Element arx1  = createElementSafely("audioconvert", "arx1");
     Element arx2  = createElementSafely("audioresample", "arx2");
     Element qrx   = createElementSafely("queue", "qrx");
-    Element out   = createElementSafely("autoaudiosink", "sink");
+    
+    // Try different audio sinks for better compatibility
+    Element out = createElementSafely("pulsesink", "sink");
+    if (out == null) {
+      out = createElementSafely("alsasink", "sink");
+    }
+    if (out == null) {
+      out = createElementSafely("fakesink", "sink");  // Last resort - no audio output
+      if (out != null) {
+        try {
+          out.set("dump", true);
+        } catch (Exception e) {
+          System.err.println("Failed to configure fake sink: " + e.getMessage());
+        }
+      }
+    }
     
     if (jitter == null || depay == null || dec == null || arx1 == null || arx2 == null || qrx == null || out == null) {
       System.err.println("Failed to create RX audio elements");
       return;
     }
     
+    System.out.println("RX elements created successfully");
+    
     try {
+      // Conservative jitter buffer settings
       jitter.set("latency", DEFAULT_LATENCYMS);
-      jitter.set("do-lost", true);
-      jitter.set("drop-on-latency", true);
-      jitter.set("mode", 1); // RTP_JITTER_BUFFER_MODE_BUFFER
+      jitter.set("do-lost", false);  // Disable for stability
+      jitter.set("drop-on-latency", false);  // Disable for stability
       
-      dec.set("use-inband-fec", true);
-      dec.set("plc", true); // Packet Loss Concealment
+      // Conservative decoder settings
+      dec.set("use-inband-fec", false);  // Disable initially
+      dec.set("plc", false);  // Disable initially
       
+      // Safe audio sink settings
       out.set("sync", false);
-      out.set("async", false);
+      if (!out.getName().equals("fakesink")) {
+        try {
+          out.set("async", false);
+        } catch (Exception ignore) {
+          // Some sinks don't have async property
+        }
+      }
+      
+      System.out.println("RX elements configured");
     } catch (Exception e) {
       System.err.println("Failed to configure RX elements: " + e.getMessage());
       return;
     }
 
     // === PIPELINE ===
-    Pipeline p = new Pipeline("opus-over-srt-full-duplex");
-    p.addMany(
-      // TX
-      mic, aconv, ares, enc, pay, qtx, srtOut,
-      // RX
-      srtIn, depayStream, capsFilter, jitter, depay, dec, arx1, arx2, qrx, out
-    );
+    System.out.println("Creating pipeline...");
+    Pipeline p = null;
+    try {
+      p = new Pipeline("opus-over-srt-full-duplex");
+      
+      // Add elements safely
+      p.addMany(
+        // TX
+        mic, aconv, ares, enc, pay, qtx, srtOut,
+        // RX
+        srtIn, depayStream, capsFilter, jitter, depay, dec, arx1, arx2, qrx, out
+      );
+      
+      System.out.println("Pipeline created and elements added");
+    } catch (Exception e) {
+      System.err.println("Failed to create pipeline: " + e.getMessage());
+      return;
+    }
 
     // linkler
     try {
@@ -212,16 +284,30 @@ public class FullDuplexAudio {
     Adaptive_Controller controller = new Adaptive_Controller(jitter, enc, p);
     controller.start();
 
-    // çalıştır with better state management
+    // çalıştır with safe state management
     try {
       System.out.println("Starting FullDuplexAudio pipeline...");
       System.out.println("Listening on port: " + MY_LISTENING_PORT);
       System.out.println("Connecting to: " + PEER_IP + ":" + PEER_PORT);
       
-      StateChangeReturn ret = p.play();
+      // Safe state transitions
+      System.out.println("Setting pipeline to READY...");
+      StateChangeReturn ret = p.setState(State.READY);
+      if (ret == StateChangeReturn.FAILURE) {
+        System.err.println("Failed to set pipeline to READY");
+        controller.shutdown();
+        return;
+      }
+      
+      // Wait for state change
+      Thread.sleep(500);
+      
+      System.out.println("Setting pipeline to PLAYING...");
+      ret = p.setState(State.PLAYING);
       if (ret == StateChangeReturn.FAILURE) {
         System.err.println("Failed to start pipeline");
         controller.shutdown();
+        p.setState(State.NULL);
         return;
       }
       
@@ -229,20 +315,34 @@ public class FullDuplexAudio {
       System.out.println("Press Ctrl+C to stop...");
       
       // Add shutdown hook for clean exit
+      final Pipeline finalPipeline = p;
       Runtime.getRuntime().addShutdownHook(new Thread(() -> {
         System.out.println("\nShutting down gracefully...");
-        controller.shutdown();
-        p.setState(State.NULL);
+        try {
+          controller.shutdown();
+          finalPipeline.setState(State.PAUSED);
+          Thread.sleep(100);
+          finalPipeline.setState(State.NULL);
+        } catch (Exception e) {
+          System.err.println("Error during shutdown: " + e.getMessage());
+        }
       }));
       
       Gst.main();
     } catch (Exception e) {
       System.err.println("Error running pipeline: " + e.getMessage());
+      e.printStackTrace();
     } finally {
       // durdur
-      controller.shutdown();
       try {
-        p.setState(State.NULL);
+        if (controller != null) {
+          controller.shutdown();
+        }
+        if (p != null) {
+          p.setState(State.PAUSED);
+          Thread.sleep(100);
+          p.setState(State.NULL);
+        }
       } catch (Exception e) {
         System.err.println("Error stopping pipeline: " + e.getMessage());
       }
@@ -251,13 +351,26 @@ public class FullDuplexAudio {
   
   private static Element createElementSafely(String factoryName, String elementName) {
     try {
+      System.out.println("Creating element: " + factoryName + " as " + elementName);
+      
+      // Check if factory exists first
+      ElementFactory factory = ElementFactory.find(factoryName);
+      if (factory == null) {
+        System.err.println("Factory not found: " + factoryName);
+        return null;
+      }
+      
       Element element = ElementFactory.make(factoryName, elementName);
       if (element == null) {
         System.err.println("Failed to create element: " + factoryName + " (" + elementName + ")");
+        return null;
       }
+      
+      System.out.println("Successfully created: " + factoryName + " as " + elementName);
       return element;
     } catch (Exception e) {
       System.err.println("Exception creating element " + factoryName + ": " + e.getMessage());
+      e.printStackTrace();
       return null;
     }
   }
