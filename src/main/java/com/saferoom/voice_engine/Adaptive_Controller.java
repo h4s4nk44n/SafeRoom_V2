@@ -61,7 +61,18 @@ public class Adaptive_Controller extends Thread {
     while (running && pipeline != null) {
       try { Thread.sleep(500); } catch (InterruptedException ie) { break; }
 
-      Structure stats = (Structure) rtpJitterBuffer.get("stats");
+      if (rtpJitterBuffer == null || opusEnc == null) {
+        System.err.println("Adaptive_Controller: Critical elements are null, stopping");
+        break;
+      }
+
+      Structure stats = null;
+      try {
+        stats = (Structure) rtpJitterBuffer.get("stats");
+      } catch (Exception e) {
+        System.err.println("Adaptive_Controller: Error getting stats: " + e.getMessage());
+        continue;
+      }
       if (stats == null) continue;
 
       long pushed = getLong(stats, "num-pushed");
@@ -84,36 +95,50 @@ public class Adaptive_Controller extends Thread {
         continue;
       }
 
-      int curBr = getInt(opusEnc, "bitrate");
-      int fs    = getInt(opusEnc, "frame-size");
-      int jb    = getInt(rtpJitterBuffer, "latency");
+      int curBr = 0, fs = 0, jb = 0;
+      try {
+        curBr = getInt(opusEnc, "bitrate");
+        fs    = getInt(opusEnc, "frame-size");
+        jb    = getInt(rtpJitterBuffer, "latency");
+      } catch (Exception e) {
+        System.err.println("Adaptive_Controller: Error getting element properties: " + e.getMessage());
+        continue;
+      }
 
       boolean adjusted = false;
 
       // kötüleşme
       if (ewmaLoss > HI_LOSS || ewmaLate > HI_LATE) {
-        int newBr = Math.max(BR_MIN, curBr - BR_STEP_DOWN);
-        if (newBr != curBr) { opusEnc.set("bitrate", newBr); adjusted = true; }
+        try {
+          int newBr = Math.max(BR_MIN, curBr - BR_STEP_DOWN);
+          if (newBr != curBr) { opusEnc.set("bitrate", newBr); adjusted = true; }
 
-        if (jb < JB_MAX) {
-          rtpJitterBuffer.set("latency", Math.min(JB_MAX, jb + JB_STEP_UP));
-          adjusted = true;
+          if (jb < JB_MAX) {
+            rtpJitterBuffer.set("latency", Math.min(JB_MAX, jb + JB_STEP_UP));
+            adjusted = true;
+          }
+
+          if (fs < FS_HIGH) { opusEnc.set("frame-size", FS_HIGH); adjusted = true; }
+          opusEnc.set("inband-fec", true);
+          opusEnc.set("dtx", true);
+        } catch (Exception e) {
+          System.err.println("Adaptive_Controller: Error adjusting for degradation: " + e.getMessage());
         }
-
-        if (fs < FS_HIGH) { opusEnc.set("frame-size", FS_HIGH); adjusted = true; }
-        opusEnc.set("inband-fec", true);
-        opusEnc.set("dtx", true);
 
       // iyileşme
       } else if (ewmaLoss < LO_LOSS && ewmaLate < LO_LATE) {
-        if (jb > JB_MIN) {
-          rtpJitterBuffer.set("latency", Math.max(JB_MIN, jb - JB_STEP_DOWN));
-          adjusted = true;
-        }
-        if (fs > FS_LOW) { opusEnc.set("frame-size", FS_LOW); adjusted = true; }
+        try {
+          if (jb > JB_MIN) {
+            rtpJitterBuffer.set("latency", Math.max(JB_MIN, jb - JB_STEP_DOWN));
+            adjusted = true;
+          }
+          if (fs > FS_LOW) { opusEnc.set("frame-size", FS_LOW); adjusted = true; }
 
-        int newBr = Math.min(BR_MAX, curBr + BR_STEP_UP);
-        if (newBr != curBr) { opusEnc.set("bitrate", newBr); adjusted = true; }
+          int newBr = Math.min(BR_MAX, curBr + BR_STEP_UP);
+          if (newBr != curBr) { opusEnc.set("bitrate", newBr); adjusted = true; }
+        } catch (Exception e) {
+          System.err.println("Adaptive_Controller: Error adjusting for improvement: " + e.getMessage());
+        }
       }
 
       if (adjusted) lastAdjustMs = now;
@@ -122,12 +147,26 @@ public class Adaptive_Controller extends Thread {
   }
 
   private static int getInt(Element e, String prop) {
-    Object v = e.get(prop);
-    return (v instanceof Integer) ? (Integer) v : 0;
+    if (e == null || prop == null) return 0;
+    try {
+      Object v = e.get(prop);
+      return (v instanceof Integer) ? (Integer) v : 0;
+    } catch (Exception ex) {
+      System.err.println("Adaptive_Controller: Error getting property '" + prop + "': " + ex.getMessage());
+      return 0;
+    }
   }
   private static long getLong(Structure s, String field) {
-    try { Integer i = s.getInteger(field); i (i != null) return i.longValue(); } catch (Exception ignore) {}
-    try { Long    l = s.getLong(field);    if (l != null) return l; }            catch (Exception ignore) {}
+    if (s == null || field == null) return 0L;
+    try { 
+      Integer i = s.getInteger(field); 
+      if (i != null) return i.longValue(); 
+    } catch (Exception ignore) {}
+    try { 
+      Object obj = s.getValue(field);
+      if (obj instanceof Long) return (Long) obj;
+      if (obj instanceof Integer) return ((Integer) obj).longValue();
+    } catch (Exception ignore) {}
     return 0L;
   }
 }
