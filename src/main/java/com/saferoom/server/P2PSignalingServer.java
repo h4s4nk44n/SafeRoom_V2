@@ -52,7 +52,7 @@ public class P2PSignalingServer extends Thread {
     }
 
     private static final Map<String, PeerState> STATES = new ConcurrentHashMap<>();
-    public static final int SIGNALING_PORT = 45001;
+    public static final int SIGNALING_PORT = SafeRoomServer.udpPort1;
     
     // Modern hashmap for peer matching: <host_username, target_username> -> PeerInfo
     private static final Map<String, PeerInfo> PEER_REQUESTS = new ConcurrentHashMap<>();

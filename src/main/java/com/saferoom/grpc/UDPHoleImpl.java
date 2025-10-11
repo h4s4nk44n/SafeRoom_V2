@@ -1,32 +1,20 @@
 package com.saferoom.grpc;
 
-import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Base64;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
-import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
-
-import com.saferoom.crypto.CryptoUtils;
 import com.saferoom.crypto.KeyExchange;
 import com.saferoom.crypto.VerificationCodeGenerator;
 import com.saferoom.grpc.SafeRoomProto.FromTo;
 import com.saferoom.grpc.SafeRoomProto.Menu;
 import com.saferoom.grpc.SafeRoomProto.Request_Client;
 import com.saferoom.grpc.SafeRoomProto.Status;
-import com.saferoom.grpc.SafeRoomProto.Status.Builder;
 import com.saferoom.grpc.SafeRoomProto.Stun_Info;
 import com.saferoom.grpc.SafeRoomProto.Verification;
-import com.saferoom.server.MessageForwarder;
 import com.saferoom.grpc.SafeRoomProto.Create_User;
-import com.saferoom.grpc.SafeRoomProto.DecryptedPacket;
-import com.saferoom.grpc.SafeRoomProto.EncryptedAESKeyMessage;
-import com.saferoom.grpc.SafeRoomProto.EncryptedPacket;
 import com.saferoom.grpc.SafeRoomProto.SearchRequest;
 import com.saferoom.grpc.SafeRoomProto.SearchResponse;
 import com.saferoom.grpc.SafeRoomProto.UserResult;
@@ -645,172 +633,6 @@ public void sendFriendRequest(FriendRequest request, StreamObserver<FriendRespon
 	    responseObserver.onNext(response);
 	    responseObserver.onCompleted();
 	}
-	
-
-	@Override
-	public void sendEncryptedAESKey(EncryptedAESKeyMessage request, StreamObserver<Status> responseObserver) {
-	    try {
-	        SecretKey aesKey = CryptoUtils.decrypt_AESkey(request.getEncryptedKey(), KeyExchange.privateKey);
-	        String clientId = request.getClientId();
-
-	        SessionInfo session = SessionManager.get(clientId);
-	        SessionManager.updateAESKey(clientId, aesKey);
-	        
-	        if (session != null) {
-	            session.setAesKey(aesKey);
-	        }
-
-	        Status status = Status.newBuilder()
-	            .setMessage("AES key başarıyla çözüldü.")
-	            .setCode(0)
-	            .build();
-
-	        responseObserver.onNext(status);
-	        responseObserver.onCompleted();
-	    } catch (Exception e) {
-	        Status status = Status.newBuilder()
-	            .setMessage("AES çözümleme başarısız: " + e.getMessage())
-	            .setCode(2)
-	            .build();
-
-	        responseObserver.onNext(status);
-	        responseObserver.onCompleted();
-	    }
-	}
-
-
-	@Override
-	public void sendEncryptedMessage(EncryptedPacket request, StreamObserver<Status> responseObserver) {
-	    // from ve to değişkenleri kullanılmıyor, sadece forwardToPeer kullanılıyor
-
-	    MessageForwarder forwarder = new MessageForwarder(SessionManager.getAllPeers()); 
-	    boolean success = forwarder.forwardToPeer(request);
-
-	    Status.Builder response = Status.newBuilder();
-	    if (success) {
-	        response.setMessage("Mesaj başarıyla iletildi.").setCode(0);
-	    } else {
-	        response.setMessage("Mesaj iletilemedi.").setCode(2);
-	    }
-
-	    responseObserver.onNext(response.build());
-	    responseObserver.onCompleted();
-	}
-
-
-	@Override
-	public void decryptedMessage(EncryptedPacket request, StreamObserver<DecryptedPacket> responseObserver) {
-	    String sender = request.getSender();
-	    String to = request.getReceiver();
-	    String base64EncryptedData = request.getPayload();
-
-	    SessionInfo session = SessionManager.get(sender); 
-	    SecretKey aesKey = session != null ? session.getAesKey() : null;
-
-	    String plaintext = "";
-	    try {
-	        if (aesKey == null) throw new RuntimeException("AES key not found for sender");
-
-	        byte[] decodedData = Base64.getDecoder().decode(base64EncryptedData);
-	        byte[] iv = new byte[16];
-	        byte[] ciphertext = new byte[decodedData.length - 16];
-
-	        System.arraycopy(decodedData, 0, iv, 0, 16);
-	        System.arraycopy(decodedData, 16, ciphertext, 0, ciphertext.length);
-
-	        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-	        cipher.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(iv));
-	        byte[] decrypted = cipher.doFinal(ciphertext);
-
-	        plaintext = new String(decrypted, StandardCharsets.UTF_8);
-	    } catch (Exception e) {
-	        System.err.println("Decryption error: " + e.getMessage());
-	    }
-
-	    DecryptedPacket response = DecryptedPacket.newBuilder()
-	        .setSendedBy(sender)
-	        .setRecvedBy(to)
-	        .setPlaintext(plaintext)
-	        .build();
-
-	    responseObserver.onNext(response);
-	    responseObserver.onCompleted();
-	}
-	
-	private static final Map<String, String> PublicKeyManager = new ConcurrentHashMap<>();
-	
-	@Override
-	public  void sendPublicKey(SafeRoomProto.SendPublicKeyRequest request, StreamObserver<Status> response){
-			
-			String pubKey = request.getBase64Pubkey();
-			String Session_ID = request.getSessionID();
-			String Starter = request.getStarter();
-			String Joiner = request.getJoiner();
-			
-			SessionManager.register(Session_ID, Starter, Joiner);
-			SessionManager.updateRSAKey(Session_ID, pubKey);
-			
-			PublicKeyManager.put(Session_ID, pubKey);
-			
-			
-			
-			
-			Builder status = Status.newBuilder();
-			if(pubKey != null && !pubKey.isEmpty()){
-					status.setMessage("Public Key Successfully sent to client")
-						  .setCode(0);
-			}
-			else{
-					status.setMessage("Request taken as a null[ERROR] ")
-						  .setCode(2);
-
-			}
-			response.onNext(status.build());
-			response.onCompleted();	
-
-	}
-	
-	@Override
-	public void getPublicKey(SafeRoomProto.RequestByClient_ID request, StreamObserver<SafeRoomProto.PublicKeyMessage> response) {
-		String session_ID = request.getClientId();
-		
-		if(PublicKeyManager.containsKey(session_ID)) {
-		String raw_publickey = PublicKeyManager.get(session_ID);
-		
-		SafeRoomProto.PublicKeyMessage Public_Key = SafeRoomProto.PublicKeyMessage.newBuilder()
-												.setBase64Key(raw_publickey)
-												.setUsername(session_ID)
-												.build();
-		response.onNext(Public_Key);
-		response.onCompleted();
-		}
-		else {
-			System.out.println("Public Key Manager not contain your key");
-			response.onCompleted();
-		}
-	}
-	
-	@Override
-	public void getEncryptedAESKey(SafeRoomProto.RequestByClient_ID request, StreamObserver<SafeRoomProto.EncryptedAESKeyMessage> response) {
-		String session_ID = request.getClientId();
-		
-		SessionInfo session = SessionManager.get(session_ID);
-	    if (session == null || session.getAesKey() == null) {
-	        response.onError(null);
-	        return;
-	    }
-
-		SecretKey aesKey = session.getAesKey();
-		String encodedAES = Base64.getEncoder().encodeToString(aesKey.getEncoded());
-		SafeRoomProto.EncryptedAESKeyMessage ReturnedAESKey = SafeRoomProto.EncryptedAESKeyMessage.newBuilder()
-																								  .setClientId(session_ID)
-																								  .setEncryptedKey(encodedAES)
-																								  .build();
-		response.onNext(ReturnedAESKey);
-		response.onCompleted();
-	}
-
-		// ...existing code...
 	
 	// ===============================
 	// FRIEND SYSTEM - EKSIK METODLAR

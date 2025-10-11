@@ -8,10 +8,8 @@ public class SafeRoomServer {
 	
 	public static void main(String[] args) throws Exception{
 	
-		// ❌ Eski PeerListener (HELLO/FIN sonsuz loop sorunu var) - DEVRE DIŞI
-		// PeerListener Datagram = new PeerListener();
-		
-		// ✅ Yeni P2P Signaling Server (sadece peer bilgilerini eşleştirme)
+
+
 		P2PSignalingServer SignalingServer = new P2PSignalingServer();
 		
 		StreamListener Stream = new StreamListener();
