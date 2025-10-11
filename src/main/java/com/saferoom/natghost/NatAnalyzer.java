@@ -7,9 +7,12 @@ import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.nio.channels.ClosedByInterruptException;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.Enumeration;
 
@@ -286,23 +289,33 @@ public class NatAnalyzer {
         System.out.println("[NAT] STUN analysis complete - Channel remains OPEN for hole punch");
 
         // Analyze results
+        int totalResponses = Public_PortList.size(); // Save original count before dedup
         List<Integer> uniquePorts = new ArrayList<>(new LinkedHashSet<>(Public_PortList));
         Public_PortList.clear();
         Public_PortList.addAll(uniquePorts);
 
+        System.out.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        System.out.println("[NAT-DETECT] 🔍 NAT Type Detection Analysis:");
+        System.out.println("[NAT-DETECT] Sent STUN queries: " + sentCount);
+        System.out.println("[NAT-DETECT] Received responses: " + totalResponses);
+        System.out.println("[NAT-DETECT] Unique ports count: " + uniquePorts.size());
+        System.out.println("[NAT-DETECT] Unique ports list: " + uniquePorts);
+        System.out.println("[NAT-DETECT] Public IP: " + myPublicIP);
+
         if (uniquePorts.isEmpty()) {
-            System.err.println("[NAT] No STUN responses received - network error");
+            System.err.println("[NAT-DETECT] ❌ No STUN responses received - network error");
             signal = (byte)0xFE;
         } else if (uniquePorts.size() == 1) {
-            System.out.println("[NAT] All ports same = FULL CONE or RESTRICTED NAT");
+            System.out.println("[NAT-DETECT] ✅ All " + totalResponses + " responses used SAME port (" + uniquePorts.get(0) + ")");
+            System.out.println("[NAT-DETECT] → NAT Type: NON-SYMMETRIC (Full Cone or Restricted)");
             signal = (byte)0x00;
         } else {
-            System.out.println("[NAT] Different ports = SYMMETRIC NAT");
+            System.out.println("[NAT-DETECT] ⚠️ Different ports detected across " + totalResponses + " responses");
+            System.out.println("[NAT-DETECT] → NAT Type: SYMMETRIC (port per destination)");
             signal = (byte)0x11;
         }
-
-        System.out.println("[NAT] Analysis complete - Signal: 0x" + String.format("%02X", signal));
-        System.out.println("[NAT] Public IP: " + myPublicIP + ", Ports: " + uniquePorts);
+        System.out.println("[NAT-DETECT] Final Signal: 0x" + String.format("%02X", signal));
+        System.out.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         return signal;
     }
     
@@ -1418,6 +1431,14 @@ public class NatAnalyzer {
                         targetPort, maxPort, targetIP.getHostAddress());
                     scanPortRange(targetIP, targetPort, maxPort);
                 }
+                case 0x03 -> {
+                    // SYMMETRIC_MIDPOINT_BURST: Birthday Paradox for Symmetric ↔ Symmetric
+                    System.out.println("[P2P-INSTRUCT] 🎯 Executing SYMMETRIC MIDPOINT BURST (Birthday Paradox)");
+                    System.out.printf("  Opening %d ports, bursting to peer's midpoint %s:%d%n", 
+                        numPorts, targetIP.getHostAddress(), targetPort);
+                    System.out.println("  Strategy: Continuous burst until connection established");
+                    symmetricMidpointBurst(targetIP, targetPort, numPorts, target);
+                }
                 case 0x00 -> {
                     // STANDARD: Basic hole punch
                     System.out.println("[P2P-INSTRUCT] ⚡ Executing STANDARD hole punch");
@@ -1434,6 +1455,199 @@ public class NatAnalyzer {
             System.err.println("[P2P-INSTRUCT] ❌ Failed to handle punch instruction: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    
+    /**
+     * BIRTHDAY PARADOX STRATEGY for Symmetric ↔ Symmetric NAT traversal.
+     * 
+     * Both peers open N local ports and continuously burst to the calculated
+     * midpoint of the peer's port range. This creates many crossing NAT mappings,
+     * statistically guaranteeing a collision (successful hole punch).
+     * 
+     * Once ANY port receives a response, we stop all bursting and establish
+     * the connection using that specific port pair.
+     * 
+     * @param targetIP Target peer's public IP
+     * @param targetPort Calculated midpoint of target's port range
+     * @param numPorts Number of local ports to open (100-500)
+     * @param targetUsername Target peer's username for registration
+     */
+    private static void symmetricMidpointBurst(InetAddress targetIP, int targetPort, 
+                                                int numPorts, String targetUsername) {
+        System.out.println("\n[BIRTHDAY-PARADOX] 🎯 Starting Symmetric Midpoint Burst");
+        System.out.printf("  Target: %s:%d (~midpoint)%n", targetIP.getHostAddress(), targetPort);
+        System.out.printf("  Opening %d local ports for burst...%n", numPorts);
+        
+        ExecutorService executor = Executors.newFixedThreadPool(Math.min(numPorts, 50));
+        List<DatagramChannel> channels = Collections.synchronizedList(new ArrayList<>());
+        AtomicBoolean connectionEstablished = new AtomicBoolean(false);
+        AtomicReference<DatagramChannel> successfulChannel = new AtomicReference<>(null);
+        AtomicReference<InetSocketAddress> peerAddress = new AtomicReference<>(null);
+        
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            // Phase 1: Open port pool and start continuous bursting
+            for (int i = 0; i < numPorts; i++) {
+                final int portIndex = i;
+                executor.submit(() -> {
+                    try {
+                        DatagramChannel channel = DatagramChannel.open();
+                        channel.configureBlocking(false);
+                        channel.socket().setReuseAddress(true);
+                        channel.bind(new InetSocketAddress(0)); // Ephemeral port
+                        
+                        channels.add(channel);
+                        
+                        InetSocketAddress target = new InetSocketAddress(targetIP, targetPort);
+                        ByteBuffer burstPayload = ByteBuffer.allocate(128);
+                        
+                        int burstCount = 0;
+                        
+                        // Continuous bursting until collision detected
+                        while (!connectionEstablished.get()) {
+                            burstPayload.clear();
+                            burstPayload.put(LLS.SIG_HOLE);
+                            burstPayload.put(("MIDPOINT-BURST-" + portIndex + "-" + burstCount).getBytes());
+                            burstPayload.flip();
+                            
+                            channel.send(burstPayload, target);
+                            burstCount++;
+                            
+                            // Check for incoming response (collision detection)
+                            ByteBuffer receiveBuffer = ByteBuffer.allocate(1024);
+                            InetSocketAddress sender = (InetSocketAddress) channel.receive(receiveBuffer);
+                            
+                            if (sender != null && !connectionEstablished.getAndSet(true)) {
+                                // 🎉 COLLISION DETECTED!
+                                long collisionTime = System.currentTimeMillis() - startTime;
+                                System.out.printf("\n[BIRTHDAY-PARADOX] 🎉 COLLISION! Port %d received response after %d ms%n",
+                                    portIndex, collisionTime);
+                                System.out.printf("  Peer responded from: %s%n", sender);
+                                System.out.printf("  Total bursts sent: %d%n", burstCount);
+                                
+                                successfulChannel.set(channel);
+                                peerAddress.set(sender);
+                                return; // Keep this channel alive
+                            }
+                            
+                            Thread.sleep(50); // 50ms between bursts = 20 bursts/sec
+                        }
+                        
+                    } catch (ClosedByInterruptException | InterruptedException e) {
+                        // Expected when connection established
+                    } catch (Exception e) {
+                        if (!connectionEstablished.get()) {
+                            System.err.printf("[BIRTHDAY-PARADOX] Port %d error: %s%n", 
+                                portIndex, e.getMessage());
+                        }
+                    }
+                });
+            }
+            
+            // Phase 2: Wait for collision (max 30 seconds)
+            System.out.println("[BIRTHDAY-PARADOX] ⏳ All ports bursting... waiting for collision...");
+            
+            for (int i = 0; i < 300; i++) { // 30 seconds timeout
+                Thread.sleep(100);
+                
+                if (connectionEstablished.get()) {
+                    break;
+                }
+                
+                // Progress indicator every 5 seconds
+                if ((i + 1) % 50 == 0) {
+                    System.out.printf("[BIRTHDAY-PARADOX] Still bursting... (%d seconds elapsed)%n", 
+                        (i + 1) / 10);
+                }
+            }
+            
+            // Phase 3: Cleanup and connection establishment
+            executor.shutdownNow();
+            
+            if (connectionEstablished.get()) {
+                DatagramChannel workingChannel = successfulChannel.get();
+                InetSocketAddress peer = peerAddress.get();
+                
+                System.out.println("\n[BIRTHDAY-PARADOX] ✅ Connection Established!");
+                System.out.printf("  Using local port: %d%n", 
+                    workingChannel.socket().getLocalPort());
+                System.out.printf("  Peer address: %s%n", peer);
+                
+                // Close all other channels
+                for (DatagramChannel ch : channels) {
+                    if (ch != workingChannel && ch.isOpen()) {
+                        try { ch.close(); } catch (Exception e) {}
+                    }
+                }
+                
+                // Register peer
+                activePeers.put(targetUsername, peer);
+                lastActivity.put(targetUsername, System.currentTimeMillis());
+                
+                // Start keep-alive
+                System.out.println("[BIRTHDAY-PARADOX] 💓 Starting keep-alive on established channel");
+                startKeepAlive(workingChannel, peer, targetUsername);
+                
+            } else {
+                System.err.println("\n[BIRTHDAY-PARADOX] ❌ TIMEOUT: No collision detected after 30 seconds");
+                System.err.println("  Possible causes:");
+                System.err.println("  - Both sides might have strict firewalls");
+                System.err.println("  - Port range midpoint calculation mismatch");
+                System.err.println("  - Network congestion dropping burst packets");
+                
+                // Close all channels
+                for (DatagramChannel ch : channels) {
+                    try { ch.close(); } catch (Exception e) {}
+                }
+            }
+            
+        } catch (Exception e) {
+            System.err.println("[BIRTHDAY-PARADOX] ❌ Fatal error: " + e.getMessage());
+            e.printStackTrace();
+            
+            // Emergency cleanup
+            executor.shutdownNow();
+            for (DatagramChannel ch : channels) {
+                try { ch.close(); } catch (Exception ex) {}
+            }
+        }
+    }
+    
+    /**
+     * Starts keep-alive mechanism on established P2P channel.
+     * Sends periodic heartbeat messages to maintain NAT mapping.
+     */
+    private static void startKeepAlive(DatagramChannel channel, InetSocketAddress peer, String username) {
+        Thread keepAliveThread = new Thread(() -> {
+            try {
+                ByteBuffer keepAlivePayload = ByteBuffer.allocate(64);
+                int sequenceNumber = 0;
+                
+                while (channel.isOpen() && !Thread.interrupted()) {
+                    keepAlivePayload.clear();
+                    keepAlivePayload.put(LLS.SIG_KEEP);
+                    keepAlivePayload.put(("KEEPALIVE-" + sequenceNumber++).getBytes());
+                    keepAlivePayload.flip();
+                    
+                    channel.send(keepAlivePayload, peer);
+                    
+                    // Update activity timestamp
+                    lastActivity.put(username, System.currentTimeMillis());
+                    
+                    Thread.sleep(15000); // 15 seconds interval
+                }
+                
+            } catch (InterruptedException e) {
+                System.out.println("[KEEP-ALIVE] Thread interrupted for: " + username);
+            } catch (Exception e) {
+                System.err.println("[KEEP-ALIVE] Error for " + username + ": " + e.getMessage());
+            }
+        });
+        
+        keepAliveThread.setName("KeepAlive-" + username);
+        keepAliveThread.setDaemon(true);
+        keepAliveThread.start();
     }
     
     /**

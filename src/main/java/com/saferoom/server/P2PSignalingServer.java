@@ -219,6 +219,33 @@ public class P2PSignalingServer extends Thread {
                                                 RegisteredUser requesterUser, RegisteredUser targetUser,
                                                 DatagramChannel channel) {
         try {
+            // 🆕 CHECK SAME LAN FIRST - If same public IP, use local addresses directly
+            boolean sameNAT = requesterUser.publicIP.equals(targetUser.publicIP);
+            System.out.printf("🔍 Same NAT detection: %s (Requester=%s, Target=%s)%n", 
+                sameNAT ? "YES - using local IPs" : "NO - using intelligent NAT strategy",
+                requesterUser.publicIP.getHostAddress(),
+                targetUser.publicIP.getHostAddress());
+            
+            if (sameNAT && requesterUser.localIP != null && targetUser.localIP != null) {
+                // Same LAN - send local addresses directly (no intelligent coordination needed)
+                System.out.println("🏠 SAME LAN detected - bypassing NAT strategies, using local ports");
+                
+                ByteBuffer requesterInfo = LLS.New_PortInfo_Packet(
+                    targetUser.username, requesterUser.username, LLS.SIG_PORT,
+                    targetUser.localIP, targetUser.localPort
+                );
+                channel.send(requesterInfo, new InetSocketAddress(requesterUser.publicIP, requesterUser.publicPort));
+                
+                ByteBuffer targetInfo = LLS.New_PortInfo_Packet(
+                    requesterUser.username, targetUser.username, LLS.SIG_PORT,
+                    requesterUser.localIP, requesterUser.localPort
+                );
+                channel.send(targetInfo, new InetSocketAddress(targetUser.publicIP, targetUser.publicPort));
+                
+                System.out.println("✅ Same LAN coordination complete - sent local addresses");
+                return;
+            }
+            
             boolean requesterSymmetric = (requesterProfile.natType == 0x11);
             boolean targetSymmetric = (targetProfile.natType == 0x11);
             
@@ -242,10 +269,23 @@ public class P2PSignalingServer extends Thread {
                 sendStandardHolePunchInstruction(targetUser, requesterUser, channel);
                 
             } else {
-                // Case 4: Both symmetric - experimental dual burst
-                System.out.println("⚠️ Both peers symmetric - using experimental dual burst");
-                sendSymmetricBurstInstruction(requesterUser, targetUser, requesterProfile, channel);
-                sendSymmetricBurstInstruction(targetUser, requesterUser, targetProfile, channel);
+                // Case 4: Both symmetric - Birthday Paradox Strategy
+                System.out.println("🎯 Both peers symmetric - using Birthday Paradox burst coordination");
+                
+                // Calculate midpoint ports for both peers
+                int requesterMidpoint = (requesterProfile.minPort + requesterProfile.maxPort) / 2;
+                int targetMidpoint = (targetProfile.minPort + targetProfile.maxPort) / 2;
+                
+                System.out.printf("   Requester midpoint: %d (range: %d-%d)%n", 
+                    requesterMidpoint, requesterProfile.minPort, requesterProfile.maxPort);
+                System.out.printf("   Target midpoint: %d (range: %d-%d)%n", 
+                    targetMidpoint, targetProfile.minPort, targetProfile.maxPort);
+                
+                // Send mutual burst instructions with midpoint targets
+                sendSymmetricMidpointBurstInstruction(requesterUser, targetUser, 
+                    requesterProfile, targetMidpoint, channel);
+                sendSymmetricMidpointBurstInstruction(targetUser, requesterUser, 
+                    targetProfile, requesterMidpoint, channel);
             }
             
             System.out.println("✅ Intelligent hole punch coordination complete");
@@ -839,6 +879,40 @@ public class P2PSignalingServer extends Thread {
             asymUser.username, 
             targetProfile.minPort, targetProfile.maxPort,
             targetUser.publicIP.getHostAddress());
+    }
+    
+    /**
+     * Sends symmetric midpoint burst instruction for Symmetric ↔ Symmetric NAT.
+     * Birthday Paradox Strategy: Both peers burst to each other's port range midpoint.
+     * 
+     * @param symUser The symmetric NAT user (sender)
+     * @param targetUser The target symmetric NAT user
+     * @param symProfile The sender's NAT profile
+     * @param targetMidpoint The target's port range midpoint to burst towards
+     * @param channel Communication channel
+     */
+    private void sendSymmetricMidpointBurstInstruction(RegisteredUser symUser, RegisteredUser targetUser,
+                                                       NATProfile symProfile, int targetMidpoint,
+                                                       DatagramChannel channel) throws Exception {
+        // Calculate number of ports to open (use full range for birthday paradox)
+        int numPorts = (symProfile.maxPort - symProfile.minPort + 1) / 2;
+        numPorts = Math.max(100, Math.min(numPorts, 500)); // Min 100, max 500 ports
+        
+        byte[] packet = LLS.createPunchInstructPacket(
+            symUser.username,
+            targetUser.username,
+            targetUser.publicIP,
+            targetMidpoint, // Target the midpoint of peer's port range
+            (byte) 0x03, // NEW STRATEGY: SYMMETRIC_MIDPOINT_BURST
+            numPorts
+        );
+        
+        InetSocketAddress symAddr = new InetSocketAddress(symUser.publicIP, symUser.publicPort);
+        channel.send(ByteBuffer.wrap(packet), symAddr);
+        
+        System.out.printf("📤 SYMMETRIC MIDPOINT BURST → %s (open %d ports → %s:~%d midpoint)%n",
+            symUser.username, numPorts,
+            targetUser.publicIP.getHostAddress(), targetMidpoint);
     }
     
     /**
