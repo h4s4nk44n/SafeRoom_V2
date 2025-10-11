@@ -342,10 +342,12 @@ public class P2PSignalingServer extends Thread {
              DatagramChannel channel = DatagramChannel.open()) {
 
             channel.configureBlocking(false);
+            // SO_REUSEADDR aktif et
+            channel.setOption(java.net.StandardSocketOptions.SO_REUSEADDR, true);
             channel.bind(new InetSocketAddress(SIGNALING_PORT));
             channel.register(selector, SelectionKey.OP_READ);
 
-            System.out.println("🎯 P2P Signaling Server running on port " + SIGNALING_PORT);
+            System.out.println("🎯 P2P Signaling Server running on port " + SIGNALING_PORT + " (SO_REUSEADDR enabled)");
             System.out.println("🔍 Waiting for client packets...");
 
             while (true) {

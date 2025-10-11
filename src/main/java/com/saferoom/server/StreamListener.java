@@ -3,25 +3,51 @@ package com.saferoom.server;
 import com.saferoom.grpc.UDPHoleImpl;
 
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
+import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
+import io.grpc.netty.shaded.io.netty.channel.ChannelOption;
 
-public class StreamListener extends Thread{
+import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
+
+public class StreamListener extends Thread {
 	// SafeRoomServer'dan port bilgisini al
 	public static int grpcPort = SafeRoomServer.grpcPort;
+	private Server server;
 
-	public void run(){
+	public void run() {
 		try {
-		Server server = ServerBuilder.forPort(grpcPort)
-				.addService(new UDPHoleImpl())
-				.build()
-				.start();
-		
-		System.out.println("✅ gRPC Server Started on port " + grpcPort);
-		server.awaitTermination();
-	}catch(Exception e) {
-		System.err.println("Server Builder [ERROR]: " + e);
+			// NettyServerBuilder ile SO_REUSEADDR aktif et
+			server = NettyServerBuilder
+					.forAddress(new InetSocketAddress(grpcPort))
+					.addService(new UDPHoleImpl())
+					.withChildOption(ChannelOption.SO_REUSEADDR, true)
+					.withOption(ChannelOption.SO_REUSEADDR, true)
+					.build()
+					.start();
+			
+			System.out.println("✅ gRPC Server Started on port " + grpcPort + " (SO_REUSEADDR enabled)");
+			
+			// Graceful shutdown hook
+			Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+				System.err.println("*** Shutting down gRPC server (JVM shutdown)");
+				try {
+					StreamListener.this.shutdown();
+				} catch (InterruptedException e) {
+					e.printStackTrace(System.err);
+				}
+				System.err.println("*** gRPC server shut down");
+			}));
+			
+			server.awaitTermination();
+		} catch (Exception e) {
+			System.err.println("Server Builder [ERROR]: " + e);
+			e.printStackTrace();
+		}
 	}
 	
-
-}
+	private void shutdown() throws InterruptedException {
+		if (server != null) {
+			server.shutdown().awaitTermination(30, TimeUnit.SECONDS);
+		}
 	}
+}
