@@ -39,6 +39,9 @@ public class NatAnalyzer {
     // 🆕 P2P Connection Futures - for async coordination
     private static final Map<String, CompletableFuture<Boolean>> pendingP2PConnections = new ConcurrentHashMap<>();
     
+    // 🆕 Active punch threads - prevent duplicate punch execution
+    private static final Map<String, Thread> activePunchThreads = new ConcurrentHashMap<>();
+    
     // Multiple peer connections support
     private static final Map<String, InetSocketAddress> activePeers = new ConcurrentHashMap<>();
     private static final Map<String, Long> lastActivity = new ConcurrentHashMap<>();
@@ -881,6 +884,19 @@ public class NatAnalyzer {
             System.out.printf("  Requester IP: %s:%d%n", targetIP.getHostAddress(), targetPort);
             System.out.printf("  Strategy: 0x%02X, Ports: %d%n", strategy, numPorts);
             
+            // 🆕 Check if punch already in progress for this target
+            Thread existingThread = activePunchThreads.get(target);
+            if (existingThread != null && existingThread.isAlive()) {
+                System.out.printf("[P2P-INCOMING] ⏳ Punch already in progress for %s - ignoring duplicate instruction%n", target);
+                return;
+            }
+            
+            // 🆕 Check if already connected
+            if (activePeers.containsKey(target)) {
+                System.out.printf("[P2P-INCOMING] ✅ Already connected to %s - ignoring duplicate instruction%n", target);
+                return;
+            }
+            
             // Execute the coordinated strategy asynchronously
             Thread punchThread = new Thread(() -> {
                 try {
@@ -943,7 +959,16 @@ public class NatAnalyzer {
                     System.err.printf("[P2P-INCOMING] ❌ Strategy execution failed: %s%n", e.getMessage());
                     e.printStackTrace();
                 }
+                
+                // 🆕 Cleanup: remove from active punch threads
+                finally {
+                    activePunchThreads.remove(target);
+                    System.out.printf("[P2P-INCOMING] 🧹 Removed punch thread for %s%n", target);
+                }
             }, "IncomingPunch-" + target);
+            
+            // 🆕 Register thread before starting
+            activePunchThreads.put(target, punchThread);
             
             punchThread.setDaemon(true);
             punchThread.start();
@@ -2054,17 +2079,15 @@ public class NatAnalyzer {
             System.out.printf("[STANDARD-PUNCH] 🔍 DEBUG: stunChannel local=%s, connected=%b%n", 
                 stunChannel.getLocalAddress(), stunChannel.isConnected());
             
-            // Configure channel for non-blocking
-            stunChannel.configureBlocking(false);
-            Selector selector = Selector.open();
-            stunChannel.register(selector, SelectionKey.OP_READ);
+            // 🆕 DON'T use separate Selector - KeepAliveManager already listening!
+            // Instead, just burst and poll activePeers to detect when KeepAliveManager registers the peer
             
             long startTime = System.currentTimeMillis();
             long timeout = 30000; // 30 seconds timeout
             boolean peerResponseReceived = false;
             int burstCount = 0;
             
-            // Continuous burst with response listening
+            // Continuous burst - responses handled by KeepAliveManager
             while (!peerResponseReceived && (System.currentTimeMillis() - startTime) < timeout) {
                 // Send burst packet with proper LLS format
                 ByteBuffer burstPayload = LLS.New_Burst_Packet(
@@ -2076,55 +2099,33 @@ public class NatAnalyzer {
                 stunChannel.send(burstPayload, targetAddr);
                 burstCount++;
                 
-                // Check for peer response (non-blocking)
-                if (selector.select(50) > 0) { // 50ms wait
-                    selector.selectedKeys().clear();
+                // 🆕 Check if KeepAliveManager has registered the peer
+                if (activePeers.containsKey(targetUsername)) {
+                    long responseTime = System.currentTimeMillis() - startTime;
+                    InetSocketAddress peerAddr = activePeers.get(targetUsername);
                     
-                    ByteBuffer receiveBuffer = ByteBuffer.allocate(1024);
-                    InetSocketAddress sender = (InetSocketAddress) stunChannel.receive(receiveBuffer);
+                    System.out.printf("\n[STANDARD-PUNCH] ✅ Peer registered by KeepAliveManager after %d ms!%n", responseTime);
+                    System.out.printf("  Peer address: %s%n", peerAddr);
+                    System.out.printf("  Total bursts sent: %d%n", burstCount);
                     
-                    if (sender != null) {
-                        long responseTime = System.currentTimeMillis() - startTime;
-                        
-                        // ⚠️ VALIDATE: Response must be from target, not server!
-                        boolean isFromTarget = sender.getAddress().equals(targetIP);
-                        
-                        if (!isFromTarget) {
-                            System.out.printf("[STANDARD-PUNCH] ⚠️ Response from WRONG source: %s (expected: %s)%n", 
-                                sender, targetAddr);
-                            System.out.println("[STANDARD-PUNCH] ⚠️ This is likely server echo - ignoring, continuing burst...");
-                            continue; // Ignore server responses, keep bursting
-                        }
-                        
-                        System.out.printf("\n[STANDARD-PUNCH] ✅ Peer response received after %d ms!%n", responseTime);
-                        System.out.printf("  Peer address: %s (VALIDATED ✅)%n", sender);
-                        System.out.printf("  Total bursts sent: %d%n", burstCount);
-                        
-                        peerResponseReceived = true;
-                        
-                        // Register peer with global KeepAliveManager
-                        if (globalKeepAlive == null) {
-                            System.out.println("[STANDARD-PUNCH] 🔧 Initializing global KeepAliveManager");
-                            globalKeepAlive = new KeepAliveManager(3_000);
-                            globalKeepAlive.installShutdownHook();
-                            globalKeepAlive.startMessageListening(stunChannel);
-                        }
-                        globalKeepAlive.register(stunChannel, sender);
-                        
-                        activePeers.put(targetUsername, sender);
-                        lastActivity.put(targetUsername, System.currentTimeMillis());
-                        
-                        System.out.println("[STANDARD-PUNCH] 💓 Peer registered with KeepAliveManager");
-                        
-                        // 🆕 Complete the pending P2P connection future
-                        CompletableFuture<Boolean> future = pendingP2PConnections.get(targetUsername);
-                        if (future != null && !future.isDone()) {
-                            future.complete(true);
-                            System.out.println("[STANDARD-PUNCH] ✅ Notified waiting thread - connection established");
-                        }
-                        
-                        break;
+                    peerResponseReceived = true;
+                    
+                    // 🆕 Complete the pending P2P connection future
+                    CompletableFuture<Boolean> future = pendingP2PConnections.get(targetUsername);
+                    if (future != null && !future.isDone()) {
+                        future.complete(true);
+                        System.out.println("[STANDARD-PUNCH] ✅ Notified waiting thread - connection established");
                     }
+                    
+                    break;
+                }
+                
+                // Brief pause between bursts (don't spam)
+                try {
+                    Thread.sleep(50); // 50ms = ~20 packets/sec
+                } catch (InterruptedException e) {
+                    System.err.println("[STANDARD-PUNCH] ⚠️ Burst interrupted");
+                    break;
                 }
                 
                 // Progress logging every 5 seconds
@@ -2135,12 +2136,11 @@ public class NatAnalyzer {
                 }
             }
             
-            selector.close();
-            
+            // Timeout check
             if (!peerResponseReceived) {
-                System.err.println("\n[STANDARD-PUNCH] ❌ TIMEOUT: No peer response after 30 seconds");
+                System.err.println("\n[STANDARD-PUNCH] ❌ TIMEOUT: Peer not registered after 30 seconds");
                 System.err.printf("  Total bursts sent: %d%n", burstCount);
-                System.err.println("  Check Wireshark to verify UDP packets are being sent");
+                System.err.println("  Check if KeepAliveManager received SIG_PUNCH_BURST responses");
                 
                 // 🆕 Complete the pending future with failure
                 CompletableFuture<Boolean> future = pendingP2PConnections.get(targetUsername);
