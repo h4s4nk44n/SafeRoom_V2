@@ -86,8 +86,16 @@ public final class KeepAliveManager implements AutoCloseable {
      * Start message listening on the channel (integrated with keep-alive)
      */
     public void startMessageListening(DatagramChannel channel) {
-        if (listening || messageListenerThread != null) {
+        // 🔧 FIX: Check if thread is actually alive, not just non-null
+        if (listening && messageListenerThread != null && messageListenerThread.isAlive()) {
+            System.out.println("[KA] ⚠️ Message listener already running");
             return; // Already listening
+        }
+        
+        // Clean up dead thread if exists
+        if (messageListenerThread != null && !messageListenerThread.isAlive()) {
+            System.out.println("[KA] 🧹 Cleaning up dead message listener thread");
+            messageListenerThread = null;
         }
         
         listening = true;

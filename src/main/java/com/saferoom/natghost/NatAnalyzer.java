@@ -2105,6 +2105,13 @@ public class NatAnalyzer {
             long timeout = 30000; // 30 seconds timeout
             boolean peerResponseReceived = false;
             int burstCount = 0;
+            int selectorWakeups = 0;
+            int serverPackets = 0;
+            int otherPackets = 0;
+            
+            System.out.println("[STANDARD-PUNCH] 🎯 Starting burst loop...");
+            System.out.printf("[STANDARD-PUNCH] 📍 Listening on LOCAL: %s%n", stunChannel.getLocalAddress());
+            System.out.printf("[STANDARD-PUNCH] 📍 Sending to REMOTE: %s%n", targetAddr);
             
             // Continuous burst with immediate response listening
             while (!peerResponseReceived && (System.currentTimeMillis() - startTime) < timeout) {
@@ -2124,7 +2131,9 @@ public class NatAnalyzer {
                 // Check for peer response (non-blocking, immediate)
                 int readyKeys = selector.select(50); // 50ms wait
                 if (readyKeys > 0) {
-                    System.out.printf("[STANDARD-PUNCH] 🔔 Selector detected %d ready channel(s)!%n", readyKeys);
+                    selectorWakeups++;
+                    System.out.printf("[STANDARD-PUNCH] 🔔 Selector wakeup #%d (ready keys: %d)%n", selectorWakeups, readyKeys);
+                    
                     selector.selectedKeys().clear();
                     
                     ByteBuffer receiveBuffer = ByteBuffer.allocate(1024);
@@ -2141,15 +2150,17 @@ public class NatAnalyzer {
                         boolean isFromTarget = sender.getAddress().equals(targetIP);
                         
                         if (!isFromTarget) {
-                            System.out.printf("[STANDARD-PUNCH] ⚠️ Response from WRONG source: %s (expected: %s)%n", 
-                                sender, targetAddr);
-                            System.out.println("[STANDARD-PUNCH] ⚠️ This is likely server echo - ignoring, continuing burst...");
+                            serverPackets++;
+                            System.out.printf("[STANDARD-PUNCH] ⚠️ Response from SERVER (not peer): %s%n", sender);
+                            System.out.printf("[STANDARD-PUNCH] 📊 Stats: server=%d, other=%d, selectorWakeups=%d%n", 
+                                serverPackets, otherPackets, selectorWakeups);
                             continue; // Ignore server responses, keep bursting
                         }
                         
-                        System.out.printf("\n[STANDARD-PUNCH] ✅ Peer response received after %d ms!%n", responseTime);
+                        System.out.printf("\n[STANDARD-PUNCH] ✅ PEER RESPONSE RECEIVED after %d ms!%n", responseTime);
                         System.out.printf("  Peer address: %s (VALIDATED ✅)%n", sender);
                         System.out.printf("  Total bursts sent: %d%n", burstCount);
+                        System.out.printf("  Selector wakeups: %d%n", selectorWakeups);
                         
                         peerResponseReceived = true;
                         
@@ -2192,7 +2203,11 @@ public class NatAnalyzer {
             if (!peerResponseReceived) {
                 System.err.println("\n[STANDARD-PUNCH] ❌ TIMEOUT: No peer response after 30 seconds");
                 System.err.printf("  Total bursts sent: %d%n", burstCount);
-                System.err.println("  ⚠️ Check if peer is sending bursts to correct IP:PORT");
+                System.err.printf("  Selector wakeups: %d (server packets: %d, other: %d)%n", 
+                    selectorWakeups, serverPackets, otherPackets);
+                System.err.println("  ⚠️ Peer burst packets NEVER arrived at this socket!");
+                System.err.printf("  🔍 Was listening on: %s%n", stunChannel.getLocalAddress());
+                System.err.printf("  🔍 Was sending to: %s%n", targetAddr);
                 
                 // 🆕 Complete the pending future with failure
                 CompletableFuture<Boolean> future = pendingP2PConnections.get(targetUsername);
