@@ -118,7 +118,17 @@ public class ChatService {
      * P2P'den gelen mesajı al ve GUI'de göster
      */
     public void receiveP2PMessage(String sender, String receiver, String messageText) {
+        System.out.println("═══════════════════════════════════════════════════════════════");
         System.out.printf("[Chat] 📥 P2P message received: %s -> %s: \"%s\"%n", sender, receiver, messageText);
+        System.out.printf("[Chat] 🔍 Stack trace:%n");
+        for (StackTraceElement elem : Thread.currentThread().getStackTrace()) {
+            if (elem.getClassName().contains("saferoom")) {
+                System.out.printf("    at %s.%s(%s:%d)%n", 
+                    elem.getClassName(), elem.getMethodName(), 
+                    elem.getFileName(), elem.getLineNumber());
+            }
+        }
+        System.out.println("═══════════════════════════════════════════════════════════════");
         
         Message incomingMessage = new Message(
             messageText,
@@ -129,6 +139,9 @@ public class ChatService {
         // Mesajı doğru channel'a ekle
         ObservableList<Message> messages = getMessagesForChannel(sender);
         messages.add(incomingMessage);
+        
+        System.out.printf("[Chat] 📬 Updated contact last message for %s%n", sender);
+        System.out.printf("[Chat] ✅ P2P message added to channel: %s%n", sender);
         
         // Update contact's last message (not from me - will increment unread if not active)
         try {

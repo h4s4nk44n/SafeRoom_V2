@@ -400,6 +400,9 @@ public class ReliableMessageReceiver {
             // Reassemble full message
             byte[] fullMessage = state.reassemble();
             
+            System.out.println("\n╔═══════════════════════════════════════════════════════════════╗");
+            System.out.println("║           COMPLETING MESSAGE (ReliableMessageReceiver)        ║");
+            System.out.println("╚═══════════════════════════════════════════════════════════════╝");
             System.out.printf("[RMSG-RECV] ✅ Message complete: msgId=%d, sender=%s, size=%d bytes, chunks=%d%n",
                 state.messageId, state.sender, fullMessage.length, state.totalChunks);
             
@@ -407,9 +410,12 @@ public class ReliableMessageReceiver {
             sendACK(state);
             
             // Notify callback
+            System.out.printf("[RMSG-RECV] 🔔 Calling callback for msgId=%d...%n", state.messageId);
             if (callback != null) {
                 callback.onMessageComplete(state.sender, state.messageId, fullMessage);
+                System.out.printf("[RMSG-RECV] ✅ Callback completed for msgId=%d%n", state.messageId);
             }
+            System.out.println("───────────────────────────────────────────────────────────────\n");
             
             // Cleanup
             scheduler.schedule(() -> activeMessages.remove(state.messageId), 2, TimeUnit.SECONDS);
