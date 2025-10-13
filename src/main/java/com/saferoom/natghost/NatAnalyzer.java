@@ -662,11 +662,16 @@ public class NatAnalyzer {
             }
             
             // CRITICAL: Start listening for incoming P2P notifications after registration
+            // 🔧 FIX: Use globalKeepAlive so executeStandardHolePunch() uses SAME channel!
             System.out.println("[P2P] 🎧 Starting notification listener after registration...");
-            KeepAliveManager keepAlive = new KeepAliveManager(3_000);
-            keepAlive.installShutdownHook();
-            keepAlive.startMessageListening(stunChannel);
-            System.out.println("[P2P] 📡 Notification listener active - ready for incoming P2P requests");
+            if (globalKeepAlive == null) {
+                globalKeepAlive = new KeepAliveManager(3_000);
+                globalKeepAlive.installShutdownHook();
+                globalKeepAlive.startMessageListening(stunChannel);
+                System.out.println("[P2P] 📡 Global KeepAliveManager started - ready for incoming P2P requests");
+            } else {
+                System.out.println("[P2P] 📡 Global KeepAliveManager already active");
+            }
             
             System.out.println("[P2P] ✅ User registration complete: " + username);
             return true;
