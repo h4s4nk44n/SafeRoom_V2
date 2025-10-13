@@ -2577,6 +2577,9 @@ public class NatAnalyzer {
         // Packet queues for active sessions
         private static final Map<Long, BlockingQueue<ByteBuffer>> sessionQueues = new ConcurrentHashMap<>();
         
+        // Cache SYN packets until user accepts/declines
+        private static final Map<Long, ByteBuffer> cachedSYNPackets = new ConcurrentHashMap<>();
+        
         /**
          * Forward packet to appropriate session
          */
@@ -2625,6 +2628,14 @@ public class NatAnalyzer {
         static BlockingQueue<ByteBuffer> registerSession(long fileId) {
             BlockingQueue<ByteBuffer> queue = new LinkedBlockingQueue<>();
             sessionQueues.put(fileId, queue);
+            
+            // If there's a cached SYN packet, add it to queue now
+            ByteBuffer cachedSYN = cachedSYNPackets.remove(fileId);
+            if (cachedSYN != null) {
+                System.out.printf("[FILE-DISPATCHER] 📦 Adding cached SYN to queue for fileId=%d%n", fileId);
+                queue.offer(cachedSYN);
+            }
+            
             return queue;
         }
         
@@ -2660,15 +2671,20 @@ public class NatAnalyzer {
             System.out.printf("[FILE-RECV] 📥 Incoming file from %s: size=%d bytes, chunks=%d (fileId=%d)%n",
                 senderUsername, fileSize, totalSeq, fileId);
             
+            // Cache SYN packet for when user accepts
+            ByteBuffer synCopy = ByteBuffer.allocate(synPacket.remaining());
+            synCopy.put(synPacket.duplicate());
+            synCopy.flip();
+            cachedSYNPackets.put(fileId, synCopy);
+            
+            System.out.printf("[FILE-DISPATCHER] 💾 Cached SYN packet for fileId=%d%n", fileId);
+            
             // Notify GUI
             if (fileTransferCallback != null) {
                 fileTransferCallback.onFileTransferRequest(
                     senderUsername, fileId, fileName, fileSize, totalSeq
                 );
             }
-            
-            // Forward SYN to dispatcher (receiver will read it)
-            forwardToSession(fileId, synPacket);
         }
     }
     
