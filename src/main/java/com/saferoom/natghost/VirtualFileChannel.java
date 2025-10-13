@@ -1,7 +1,9 @@
 package com.saferoom.natghost;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.SocketException;
 import java.net.SocketOption;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
@@ -175,7 +177,99 @@ public class VirtualFileChannel extends DatagramChannel {
     
     @Override
     public java.net.DatagramSocket socket() {
-        return realChannel.socket();
+        // Return a wrapper that provides targetAddress as remote address
+        try {
+            return new VirtualDatagramSocket(realChannel.socket(), targetAddress);
+        } catch (SocketException e) {
+            throw new RuntimeException("Failed to create VirtualDatagramSocket", e);
+        }
+    }
+    
+    /**
+     * Wrapper for DatagramSocket that provides virtual remote address
+     */
+    private static class VirtualDatagramSocket extends java.net.DatagramSocket {
+        private final java.net.DatagramSocket realSocket;
+        private final SocketAddress remoteAddress;
+        
+        VirtualDatagramSocket(java.net.DatagramSocket realSocket, SocketAddress remoteAddress) throws java.net.SocketException {
+            super((java.net.SocketAddress) null); // Unbound socket
+            this.realSocket = realSocket;
+            this.remoteAddress = remoteAddress;
+        }
+        
+        @Override
+        public java.net.InetAddress getInetAddress() {
+            if (remoteAddress instanceof InetSocketAddress) {
+                return ((InetSocketAddress) remoteAddress).getAddress();
+            }
+            return realSocket.getInetAddress();
+        }
+        
+        @Override
+        public int getPort() {
+            if (remoteAddress instanceof InetSocketAddress) {
+                return ((InetSocketAddress) remoteAddress).getPort();
+            }
+            return realSocket.getPort();
+        }
+        
+        @Override
+        public java.net.SocketAddress getRemoteSocketAddress() {
+            // Return our virtual remote address instead of null
+            return remoteAddress;
+        }
+        
+        @Override
+        public java.net.SocketAddress getLocalSocketAddress() {
+            return realSocket.getLocalSocketAddress();
+        }
+        
+        @Override
+        public java.net.InetAddress getLocalAddress() {
+            return realSocket.getLocalAddress();
+        }
+        
+        @Override
+        public int getLocalPort() {
+            return realSocket.getLocalPort();
+        }
+        
+        // Delegate other methods to real socket
+        @Override
+        public void bind(java.net.SocketAddress addr) throws java.net.SocketException {
+            realSocket.bind(addr);
+        }
+        
+        @Override
+        public void connect(java.net.SocketAddress addr) throws java.net.SocketException {
+            // Virtual connection - ignore
+        }
+        
+        @Override
+        public void disconnect() {
+            // Virtual connection - ignore
+        }
+        
+        @Override
+        public boolean isBound() {
+            return realSocket.isBound();
+        }
+        
+        @Override
+        public boolean isConnected() {
+            return remoteAddress != null;
+        }
+        
+        @Override
+        public boolean isClosed() {
+            return realSocket.isClosed();
+        }
+        
+        @Override
+        public void close() {
+            // Don't close real socket - it's shared
+        }
     }
     
     @Override
