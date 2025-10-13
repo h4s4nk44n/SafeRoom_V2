@@ -46,6 +46,11 @@ public class NatAnalyzer {
     private static final Map<String, InetSocketAddress> activePeers = new ConcurrentHashMap<>();
     private static final Map<String, Long> lastActivity = new ConcurrentHashMap<>();
     
+    // 🆕 Reliable Messaging components
+    private static ReliableMessageSender reliableSender = null;
+    private static ReliableMessageReceiver reliableReceiver = null;
+    private static String currentUsername = null;
+    
     // NAT profile data
     public static class NATProfile {
         public byte natType;
@@ -2265,5 +2270,99 @@ public class NatAnalyzer {
                 future.complete(false);
             }
         }
+    }
+    
+    // ============================================
+    // 🆕 RELIABLE MESSAGING API
+    // ============================================
+    
+    /**
+     * Initialize reliable messaging (must be called after NAT analysis)
+     * @param username Current user's username
+     */
+    public static void initializeReliableMessaging(String username) {
+        if (stunChannel == null) {
+            throw new IllegalStateException("STUN channel not initialized! Run NAT analysis first.");
+        }
+        
+        currentUsername = username;
+        
+        // Create sender
+        reliableSender = new ReliableMessageSender(username, stunChannel);
+        
+        // Create receiver with callback
+        reliableReceiver = new ReliableMessageReceiver(
+            username,
+            stunChannel,
+            (sender, msgId, message) -> {
+                // Callback when message received
+                String messageText = new String(message);
+                System.out.printf("\n📨 [RELIABLE-MSG] Received from %s: \"%s\" (%d bytes)%n",
+                    sender, messageText, message.length);
+                
+                // TODO: Forward to GUI/application layer
+                onReliableMessageReceived(sender, messageText);
+            }
+        );
+        
+        System.out.println("[NAT] ✅ Reliable messaging initialized for user: " + username);
+    }
+    
+    /**
+     * Send reliable message to peer
+     * @param targetUsername Recipient username
+     * @param message Message text
+     * @return CompletableFuture that completes when message is ACKed
+     */
+    public static CompletableFuture<Boolean> sendReliableMessage(String targetUsername, String message) {
+        if (reliableSender == null) {
+            throw new IllegalStateException("Reliable messaging not initialized! Call initializeReliableMessaging() first.");
+        }
+        
+        InetSocketAddress targetAddr = activePeers.get(targetUsername);
+        if (targetAddr == null) {
+            System.err.println("[NAT] ❌ No P2P connection to " + targetUsername);
+            return CompletableFuture.completedFuture(false);
+        }
+        
+        System.out.printf("[NAT] 📤 Sending reliable message to %s (%s): \"%s\"%n",
+            targetUsername, targetAddr, message);
+        
+        return reliableSender.sendMessage(targetUsername, message.getBytes(), targetAddr);
+    }
+    
+    /**
+     * Callback for received reliable messages (override in application)
+     */
+    private static void onReliableMessageReceived(String sender, String message) {
+        // Default implementation - can be overridden by setting a callback
+        System.out.println("[NAT] 💬 Message from " + sender + ": " + message);
+    }
+    
+    /**
+     * Shutdown reliable messaging
+     */
+    public static void shutdownReliableMessaging() {
+        if (reliableSender != null) {
+            reliableSender.shutdown();
+            reliableSender = null;
+        }
+        if (reliableReceiver != null) {
+            reliableReceiver.shutdown();
+            reliableReceiver = null;
+        }
+        System.out.println("[NAT] 🛑 Reliable messaging shut down");
+    }
+    
+    /**
+     * Get reliable messaging statistics
+     */
+    public static String getReliableMessagingStats() {
+        if (reliableSender == null || reliableReceiver == null) {
+            return "Reliable messaging not active";
+        }
+        return String.format("Sender: %s | Receiver: %s",
+            reliableSender.getStats(),
+            reliableReceiver.getStats());
     }
 }

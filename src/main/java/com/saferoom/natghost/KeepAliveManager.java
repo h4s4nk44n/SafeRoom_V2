@@ -318,6 +318,78 @@ public final class KeepAliveManager implements AutoCloseable {
                                 System.err.println("[KA-BURST] ❌ Error handling burst: " + e.getMessage());
                                 e.printStackTrace();
                             }
+                        } else if (type == LLS.SIG_RMSG_DATA) {
+                            // 🆕 Reliable message DATA chunk
+                            System.out.printf("[KA] 📦 Reliable DATA chunk from %s%n", from);
+                            try {
+                                Object[] parsed = LLS.parseReliableMessageChunk(buf.duplicate());
+                                
+                                // Forward to ReliableMessageReceiver via NatAnalyzer
+                                java.lang.reflect.Field receiverField = Class.forName("com.saferoom.natghost.NatAnalyzer")
+                                    .getDeclaredField("reliableReceiver");
+                                receiverField.setAccessible(true);
+                                ReliableMessageReceiver receiver = (ReliableMessageReceiver) receiverField.get(null);
+                                
+                                if (receiver != null) {
+                                    receiver.handleDataChunk(parsed, (InetSocketAddress) from);
+                                }
+                            } catch (Exception e) {
+                                System.err.println("[KA] ❌ Error handling reliable DATA: " + e.getMessage());
+                            }
+                        } else if (type == LLS.SIG_RMSG_ACK) {
+                            // 🆕 Reliable message ACK
+                            System.out.printf("[KA] ✅ Reliable ACK from %s%n", from);
+                            try {
+                                Object[] parsed = LLS.parseReliableMessageACK(buf.duplicate());
+                                
+                                // Forward to ReliableMessageSender via NatAnalyzer
+                                java.lang.reflect.Field senderField = Class.forName("com.saferoom.natghost.NatAnalyzer")
+                                    .getDeclaredField("reliableSender");
+                                senderField.setAccessible(true);
+                                ReliableMessageSender sender = (ReliableMessageSender) senderField.get(null);
+                                
+                                if (sender != null) {
+                                    sender.handleACK((long) parsed[4], (int) parsed[5], (long) parsed[6]);
+                                }
+                            } catch (Exception e) {
+                                System.err.println("[KA] ❌ Error handling reliable ACK: " + e.getMessage());
+                            }
+                        } else if (type == LLS.SIG_RMSG_NACK) {
+                            // 🆕 Reliable message NACK
+                            System.out.printf("[KA] ⚠️  Reliable NACK from %s%n", from);
+                            try {
+                                Object[] parsed = LLS.parseReliableMessageNACK(buf.duplicate());
+                                
+                                // Forward to ReliableMessageSender via NatAnalyzer
+                                java.lang.reflect.Field senderField = Class.forName("com.saferoom.natghost.NatAnalyzer")
+                                    .getDeclaredField("reliableSender");
+                                senderField.setAccessible(true);
+                                ReliableMessageSender sender = (ReliableMessageSender) senderField.get(null);
+                                
+                                if (sender != null) {
+                                    sender.handleNACK((long) parsed[4], (int[]) parsed[5], (InetSocketAddress) from);
+                                }
+                            } catch (Exception e) {
+                                System.err.println("[KA] ❌ Error handling reliable NACK: " + e.getMessage());
+                            }
+                        } else if (type == LLS.SIG_RMSG_FIN) {
+                            // 🆕 Reliable message FIN
+                            System.out.printf("[KA] 🏁 Reliable FIN from %s%n", from);
+                            try {
+                                Object[] parsed = LLS.parseReliableMessageFIN(buf.duplicate());
+                                
+                                // Forward to ReliableMessageReceiver via NatAnalyzer
+                                java.lang.reflect.Field receiverField = Class.forName("com.saferoom.natghost.NatAnalyzer")
+                                    .getDeclaredField("reliableReceiver");
+                                receiverField.setAccessible(true);
+                                ReliableMessageReceiver receiver = (ReliableMessageReceiver) receiverField.get(null);
+                                
+                                if (receiver != null) {
+                                    receiver.handleFIN((long) parsed[4]);
+                                }
+                            } catch (Exception e) {
+                                System.err.println("[KA] ❌ Error handling reliable FIN: " + e.getMessage());
+                            }
                         } else {
                             System.out.printf("[KA] ❓ Unknown packet type 0x%02X from %s%n", type, from);
                         }

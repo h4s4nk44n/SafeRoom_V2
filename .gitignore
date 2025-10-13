@@ -5,3 +5,5 @@
 src/main/resources/oauthconfig.properties
 src/main/resources/dbconfig.properties  
 src/main/resources/emailconfig.properties
+
+user_prefs.*
