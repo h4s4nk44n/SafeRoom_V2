@@ -2136,50 +2136,79 @@ public class NatAnalyzer {
                     
                     selector.selectedKeys().clear();
                     
-                    ByteBuffer receiveBuffer = ByteBuffer.allocate(1024);
-                    InetSocketAddress sender = (InetSocketAddress) stunChannel.receive(receiveBuffer);
-                    
-                    if (sender != null) {
+                    // ⚡ CRITICAL FIX: Read ALL available packets in buffer!
+                    // UDP buffer can contain MULTIPLE packets (server + peer)
+                    // If we only read ONE packet and it's from server, peer packet is lost!
+                    int packetsRead = 0;
+                    while (true) {
+                        ByteBuffer receiveBuffer = ByteBuffer.allocate(1024);
+                        InetSocketAddress sender = (InetSocketAddress) stunChannel.receive(receiveBuffer);
+                        
+                        if (sender == null) {
+                            // No more packets available
+                            break;
+                        }
+                        
+                        packetsRead++;
                         receiveBuffer.flip();
-                        System.out.printf("[STANDARD-PUNCH] 📦 Received packet: %d bytes from %s%n", 
-                            receiveBuffer.remaining(), sender);
+                        System.out.printf("[STANDARD-PUNCH] 📦 Packet #%d: %d bytes from %s%n", 
+                            packetsRead, receiveBuffer.remaining(), sender);
                         
                         long responseTime = System.currentTimeMillis() - startTime;
                         
-                        // ⚠️ VALIDATE: Response must be from target, not server!
+                        // Track packet source
                         boolean isFromTarget = sender.getAddress().equals(targetIP);
+                        boolean isFromServer = sender.getAddress().getHostAddress().equals("35.198.64.68");
+                        
+                        if (isFromServer) {
+                            serverPackets++;
+                            System.out.printf("[STANDARD-PUNCH] 📊 SERVER packet (ignoring, checking next)%n");
+                            continue; // Skip server, check next packet in buffer
+                        }
                         
                         if (!isFromTarget) {
-                            serverPackets++;
-                            System.out.printf("[STANDARD-PUNCH] ⚠️ Response from SERVER (not peer): %s%n", sender);
-                            System.out.printf("[STANDARD-PUNCH] 📊 Stats: server=%d, other=%d, selectorWakeups=%d%n", 
-                                serverPackets, otherPackets, selectorWakeups);
-                            continue; // Ignore server responses, keep bursting
+                            otherPackets++;
+                            System.out.printf("[STANDARD-PUNCH] ⚠️ Unknown source: %s (ignoring)%n", sender);
+                            continue; // Skip unknown, check next
                         }
                         
-                        System.out.printf("\n[STANDARD-PUNCH] ✅ PEER RESPONSE RECEIVED after %d ms!%n", responseTime);
-                        System.out.printf("  Peer address: %s (VALIDATED ✅)%n", sender);
-                        System.out.printf("  Total bursts sent: %d%n", burstCount);
-                        System.out.printf("  Selector wakeups: %d%n", selectorWakeups);
+                        // ✅ PEER PACKET FOUND!
+                        receiveBuffer.position(0);
+                        byte msgType = receiveBuffer.get();
                         
-                        peerResponseReceived = true;
-                        
-                        // Register peer connection info
-                        activePeers.put(targetUsername, sender);
-                        lastActivity.put(targetUsername, System.currentTimeMillis());
-                        
-                        System.out.println("[STANDARD-PUNCH] 💓 Peer connection registered");
-                        
-                        // 🆕 Complete the pending P2P connection future
-                        CompletableFuture<Boolean> future = pendingP2PConnections.get(targetUsername);
-                        if (future != null && !future.isDone()) {
-                            future.complete(true);
-                            System.out.println("[STANDARD-PUNCH] ✅ Notified waiting thread - connection established");
+                        if (msgType == LLS.SIG_PUNCH_BURST) {
+                            System.out.printf("\n[STANDARD-PUNCH] ✅ PEER RESPONSE RECEIVED after %d ms!%n", responseTime);
+                            System.out.printf("  Peer address: %s (VALIDATED ✅)%n", sender);
+                            System.out.printf("  Total bursts sent: %d%n", burstCount);
+                            System.out.printf("  Packets in buffer: %d (server=%d, peer=1)%n", 
+                                packetsRead, serverPackets);
+                            
+                            peerResponseReceived = true;
+                            
+                            // Register peer connection info
+                            activePeers.put(targetUsername, sender);
+                            lastActivity.put(targetUsername, System.currentTimeMillis());
+                            
+                            System.out.println("[STANDARD-PUNCH] 💓 Peer connection registered");
+                            
+                            // 🆕 Complete the pending P2P connection future
+                            CompletableFuture<Boolean> future = pendingP2PConnections.get(targetUsername);
+                            if (future != null && !future.isDone()) {
+                                future.complete(true);
+                                System.out.println("[STANDARD-PUNCH] ✅ Notified waiting thread - connection established");
+                            }
+                            
+                            break; // Exit packet reading loop
                         }
-                        
-                        break;
-                    } else {
-                        System.out.println("[STANDARD-PUNCH] ⚠️ Selector ready but receive() returned null!");
+                    }
+                    
+                    if (packetsRead > 0 && !peerResponseReceived) {
+                        System.out.printf("[STANDARD-PUNCH] 📊 Stats: wakeup=%d, packets=%d, server=%d, other=%d%n",
+                            selectorWakeups, packetsRead, serverPackets, otherPackets);
+                    }
+                    
+                    if (peerResponseReceived) {
+                        break; // Exit burst loop
                     }
                 }
                 
