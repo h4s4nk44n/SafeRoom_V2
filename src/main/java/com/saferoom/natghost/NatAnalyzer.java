@@ -2115,17 +2115,26 @@ public class NatAnalyzer {
                     "STANDARD-BURST-" + burstCount
                 );
                 
-                stunChannel.send(burstPayload, targetAddr);
+                int bytesSent = stunChannel.send(burstPayload, targetAddr);
+                if (burstCount == 0) {
+                    System.out.printf("[STANDARD-PUNCH] 📤 First burst sent: %d bytes to %s%n", bytesSent, targetAddr);
+                }
                 burstCount++;
                 
                 // Check for peer response (non-blocking, immediate)
-                if (selector.select(50) > 0) { // 50ms wait
+                int readyKeys = selector.select(50); // 50ms wait
+                if (readyKeys > 0) {
+                    System.out.printf("[STANDARD-PUNCH] 🔔 Selector detected %d ready channel(s)!%n", readyKeys);
                     selector.selectedKeys().clear();
                     
                     ByteBuffer receiveBuffer = ByteBuffer.allocate(1024);
                     InetSocketAddress sender = (InetSocketAddress) stunChannel.receive(receiveBuffer);
                     
                     if (sender != null) {
+                        receiveBuffer.flip();
+                        System.out.printf("[STANDARD-PUNCH] 📦 Received packet: %d bytes from %s%n", 
+                            receiveBuffer.remaining(), sender);
+                        
                         long responseTime = System.currentTimeMillis() - startTime;
                         
                         // ⚠️ VALIDATE: Response must be from target, not server!
@@ -2158,6 +2167,8 @@ public class NatAnalyzer {
                         }
                         
                         break;
+                    } else {
+                        System.out.println("[STANDARD-PUNCH] ⚠️ Selector ready but receive() returned null!");
                     }
                 }
                 
