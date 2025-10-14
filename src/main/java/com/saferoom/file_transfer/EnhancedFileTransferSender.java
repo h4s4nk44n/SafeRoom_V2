@@ -118,6 +118,11 @@ public class EnhancedFileTransferSender {
 					pkt.resetForRetransmitter();
 					LockSupport.parkNanos(1_000_000); // 1ms bekleme
 				}
+				System.out.println("[SENDER-HANDSHAKE] ✅ SYN_ACK sent successfully");
+				
+				// Give receiver time to process SYN_ACK before data flood
+				LockSupport.parkNanos(5_000_000); // 5ms bekle
+				
 			}catch(IOException e){
 				System.err.println("SYN+ACK Signal Error: " + e);
 				return false;
