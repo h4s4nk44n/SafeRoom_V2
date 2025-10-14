@@ -2480,12 +2480,23 @@ public class NatAnalyzer {
                 System.out.printf("[FILE-HANDSHAKE] 📤 SYN sent: %d bytes (fileId=%d, size=%d, chunks=%d)%n", 
                     synBytes, fileId, fileSize, totalSeq);
                 
-                // 2. Wait for handshake completion by KeepAliveManager
-                // KeepAliveManager will receive ACK and auto-send SYN_ACK
-                // We'll wait a bit for handshake to complete
-                Thread.sleep(500); // Give time for ACK/SYN_ACK exchange
+                // 2. Wait for READY-ACK from receiver (via latch)
+                System.out.println("[FILE-HANDSHAKE] ⏳ Waiting for receiver to accept...");
                 
-                System.out.println("[FILE-SEND] ✅ Handshake completed by KeepAliveManager");
+                java.util.concurrent.CountDownLatch readyLatch = FileTransferDispatcher.readyAckLatches.get(fileId);
+                
+                // Wait for up to 30 seconds for receiver to accept
+                boolean receiverReady = false;
+                if (readyLatch != null) {
+                    receiverReady = readyLatch.await(30, java.util.concurrent.TimeUnit.SECONDS);
+                    FileTransferDispatcher.readyAckLatches.remove(fileId); // Cleanup
+                }
+                
+                if (!receiverReady) {
+                    throw new java.io.IOException("Receiver did not accept file transfer within 30 seconds");
+                }
+                
+                System.out.println("[FILE-HANDSHAKE] ✅ Receiver is ready - starting data transfer!");
                 
                 // 3. NOW stop KeepAliveManager and take control
                 if (globalKeepAlive != null) {
@@ -2568,6 +2579,14 @@ public class NatAnalyzer {
                 
                 System.out.printf("[FILE-RECV] 📋 Metadata: fileId=%d, size=%d bytes, chunks=%d%n", 
                     receivedFileId, fileSize, totalSeq);
+                
+                // Send "READY" ACK to sender - confirming we're ready to receive data!
+                com.saferoom.file_transfer.HandShake_Packet readyAck = 
+                    new com.saferoom.file_transfer.HandShake_Packet();
+                readyAck.make_ACK(receivedFileId, fileSize, totalSeq);
+                
+                int readyBytes = stunChannel.send(readyAck.get_header().duplicate(), senderAddr);
+                System.out.printf("[FILE-RECV] 📤 Sent READY-ACK: %d bytes (receiver is ready!)%n", readyBytes);
                 
                 // STOP KeepAliveManager - we're taking control now!
                 if (globalKeepAlive != null) {
@@ -2688,6 +2707,9 @@ public class NatAnalyzer {
         // Cache SYN packets until user accepts/declines
         private static final Map<Long, ByteBuffer> cachedSYNPackets = new ConcurrentHashMap<>();
         
+        // READY-ACK latches for sender to wait for receiver ready
+        private static final Map<Long, java.util.concurrent.CountDownLatch> readyAckLatches = new ConcurrentHashMap<>();
+        
         // Debug counter for DATA packet logging
         private static int dataPacketDebugCount = 0;
         
@@ -2713,20 +2735,30 @@ public class NatAnalyzer {
                     long fileId = com.saferoom.file_transfer.HandShake_Packet.get_file_Id(packet);
                     System.out.printf("[FILE-HANDSHAKE] ✅ ACK received for fileId=%d%n", fileId);
                     
-                    // Send SYN_ACK automatically
-                    try {
-                        com.saferoom.file_transfer.HandShake_Packet synAckPkt = 
-                            new com.saferoom.file_transfer.HandShake_Packet();
-                        synAckPkt.make_SYN_ACK(fileId);
-                        
-                        int synAckBytes = stunChannel.send(synAckPkt.get_header().duplicate(), senderAddr);
-                        System.out.printf("[FILE-HANDSHAKE] 📤 Auto-sent SYN_ACK: %d bytes (Handshake COMPLETE!)%n", synAckBytes);
-                        
-                        // Handshake complete - notify that we can start sending data
-                        // FileTransferCallback will handle this
-                        
-                    } catch (Exception e) {
-                        System.err.println("[FILE-HANDSHAKE] ❌ Failed to send SYN_ACK: " + e.getMessage());
+                    // Check if this is FIRST ACK (initial handshake) or READY-ACK (receiver ready)
+                    java.util.concurrent.CountDownLatch readyLatch = readyAckLatches.get(fileId);
+                    
+                    if (readyLatch == null) {
+                        // FIRST ACK - send SYN_ACK and create latch for READY-ACK
+                        try {
+                            com.saferoom.file_transfer.HandShake_Packet synAckPkt = 
+                                new com.saferoom.file_transfer.HandShake_Packet();
+                            synAckPkt.make_SYN_ACK(fileId);
+                            
+                            int synAckBytes = stunChannel.send(synAckPkt.get_header().duplicate(), senderAddr);
+                            System.out.printf("[FILE-HANDSHAKE] 📤 Auto-sent SYN_ACK: %d bytes%n", synAckBytes);
+                            
+                            // Create latch for READY-ACK
+                            readyAckLatches.put(fileId, new java.util.concurrent.CountDownLatch(1));
+                            System.out.println("[FILE-HANDSHAKE] ⏳ Waiting for READY-ACK from receiver...");
+                            
+                        } catch (Exception e) {
+                            System.err.println("[FILE-HANDSHAKE] ❌ Failed to send SYN_ACK: " + e.getMessage());
+                        }
+                    } else {
+                        // READY-ACK received - receiver is ready to receive data!
+                        System.out.printf("[FILE-HANDSHAKE] ✅ READY-ACK received for fileId=%d - receiver is ready!%n", fileId);
+                        readyLatch.countDown();
                     }
                     return;
                 }
