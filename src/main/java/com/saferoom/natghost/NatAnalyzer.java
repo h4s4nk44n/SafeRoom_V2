@@ -2463,32 +2463,34 @@ public class NatAnalyzer {
         
         return CompletableFuture.runAsync(() -> {
             long fileId = System.currentTimeMillis();
-            DatagramChannel tempChannel = null;
             
             try {
                 System.out.printf("[FILE-SEND] 📤 Sending %s to %s%n",
                     filePath.getFileName(), targetUser);
                 
-                // Create temporary CONNECTED channel for file transfer
-                // (stunChannel is shared and unconnected, but file_transfer needs connected channel)
-                tempChannel = DatagramChannel.open();
-                tempChannel.bind(stunChannel.getLocalAddress());
-                tempChannel.connect(peerAddr);
-                tempChannel.configureBlocking(true);
+                // Connect stunChannel to peer for file transfer
+                synchronized (stunChannel) {
+                    stunChannel.connect(peerAddr);
+                    System.out.printf("[FILE-SEND] 🔗 Connected to %s%n", peerAddr);
                 
-                System.out.printf("[FILE-SEND] 🔗 Created connected channel to %s%n", peerAddr);
-                
-                // Create sender with connected channel
-                com.saferoom.file_transfer.EnhancedFileTransferSender sender = 
-                    new com.saferoom.file_transfer.EnhancedFileTransferSender(tempChannel);
-                
-                // Send file - sender does all the work!
-                sender.sendFile(filePath, fileId);
-                
-                System.out.printf("[FILE-SEND] ✅ File sent successfully%n");
-                
-                if (fileTransferCallback != null) {
-                    fileTransferCallback.onFileTransferComplete(targetUser, fileId, filePath);
+                    try {
+                        // Create sender with connected stunChannel
+                        com.saferoom.file_transfer.EnhancedFileTransferSender sender = 
+                            new com.saferoom.file_transfer.EnhancedFileTransferSender(stunChannel);
+                        
+                        // Send file - sender does all the work!
+                        sender.sendFile(filePath, fileId);
+                        
+                        System.out.printf("[FILE-SEND] ✅ File sent successfully%n");
+                        
+                        if (fileTransferCallback != null) {
+                            fileTransferCallback.onFileTransferComplete(targetUser, fileId, filePath);
+                        }
+                    } finally {
+                        // Disconnect after transfer
+                        stunChannel.disconnect();
+                        System.out.println("[FILE-SEND] 🔌 Disconnected");
+                    }
                 }
                 
             } catch (Exception e) {
@@ -2498,16 +2500,6 @@ public class NatAnalyzer {
                     fileTransferCallback.onFileTransferError(targetUser, fileId, e);
                 }
                 throw new RuntimeException(e);
-            } finally {
-                // Close temporary channel
-                if (tempChannel != null && tempChannel.isOpen()) {
-                    try {
-                        tempChannel.close();
-                        System.out.println("[FILE-SEND] 🔌 Closed temporary channel");
-                    } catch (Exception e) {
-                        System.err.println("[FILE-SEND] ⚠️ Error closing channel: " + e.getMessage());
-                    }
-                }
             }
         }, P2P_EXECUTOR);
     }
@@ -2525,33 +2517,34 @@ public class NatAnalyzer {
         }
         
         CompletableFuture.runAsync(() -> {
-            DatagramChannel tempChannel = null;
-            
             try {
                 System.out.printf("[FILE-RECV] 📥 Accepting file transfer, saving to: %s%n", savePath);
                 
-                // Create temporary CONNECTED channel for file transfer
-                // (stunChannel is shared and unconnected, but file_transfer needs connected channel)
-                tempChannel = DatagramChannel.open();
-                tempChannel.bind(stunChannel.getLocalAddress());
-                tempChannel.connect(senderAddr);
-                tempChannel.configureBlocking(true);
+                // Connect stunChannel to sender for file transfer
+                synchronized (stunChannel) {
+                    stunChannel.connect(senderAddr);
+                    System.out.printf("[FILE-RECV] 🔗 Connected to %s%n", senderAddr);
                 
-                System.out.printf("[FILE-RECV] 🔗 Created connected channel from %s%n", senderAddr);
-                
-                // Create receiver with connected channel
-                com.saferoom.file_transfer.FileTransferReceiver receiver = 
-                    new com.saferoom.file_transfer.FileTransferReceiver();
-                receiver.channel = tempChannel;
-                receiver.filePath = savePath;
-                
-                // Receive file - receiver does all the work!
-                receiver.ReceiveData();
-                
-                System.out.printf("[FILE-RECV] ✅ File received successfully%n");
-                
-                if (fileTransferCallback != null) {
-                    fileTransferCallback.onFileTransferComplete(senderUsername, fileId, savePath);
+                    try {
+                        // Create receiver with connected stunChannel
+                        com.saferoom.file_transfer.FileTransferReceiver receiver = 
+                            new com.saferoom.file_transfer.FileTransferReceiver();
+                        receiver.channel = stunChannel;
+                        receiver.filePath = savePath;
+                        
+                        // Receive file - receiver does all the work!
+                        receiver.ReceiveData();
+                        
+                        System.out.printf("[FILE-RECV] ✅ File received successfully%n");
+                        
+                        if (fileTransferCallback != null) {
+                            fileTransferCallback.onFileTransferComplete(senderUsername, fileId, savePath);
+                        }
+                    } finally {
+                        // Disconnect after transfer
+                        stunChannel.disconnect();
+                        System.out.println("[FILE-RECV] 🔌 Disconnected");
+                    }
                 }
                 
             } catch (Exception e) {
@@ -2559,16 +2552,6 @@ public class NatAnalyzer {
                 e.printStackTrace();
                 if (fileTransferCallback != null) {
                     fileTransferCallback.onFileTransferError(senderUsername, fileId, e);
-                }
-            } finally {
-                // Close temporary channel
-                if (tempChannel != null && tempChannel.isOpen()) {
-                    try {
-                        tempChannel.close();
-                        System.out.println("[FILE-RECV] 🔌 Closed temporary channel");
-                    } catch (Exception e) {
-                        System.err.println("[FILE-RECV] ⚠️ Error closing channel: " + e.getMessage());
-                    }
                 }
             }
         }, P2P_EXECUTOR);
