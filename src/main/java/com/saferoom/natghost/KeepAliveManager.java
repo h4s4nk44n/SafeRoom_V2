@@ -129,15 +129,20 @@ public final class KeepAliveManager implements AutoCloseable {
                         
                         buf.flip();
                         
-                        System.out.printf("[KA] 📦 RAW packet received: %d bytes from %s%n", buf.remaining(), from);
-                        
                         if (!LLS.hasWholeFrame(buf)) {
-                            System.out.printf("[KA] ⚠️ Incomplete frame: %d bytes%n", buf.remaining());
+                            System.out.printf("[KA] ⚠️ Incomplete frame: %d bytes from %s%n", buf.remaining(), from);
                             continue;
                         }
                         byte type = LLS.peekType(buf);
+                        int size = buf.remaining();
                         
-                        System.out.printf("[KA] 📡 Received packet type: 0x%02X from %s%n", type, from);
+                        // Skip logging for late DATA packets (type 0x00 with valid size)
+                        boolean isLateDataPacket = (type == 0x00 && size >= 22);
+                        
+                        if (!isLateDataPacket) {
+                            System.out.printf("[KA] 📦 RAW packet received: %d bytes from %s%n", size, from);
+                            System.out.printf("[KA] 📡 Received packet type: 0x%02X from %s%n", type, from);
+                        }
                         
                         if (type == LLS.SIG_MESSAGE) {
                             System.out.println("[KA] 🎯 SIG_MESSAGE detected - forwarding to NatAnalyzer");
@@ -392,7 +397,7 @@ public final class KeepAliveManager implements AutoCloseable {
                             }
                         } else {
                             // 📁 File transfer packet detection by size and structure
-                            int size = buf.remaining();
+                            // Note: size already defined at top of loop
                             boolean isFilePacket = false;
                             String packetType = null;
                             

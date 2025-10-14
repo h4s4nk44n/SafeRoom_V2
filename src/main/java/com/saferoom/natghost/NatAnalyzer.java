@@ -46,6 +46,9 @@ public class NatAnalyzer {
     private static final Map<String, InetSocketAddress> activePeers = new ConcurrentHashMap<>();
     private static final Map<String, Long> lastActivity = new ConcurrentHashMap<>();
     
+    // 🆕 Pending file transfers - store filename from chat message
+    private static final Map<String, String> pendingFileNames = new ConcurrentHashMap<>();
+    
     // 🆕 Reliable Messaging components
     private static ReliableMessageSender reliableSender = null;
     private static ReliableMessageReceiver reliableReceiver = null;
@@ -2351,6 +2354,22 @@ public class NatAnalyzer {
      * Callback for received reliable messages (override in application)
      */
     private static void onReliableMessageReceived(String sender, String message) {
+        // Extract filename from file transfer message
+        if (message.startsWith("📎 Sending file: ")) {
+            try {
+                // Parse: "📎 Sending file: filename.ext (size)"
+                int filenameStart = "📎 Sending file: ".length();
+                int filenameEnd = message.lastIndexOf(" (");
+                if (filenameEnd > filenameStart) {
+                    String filename = message.substring(filenameStart, filenameEnd).trim();
+                    pendingFileNames.put(sender, filename);
+                    System.out.printf("[NAT] 📎 Extracted filename from %s: %s%n", sender, filename);
+                }
+            } catch (Exception e) {
+                System.err.println("[NAT] ⚠️ Failed to parse filename: " + e.getMessage());
+            }
+        }
+        
         // Forward to registered callback if available
         if (messageCallback != null) {
             messageCallback.onMessageReceived(sender, message);
@@ -2563,7 +2582,17 @@ public class NatAnalyzer {
             // Find peer username
             String senderUsername = findUsernameByAddress(senderAddr);
             
-            String fileName = "file_" + fileId + ".bin";
+            // Get filename from pending map (set by chat message callback)
+            String extractedName = pendingFileNames.remove(senderUsername);
+            final String fileName;
+            if (extractedName == null) {
+                // Fallback to generic name
+                fileName = "file_" + fileId + ".bin";
+                System.out.println("[FILE-RECV] ⚠️ No filename found, using: " + fileName);
+            } else {
+                fileName = extractedName;
+                System.out.printf("[FILE-RECV] ✅ Using filename: %s%n", fileName);
+            }
             
             System.out.printf("[FILE-RECV] 📥 SYN received from %s: size=%d bytes, chunks=%d (fileId=%d)%n",
                 senderUsername, fileSize, totalSeq, fileId);
