@@ -575,6 +575,9 @@ public class ClientMenu{
 		try {
 			System.out.println("[P2P] Registering user with server: " + username);
 			
+			// Set current username in ChatService for message rendering
+			com.saferoom.gui.service.ChatService.getInstance().setCurrentUsername(username);
+			
 			InetSocketAddress signalingServer = new InetSocketAddress(Server, UDP_Port); // P2PSignalingServer.SIGNALING_PORT
 			boolean registered = NatAnalyzer.registerWithServer(username, signalingServer);
 			

@@ -48,8 +48,17 @@ public class ChatViewController {
 
     @FXML
     public void initialize() {
-        this.currentUser = new User("currentUser123", "You");
         this.chatService = ChatService.getInstance();
+        
+        // Get current username from ChatService (set by ClientMenu)
+        String username = chatService.getCurrentUsername();
+        if (username != null) {
+            this.currentUser = new User(username, username);
+            System.out.printf("[ChatView] 👤 Current user initialized: %s%n", username);
+        } else {
+            this.currentUser = new User("temp-id", "You");
+            System.out.println("[ChatView] ⚠️ Current username not set yet - using temp ID");
+        }
 
         chatService.newMessageProperty().addListener((obs, oldMsg, newMsg) -> {
             if (newMsg != null && messages != null && messages.contains(newMsg)) {

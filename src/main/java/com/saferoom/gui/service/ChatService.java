@@ -22,6 +22,9 @@ public class ChatService {
     // Singleton deseni için statik nesne
     private static final ChatService instance = new ChatService();
 
+    // Current user's username (set by ClientMenu during initialization)
+    private String currentUsername = null;
+
     // Veri saklama alanı (eskiden kontrolcüdeydi)
     private final Map<String, ObservableList<Message>> channelMessages = new HashMap<>();
 
@@ -37,6 +40,23 @@ public class ChatService {
     // Servisin tek nesnesine erişim metodu
     public static ChatService getInstance() {
         return instance;
+    }
+
+    /**
+     * Set the current user's username (called by ClientMenu during initialization)
+     * @param username The current user's username
+     */
+    public void setCurrentUsername(String username) {
+        this.currentUsername = username;
+        System.out.printf("[ChatService] 👤 Current user set to: %s%n", username);
+    }
+
+    /**
+     * Get the current user's username
+     * @return The current user's username
+     */
+    public String getCurrentUsername() {
+        return currentUsername;
     }
 
     /**
