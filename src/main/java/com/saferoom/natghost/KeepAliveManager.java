@@ -412,7 +412,7 @@ public final class KeepAliveManager implements AutoCloseable {
                                 isFilePacket = true;
                             }
                             // CRC32C_Packet: 22+ bytes (type + fileId + seqNum + CRC32 + data)
-                            else if (size >= 22) {
+                            else if (size >= 22 && type == 0x00) {
                                 // Verify it has fileId structure (8 bytes after type)
                                 ByteBuffer verify = buf.duplicate();
                                 verify.get(); // Skip type
@@ -446,6 +446,9 @@ public final class KeepAliveManager implements AutoCloseable {
                                     System.err.println("[KA] ❌ Error forwarding file packet: " + e.getMessage());
                                     e.printStackTrace();
                                 }
+                            } else if (type == 0x00 && size >= 22) {
+                                // Late DATA packet - file transfer probably finished, silently drop
+                                // (This prevents spam from in-flight packets after transfer completion)
                             } else {
                                 System.out.printf("[KA] ❓ Unknown packet type 0x%02X (%d bytes) from %s%n", type, size, from);
                             }
