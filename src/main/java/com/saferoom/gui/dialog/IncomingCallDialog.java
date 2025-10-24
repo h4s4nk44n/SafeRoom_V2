@@ -85,6 +85,7 @@ public class IncomingCallDialog {
         rejectButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; " +
                              "-fx-pref-width: 80px; -fx-pref-height: 80px; -fx-background-radius: 40px;");
         rejectButton.setOnAction(e -> {
+            System.out.printf("[IncomingCallDialog] ❌ Reject button clicked for call: %s%n", callId);
             result.complete(false);
             dialog.close();
         });
@@ -98,6 +99,7 @@ public class IncomingCallDialog {
         acceptButton.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; " +
                              "-fx-pref-width: 80px; -fx-pref-height: 80px; -fx-background-radius: 40px;");
         acceptButton.setOnAction(e -> {
+            System.out.printf("[IncomingCallDialog] ✅ Accept button clicked for call: %s%n", callId);
             result.complete(true);
             dialog.close();
         });
@@ -165,7 +167,10 @@ public class IncomingCallDialog {
      * @return CompletableFuture<Boolean> - true if accepted, false if rejected
      */
     public CompletableFuture<Boolean> show() {
+        System.out.printf("[IncomingCallDialog] 📺 Showing dialog for call from %s (callId: %s)%n", 
+            callerUsername, callId);
         stage.show();
+        System.out.printf("[IncomingCallDialog] 📺 Dialog shown, result.isDone=%b%n", result.isDone());
         return result;
     }
     

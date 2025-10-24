@@ -14,6 +14,7 @@ import javafx.scene.Parent;
 import com.saferoom.gui.utils.AlertUtils;
 import com.saferoom.gui.utils.WindowStateManager;
 import javafx.scene.control.ContextMenu;
+import java.util.concurrent.CompletableFuture;
 import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
@@ -722,6 +723,8 @@ public class MainController {
                     callInfo.callerUsername,
                     callInfo.callId);
                 
+                System.out.println("[MainController] 🎬 About to create IncomingCallDialog...");
+                
                 try {
                     // Show incoming call dialog
                     IncomingCallDialog dialog = new IncomingCallDialog(
@@ -730,8 +733,15 @@ public class MainController {
                         callInfo.videoEnabled
                     );
                     
+                    System.out.println("[MainController] 📺 Dialog created, calling show()...");
+                    
                     // Handle user response
-                    dialog.show().thenAccept(accepted -> {
+                    CompletableFuture<Boolean> dialogResult = dialog.show();
+                    
+                    System.out.printf("[MainController] 📺 Dialog shown, future isDone=%b%n", dialogResult.isDone());
+                    
+                    dialogResult.thenAccept(accepted -> {
+                        System.out.printf("[MainController] 🎯 Dialog response received: %b%n", accepted);
                         if (accepted) {
                             System.out.printf("[MainController] ✅ Call accepted from: %s (callId: %s)%n", 
                                 callInfo.callerUsername, callInfo.callId);
