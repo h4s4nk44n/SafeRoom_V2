@@ -1,27 +1,36 @@
 package com.saferoom.webrtc;
 
+import dev.onvoid.webrtc.*;
+import dev.onvoid.webrtc.media.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
- * WebRTC Client Manager (Signaling-focused)
- * Handles WebRTC signaling and call lifecycle
- * Native WebRTC media will be integrated after signaling works
+ * WebRTC Client Manager (Real Implementation)
+ * Uses webrtc-java library for actual media streaming
  */
 public class WebRTCClient {
     
     private static boolean initialized = false;
+    private static PeerConnectionFactory factory;
     
     private String currentCallId;
     private String remoteUsername;
     private boolean audioEnabled;
     private boolean videoEnabled;
     
+    private RTCPeerConnection peerConnection;
+    private MediaStreamTrack localAudioTrack;
+    private MediaStreamTrack localVideoTrack;
+    
     // Callbacks
-    private Consumer<String> onIceCandidateCallback;
+    private Consumer<RTCIceCandidate> onIceCandidateCallback;
     private Consumer<String> onLocalSDPCallback;
     private Runnable onConnectionEstablishedCallback;
     private Runnable onConnectionClosedCallback;
+    private Consumer<MediaStreamTrack> onRemoteTrackCallback;
     
     /**
      * Initialize WebRTC (call once at app startup)
@@ -32,9 +41,21 @@ public class WebRTCClient {
             return;
         }
         
-        System.out.println("[WebRTC] 🔧 Initializing WebRTC Client (signaling mode)...");
-        initialized = true;
-        System.out.println("[WebRTC] ✅ WebRTC initialized successfully");
+        System.out.println("[WebRTC] 🔧 Initializing WebRTC with native library...");
+        
+        try {
+            // Initialize WebRTC native library
+            factory = new PeerConnectionFactory();
+            
+            initialized = true;
+            System.out.println("[WebRTC] ✅ WebRTC initialized successfully");
+        } catch (Exception e) {
+            System.err.printf("[WebRTC] ❌ Failed to initialize: %s%n", e.getMessage());
+            e.printStackTrace();
+            // Fallback to mock mode
+            initialized = true;
+            System.out.println("[WebRTC] ⚠️ Running in MOCK mode (native library not available)");
+        }
     }
     
     /**
@@ -42,6 +63,12 @@ public class WebRTCClient {
      */
     public static synchronized void shutdown() {
         if (!initialized) return;
+        
+        if (factory != null) {
+            factory.dispose();
+            factory = null;
+        }
+        
         initialized = false;
         System.out.println("[WebRTC] ✅ WebRTC shutdown complete");
     }
@@ -74,9 +101,67 @@ public class WebRTCClient {
         this.audioEnabled = audioEnabled;
         this.videoEnabled = videoEnabled;
         
-        // TODO: Initialize native WebRTC PeerConnection here
+        if (factory == null) {
+            System.out.println("[WebRTC] ⚠️ Factory null - running in MOCK mode");
+            return;
+        }
         
-        System.out.println("[WebRTC] ✅ Peer connection created (signaling mode)");
+        try {
+            // Configure ICE servers (STUN)
+            List<RTCIceServer> iceServers = new ArrayList<>();
+            RTCIceServer stunServer = new RTCIceServer();
+            stunServer.urls.add("stun:stun.l.google.com:19302");
+            stunServer.urls.add("stun:stun1.l.google.com:19302");
+            iceServers.add(stunServer);
+            
+            RTCConfiguration config = new RTCConfiguration();
+            config.iceServers = iceServers;
+            
+            // Create peer connection
+            peerConnection = factory.createPeerConnection(config, new PeerConnectionObserver() {
+                @Override
+                public void onIceCandidate(RTCIceCandidate candidate) {
+                    System.out.printf("[WebRTC] 🧊 ICE Candidate generated: %s%n", candidate.sdp);
+                    if (onIceCandidateCallback != null) {
+                        onIceCandidateCallback.accept(candidate);
+                    }
+                }
+                
+                @Override
+                public void onIceConnectionChange(RTCIceConnectionState state) {
+                    System.out.printf("[WebRTC] 🔗 ICE Connection state: %s%n", state);
+                    if (state == RTCIceConnectionState.CONNECTED || state == RTCIceConnectionState.COMPLETED) {
+                        System.out.println("[WebRTC] ✅ ICE connection established!");
+                        if (onConnectionEstablishedCallback != null) {
+                            onConnectionEstablishedCallback.run();
+                        }
+                    } else if (state == RTCIceConnectionState.FAILED || state == RTCIceConnectionState.DISCONNECTED) {
+                        System.out.println("[WebRTC] ❌ ICE connection failed/disconnected");
+                        if (onConnectionClosedCallback != null) {
+                            onConnectionClosedCallback.run();
+                        }
+                    }
+                }
+                
+                @Override
+                public void onTrack(RTCRtpTransceiver transceiver) {
+                    MediaStreamTrack track = transceiver.getReceiver().getTrack();
+                    System.out.printf("[WebRTC] 📺 Remote track received: %s%n", track.getKind());
+                    if (onRemoteTrackCallback != null) {
+                        onRemoteTrackCallback.accept(track);
+                    }
+                }
+            });
+            
+            // Add local tracks (will be implemented)
+            // For now, just create connection without media
+            
+            System.out.println("[WebRTC] ✅ Peer connection created");
+            
+        } catch (Exception e) {
+            System.err.printf("[WebRTC] ❌ Failed to create peer connection: %s%n", e.getMessage());
+            e.printStackTrace();
+        }
     }
     
     /**
@@ -85,16 +170,52 @@ public class WebRTCClient {
     public CompletableFuture<String> createOffer() {
         System.out.println("[WebRTC] 📤 Creating SDP offer...");
         
-        // Mock SDP for testing signaling
-        String mockSDP = generateMockSDP("offer");
+        CompletableFuture<String> future = new CompletableFuture<>();
         
-        System.out.println("[WebRTC] ✅ Offer created");
-        
-        if (onLocalSDPCallback != null) {
-            onLocalSDPCallback.accept(mockSDP);
+        if (peerConnection == null) {
+            // Fallback to mock SDP
+            String mockSDP = generateMockSDP("offer");
+            System.out.println("[WebRTC] ⚠️ Using mock SDP (peer connection not available)");
+            future.complete(mockSDP);
+            return future;
         }
         
-        return CompletableFuture.completedFuture(mockSDP);
+        try {
+            RTCOfferOptions options = new RTCOfferOptions();
+            peerConnection.createOffer(options, new CreateSessionDescriptionObserver() {
+                @Override
+                public void onSuccess(RTCSessionDescription description) {
+                    peerConnection.setLocalDescription(description, new SetSessionDescriptionObserver() {
+                        @Override
+                        public void onSuccess() {
+                            System.out.println("[WebRTC] ✅ Offer created and set as local description");
+                            String sdp = description.sdp;
+                            if (onLocalSDPCallback != null) {
+                                onLocalSDPCallback.accept(sdp);
+                            }
+                            future.complete(sdp);
+                        }
+                        
+                        @Override
+                        public void onFailure(String error) {
+                            System.err.printf("[WebRTC] ❌ Failed to set local description: %s%n", error);
+                            future.completeExceptionally(new Exception(error));
+                        }
+                    });
+                }
+                
+                @Override
+                public void onFailure(String error) {
+                    System.err.printf("[WebRTC] ❌ Failed to create offer: %s%n", error);
+                    future.completeExceptionally(new Exception(error));
+                }
+            });
+        } catch (Exception e) {
+            System.err.printf("[WebRTC] ❌ Exception creating offer: %s%n", e.getMessage());
+            future.completeExceptionally(e);
+        }
+        
+        return future;
     }
     
     /**
@@ -103,16 +224,52 @@ public class WebRTCClient {
     public CompletableFuture<String> createAnswer() {
         System.out.println("[WebRTC] 📥 Creating SDP answer...");
         
-        // Mock SDP for testing signaling
-        String mockSDP = generateMockSDP("answer");
+        CompletableFuture<String> future = new CompletableFuture<>();
         
-        System.out.println("[WebRTC] ✅ Answer created");
-        
-        if (onLocalSDPCallback != null) {
-            onLocalSDPCallback.accept(mockSDP);
+        if (peerConnection == null) {
+            // Fallback to mock SDP
+            String mockSDP = generateMockSDP("answer");
+            System.out.println("[WebRTC] ⚠️ Using mock SDP (peer connection not available)");
+            future.complete(mockSDP);
+            return future;
         }
         
-        return CompletableFuture.completedFuture(mockSDP);
+        try {
+            RTCAnswerOptions options = new RTCAnswerOptions();
+            peerConnection.createAnswer(options, new CreateSessionDescriptionObserver() {
+                @Override
+                public void onSuccess(RTCSessionDescription description) {
+                    peerConnection.setLocalDescription(description, new SetSessionDescriptionObserver() {
+                        @Override
+                        public void onSuccess() {
+                            System.out.println("[WebRTC] ✅ Answer created and set as local description");
+                            String sdp = description.sdp;
+                            if (onLocalSDPCallback != null) {
+                                onLocalSDPCallback.accept(sdp);
+                            }
+                            future.complete(sdp);
+                        }
+                        
+                        @Override
+                        public void onFailure(String error) {
+                            System.err.printf("[WebRTC] ❌ Failed to set local description: %s%n", error);
+                            future.completeExceptionally(new Exception(error));
+                        }
+                    });
+                }
+                
+                @Override
+                public void onFailure(String error) {
+                    System.err.printf("[WebRTC] ❌ Failed to create answer: %s%n", error);
+                    future.completeExceptionally(new Exception(error));
+                }
+            });
+        } catch (Exception e) {
+            System.err.printf("[WebRTC] ❌ Exception creating answer: %s%n", e.getMessage());
+            future.completeExceptionally(e);
+        }
+        
+        return future;
     }
     
     /**
@@ -121,13 +278,29 @@ public class WebRTCClient {
     public void setRemoteDescription(String sdpType, String sdp) {
         System.out.printf("[WebRTC] 📨 Setting remote %s%n", sdpType);
         
-        // TODO: Set remote description in native WebRTC
+        if (peerConnection == null) {
+            System.out.println("[WebRTC] ⚠️ Peer connection null - skipping");
+            return;
+        }
         
-        System.out.println("[WebRTC] ✅ Remote description set");
-        
-        // Simulate connection established
-        if (onConnectionEstablishedCallback != null) {
-            onConnectionEstablishedCallback.run();
+        try {
+            RTCSdpType type = sdpType.equalsIgnoreCase("offer") ? RTCSdpType.OFFER : RTCSdpType.ANSWER;
+            RTCSessionDescription description = new RTCSessionDescription(type, sdp);
+            
+            peerConnection.setRemoteDescription(description, new SetSessionDescriptionObserver() {
+                @Override
+                public void onSuccess() {
+                    System.out.println("[WebRTC] ✅ Remote description set");
+                }
+                
+                @Override
+                public void onFailure(String error) {
+                    System.err.printf("[WebRTC] ❌ Failed to set remote description: %s%n", error);
+                }
+            });
+        } catch (Exception e) {
+            System.err.printf("[WebRTC] ❌ Exception setting remote description: %s%n", e.getMessage());
+            e.printStackTrace();
         }
     }
     
@@ -137,7 +310,19 @@ public class WebRTCClient {
     public void addIceCandidate(String candidate, String sdpMid, int sdpMLineIndex) {
         System.out.printf("[WebRTC] 🧊 Adding ICE candidate: %s%n", candidate);
         
-        // TODO: Add ICE candidate to native WebRTC
+        if (peerConnection == null) {
+            System.out.println("[WebRTC] ⚠️ Peer connection null - skipping");
+            return;
+        }
+        
+        try {
+            RTCIceCandidate iceCandidate = new RTCIceCandidate(sdpMid, sdpMLineIndex, candidate);
+            peerConnection.addIceCandidate(iceCandidate);
+            System.out.println("[WebRTC] ✅ ICE candidate added");
+        } catch (Exception e) {
+            System.err.printf("[WebRTC] ❌ Failed to add ICE candidate: %s%n", e.getMessage());
+            e.printStackTrace();
+        }
     }
     
     /**
@@ -146,7 +331,20 @@ public class WebRTCClient {
     public void close() {
         System.out.println("[WebRTC] 🔌 Closing peer connection...");
         
-        // TODO: Close native peer connection
+        if (peerConnection != null) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+        
+        if (localAudioTrack != null) {
+            localAudioTrack.dispose();
+            localAudioTrack = null;
+        }
+        
+        if (localVideoTrack != null) {
+            localVideoTrack.dispose();
+            localVideoTrack = null;
+        }
         
         if (onConnectionClosedCallback != null) {
             onConnectionClosedCallback.run();
@@ -159,7 +357,7 @@ public class WebRTCClient {
     // Callback Setters
     // ===============================
     
-    public void setOnIceCandidateCallback(Consumer<String> callback) {
+    public void setOnIceCandidateCallback(Consumer<RTCIceCandidate> callback) {
         this.onIceCandidateCallback = callback;
     }
     
@@ -175,17 +373,27 @@ public class WebRTCClient {
         this.onConnectionClosedCallback = callback;
     }
     
+    public void setOnRemoteTrackCallback(Consumer<MediaStreamTrack> callback) {
+        this.onRemoteTrackCallback = callback;
+    }
+    
     // ===============================
     // Media Control
     // ===============================
     
     public void toggleAudio(boolean enabled) {
         this.audioEnabled = enabled;
+        if (localAudioTrack != null) {
+            localAudioTrack.setEnabled(enabled);
+        }
         System.out.printf("[WebRTC] 🎤 Audio %s%n", enabled ? "enabled" : "muted");
     }
     
     public void toggleVideo(boolean enabled) {
         this.videoEnabled = enabled;
+        if (localVideoTrack != null) {
+            localVideoTrack.setEnabled(enabled);
+        }
         System.out.printf("[WebRTC] 📹 Video %s%n", enabled ? "enabled" : "disabled");
     }
     
@@ -210,7 +418,7 @@ public class WebRTCClient {
     }
     
     // ===============================
-    // Mock SDP Generator (for testing)
+    // Mock SDP Generator (fallback)
     // ===============================
     
     private String generateMockSDP(String type) {

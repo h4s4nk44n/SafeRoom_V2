@@ -2,6 +2,7 @@ package com.saferoom.webrtc;
 
 import com.saferoom.grpc.SafeRoomProto.WebRTCSignal;
 import com.saferoom.grpc.SafeRoomProto.WebRTCSignal.SignalType;
+import dev.onvoid.webrtc.RTCIceCandidate;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -484,10 +485,17 @@ public class CallManager {
         });
         
         // ICE candidate callback
-        webrtcClient.setOnIceCandidateCallback(candidateJson -> {
-            System.out.println("[CallManager] 🧊 ICE candidate generated");
-            // TODO: Parse JSON and send via signaling
-            // For now, using mock data
+        webrtcClient.setOnIceCandidateCallback(candidate -> {
+            System.out.printf("[CallManager] 🧊 ICE candidate generated: %s%n", candidate.sdp);
+            
+            // Send ICE candidate to remote peer via signaling
+            signalingClient.sendIceCandidate(
+                currentCallId, 
+                remoteUsername, 
+                candidate.sdp, 
+                candidate.sdpMid, 
+                candidate.sdpMLineIndex
+            );
         });
         
         // Connection established callback
