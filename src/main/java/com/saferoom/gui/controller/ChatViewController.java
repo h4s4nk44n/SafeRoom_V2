@@ -489,10 +489,17 @@ public class ChatViewController {
                     // Attach local video track if video enabled
                     if (currentCallVideoEnabled) {
                         VideoTrack localVideo = callManager.getLocalVideoTrack();
+                        System.out.printf("[ChatView] 🔍 Local video track: %s%n", 
+                            localVideo != null ? "EXISTS" : "NULL");
+                        
                         if (localVideo != null) {
                             currentActiveCallDialog.attachLocalVideo(localVideo);
                             System.out.println("[ChatView] 📹 Local video attached to dialog");
+                        } else {
+                            System.err.println("[ChatView] ❌ ERROR: Local video track is NULL! Cannot attach.");
                         }
+                    } else {
+                        System.out.println("[ChatView] ℹ️ Video not enabled for this call");
                     }
                 }
             });

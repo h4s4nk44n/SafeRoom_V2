@@ -643,7 +643,11 @@ public class CallManager {
     }
     
     public VideoTrack getLocalVideoTrack() {
-        return webrtcClient != null ? webrtcClient.getLocalVideoTrack() : null;
+        VideoTrack track = webrtcClient != null ? webrtcClient.getLocalVideoTrack() : null;
+        System.out.printf("[CallManager] 🔍 getLocalVideoTrack called: webrtcClient=%s, track=%s%n",
+            webrtcClient != null ? "EXISTS" : "NULL",
+            track != null ? "EXISTS" : "NULL");
+        return track;
     }
     
     public WebRTCClient getWebRTCClient() {

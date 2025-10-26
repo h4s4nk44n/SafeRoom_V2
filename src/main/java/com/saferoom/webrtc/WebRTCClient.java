@@ -606,7 +606,10 @@ public class WebRTCClient {
     }
     
     public VideoTrack getLocalVideoTrack() {
-        return (VideoTrack) localVideoTrack;
+        VideoTrack track = (VideoTrack) localVideoTrack;
+        System.out.printf("[WebRTC] 🔍 getLocalVideoTrack called: localVideoTrack=%s%n",
+            localVideoTrack != null ? "EXISTS (class=" + localVideoTrack.getClass().getSimpleName() + ")" : "NULL");
+        return track;
     }
     
     public AudioTrack getLocalAudioTrack() {
