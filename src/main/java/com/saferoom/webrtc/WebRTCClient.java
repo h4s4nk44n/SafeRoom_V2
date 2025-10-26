@@ -26,6 +26,7 @@ public class WebRTCClient {
     private RTCPeerConnection peerConnection;
     private MediaStreamTrack localAudioTrack;
     private MediaStreamTrack localVideoTrack;
+    private dev.onvoid.webrtc.media.video.VideoDeviceSource videoSource; // Keep reference to stop camera
     
     // Callbacks
     private Consumer<RTCIceCandidate> onIceCandidateCallback;
@@ -409,6 +410,18 @@ public class WebRTCClient {
             localVideoTrack = null;
         }
         
+        // Stop video source (release camera)
+        if (videoSource != null) {
+            try {
+                videoSource.stop();
+                videoSource.dispose();
+                System.out.println("[WebRTC] 📹 Camera source stopped and released");
+            } catch (Exception e) {
+                System.err.printf("[WebRTC] ⚠️ Error stopping video source: %s%n", e.getMessage());
+            }
+            videoSource = null;
+        }
+        
         // DON'T call onConnectionClosedCallback here - causes infinite recursion
         // CallManager.cleanup() already calls this method, no need for callback loop
         
@@ -518,7 +531,7 @@ public class WebRTCClient {
             
             // Create video source from camera
             // Resolution: 640x480 @ 30fps (good balance of quality/bandwidth)
-            VideoDeviceSource videoSource = new VideoDeviceSource();
+            this.videoSource = new VideoDeviceSource();
             videoSource.setVideoCaptureDevice(camera);
             
             // Create video track
