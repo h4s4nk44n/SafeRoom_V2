@@ -359,18 +359,47 @@ public class WebRTCClient {
     public void close() {
         System.out.println("[WebRTC] 🔌 Closing peer connection...");
         
+        // First, remove tracks from peer connection before disposing
         if (peerConnection != null) {
+            try {
+                // Get all senders and remove tracks
+                var senders = peerConnection.getSenders();
+                for (var sender : senders) {
+                    var track = sender.getTrack();
+                    if (track != null) {
+                        System.out.printf("[WebRTC] 🗑️ Removing track: %s%n", track.getId());
+                        peerConnection.removeTrack(sender);
+                    }
+                }
+            } catch (Exception e) {
+                System.err.printf("[WebRTC] ⚠️ Error removing tracks: %s%n", e.getMessage());
+            }
+            
+            // Close peer connection
             peerConnection.close();
             peerConnection = null;
         }
         
+        // Now dispose tracks (after removing from peer connection)
         if (localAudioTrack != null) {
-            localAudioTrack.dispose();
+            try {
+                localAudioTrack.setEnabled(false); // Disable first
+                localAudioTrack.dispose();
+                System.out.println("[WebRTC] ✅ Audio track disposed");
+            } catch (Exception e) {
+                System.err.printf("[WebRTC] ⚠️ Error disposing audio track: %s%n", e.getMessage());
+            }
             localAudioTrack = null;
         }
         
         if (localVideoTrack != null) {
-            localVideoTrack.dispose();
+            try {
+                localVideoTrack.setEnabled(false); // Disable first
+                localVideoTrack.dispose();
+                System.out.println("[WebRTC] ✅ Video track disposed");
+            } catch (Exception e) {
+                System.err.printf("[WebRTC] ⚠️ Error disposing video track: %s%n", e.getMessage());
+            }
             localVideoTrack = null;
         }
         

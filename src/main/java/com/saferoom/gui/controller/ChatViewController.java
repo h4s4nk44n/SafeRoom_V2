@@ -531,7 +531,10 @@ public class ChatViewController {
                     currentActiveCallDialog = null;
                 }
                 
-                showAlert("Call Ended", "The call has ended.", Alert.AlertType.INFORMATION);
+                // Reset call state
+                currentCallVideoEnabled = false;
+                
+                System.out.println("[ChatView] ✅ All call dialogs closed and state reset");
             });
         });
     }
