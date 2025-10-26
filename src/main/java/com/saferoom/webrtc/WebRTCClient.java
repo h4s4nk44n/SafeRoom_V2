@@ -427,8 +427,14 @@ public class WebRTCClient {
         try {
             System.out.println("[WebRTC] 🎤 Adding audio track...");
             
-            // Create audio source (factory already has AudioDeviceModule configured)
-            AudioTrackSource audioSource = factory.createAudioSource(null);
+            // Create AudioOptions (API documented at jrtc.dev)
+            AudioOptions audioOptions = new AudioOptions();
+            audioOptions.echoCancellation = true;
+            audioOptions.autoGainControl = true;
+            audioOptions.noiseSuppression = true;
+            
+            // Create audio source with options
+            AudioTrackSource audioSource = factory.createAudioSource(audioOptions);
             
             // Create audio track with a unique ID
             AudioTrack audioTrack = factory.createAudioTrack("audio0", audioSource);
@@ -436,7 +442,7 @@ public class WebRTCClient {
             // Add track to peer connection with stream ID
             peerConnection.addTrack(audioTrack, List.of("stream1"));
             
-            System.out.println("[WebRTC] ✅ Audio track added successfully");
+            System.out.println("[WebRTC] ✅ Audio track added successfully (echo cancellation enabled)");
             
             // Store reference for cleanup
             this.localAudioTrack = audioTrack;
