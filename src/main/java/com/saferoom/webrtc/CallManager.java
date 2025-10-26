@@ -3,6 +3,8 @@ package com.saferoom.webrtc;
 import com.saferoom.grpc.SafeRoomProto.WebRTCSignal;
 import com.saferoom.grpc.SafeRoomProto.WebRTCSignal.SignalType;
 import dev.onvoid.webrtc.RTCIceCandidate;
+import dev.onvoid.webrtc.media.video.VideoTrack;
+import dev.onvoid.webrtc.media.MediaStreamTrack;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -34,6 +36,7 @@ public class CallManager {
     private Consumer<String> onCallRejectedCallback;
     private Consumer<String> onCallEndedCallback;
     private Runnable onCallConnectedCallback;
+    private Consumer<MediaStreamTrack> onRemoteTrackCallback;
     
     /**
      * Call states (matching server-side WebRTCSessionManager.CallState)
@@ -154,6 +157,12 @@ public class CallManager {
                 if (audioEnabled) {
                     System.out.println("[CallManager] 🎤 Adding audio track for outgoing call...");
                     webrtcClient.addAudioTrack();
+                }
+                
+                // 📹 Add video track if video enabled
+                if (videoEnabled) {
+                    System.out.println("[CallManager] 📹 Adding video track for outgoing call...");
+                    webrtcClient.addVideoTrack();
                 }
                 
                 // Set up callbacks
@@ -373,6 +382,12 @@ public class CallManager {
             webrtcClient.addAudioTrack();
         }
         
+        // 📹 Add video track if video enabled
+        if (signal.getVideoEnabled()) {
+            System.out.println("[CallManager] 📹 Adding video track for incoming call...");
+            webrtcClient.addVideoTrack();
+        }
+        
         setupWebRTCCallbacks();
         
         // Notify GUI
@@ -536,6 +551,16 @@ public class CallManager {
             System.out.println("[CallManager] 🔗 WebRTC connection closed");
             cleanup();
         });
+        
+        // Remote track callback (for video/audio tracks)
+        webrtcClient.setOnRemoteTrackCallback(track -> {
+            System.out.printf("[CallManager] 📺 Remote track received: %s (kind=%s)%n", 
+                track.getId(), track.getKind());
+            
+            if (onRemoteTrackCallback != null) {
+                onRemoteTrackCallback.accept(track);
+            }
+        });
     }
     
     // ===============================
@@ -593,6 +618,10 @@ public class CallManager {
         this.onCallConnectedCallback = callback;
     }
     
+    public void setOnRemoteTrackCallback(Consumer<MediaStreamTrack> callback) {
+        this.onRemoteTrackCallback = callback;
+    }
+    
     // ===============================
     // Getters
     // ===============================
@@ -611,6 +640,14 @@ public class CallManager {
     
     public boolean isInCall() {
         return currentState != CallState.IDLE && currentState != CallState.ENDED;
+    }
+    
+    public VideoTrack getLocalVideoTrack() {
+        return webrtcClient != null ? webrtcClient.getLocalVideoTrack() : null;
+    }
+    
+    public WebRTCClient getWebRTCClient() {
+        return webrtcClient;
     }
     
     // ===============================

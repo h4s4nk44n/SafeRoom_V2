@@ -3,6 +3,7 @@ package com.saferoom.webrtc;
 import dev.onvoid.webrtc.*;
 import dev.onvoid.webrtc.media.*;
 import dev.onvoid.webrtc.media.audio.*;
+import dev.onvoid.webrtc.media.video.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.List;
@@ -173,6 +174,11 @@ public class WebRTCClient {
                     // Handle audio track automatically
                     if (track.getKind().equals("audio") && track instanceof AudioTrack) {
                         handleRemoteAudioTrack((AudioTrack) track);
+                    }
+                    
+                    // Handle video track
+                    if (track.getKind().equals("video") && track instanceof VideoTrack) {
+                        handleRemoteVideoTrack((VideoTrack) track);
                     }
                     
                     if (onRemoteTrackCallback != null) {
@@ -482,6 +488,60 @@ public class WebRTCClient {
     }
     
     /**
+     * Add video track to peer connection for camera capture.
+     * Similar to addAudioTrack but for video.
+     */
+    public void addVideoTrack() {
+        if (factory == null) {
+            System.err.println("[WebRTC] ❌ Cannot add video track - factory not initialized");
+            return;
+        }
+        
+        if (peerConnection == null) {
+            System.err.println("[WebRTC] ❌ Cannot add video track - peer connection not created");
+            return;
+        }
+        
+        try {
+            System.out.println("[WebRTC] 📹 Adding video track (camera)...");
+            
+            // Get list of available cameras
+            List<VideoDevice> cameras = MediaDevices.getVideoCaptureDevices();
+            if (cameras.isEmpty()) {
+                System.err.println("[WebRTC] ❌ No cameras found!");
+                return;
+            }
+            
+            // Use first available camera (usually default)
+            VideoDevice camera = cameras.get(0);
+            System.out.println("[WebRTC] 📹 Using camera: " + camera.getName());
+            
+            // Create video source from camera
+            // Resolution: 640x480 @ 30fps (good balance of quality/bandwidth)
+            VideoDeviceSource videoSource = new VideoDeviceSource();
+            videoSource.setVideoCaptureDevice(camera);
+            
+            // Create video track
+            VideoTrack videoTrack = factory.createVideoTrack("video0", videoSource);
+            
+            // Start capturing
+            videoSource.start();
+            
+            // Add track to peer connection with stream ID
+            peerConnection.addTrack(videoTrack, List.of("stream1"));
+            
+            System.out.println("[WebRTC] ✅ Video track added successfully");
+            
+            // Store reference for cleanup
+            this.localVideoTrack = videoTrack;
+            
+        } catch (Exception e) {
+            System.err.println("[WebRTC] ❌ Failed to add video track: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
      * Handle remote audio track (automatically plays received audio)
      */
     private void handleRemoteAudioTrack(AudioTrack audioTrack) {
@@ -496,6 +556,17 @@ public class WebRTCClient {
         
         audioTrack.addSink(sink);
         System.out.println("[WebRTC] ✅ Remote audio track ready");
+    }
+    
+    /**
+     * Handle remote video track
+     */
+    private void handleRemoteVideoTrack(VideoTrack videoTrack) {
+        System.out.println("[WebRTC] 📹 Remote video track received: " + videoTrack.getId());
+        
+        // Video rendering will be handled by VideoPanel through callback
+        // Just log for now - GUI will attach VideoPanel via onRemoteTrackCallback
+        System.out.println("[WebRTC] ✅ Remote video track ready (waiting for VideoPanel attachment)");
     }
     
     public void toggleAudio(boolean enabled) {
@@ -532,6 +603,14 @@ public class WebRTCClient {
     
     public boolean isVideoEnabled() {
         return videoEnabled;
+    }
+    
+    public VideoTrack getLocalVideoTrack() {
+        return (VideoTrack) localVideoTrack;
+    }
+    
+    public AudioTrack getLocalAudioTrack() {
+        return (AudioTrack) localAudioTrack;
     }
     
     // ===============================

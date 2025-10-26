@@ -1,6 +1,9 @@
 package com.saferoom.gui.dialog;
 
+import com.saferoom.gui.components.VideoPanel;
 import com.saferoom.webrtc.CallManager;
+import dev.onvoid.webrtc.media.MediaStreamTrack;
+import dev.onvoid.webrtc.media.video.VideoTrack;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -36,8 +39,8 @@ public class ActiveCallDialog {
     private Button muteButton;
     private Button cameraButton;
     private Button endCallButton;
-    private Pane videoPreviewPane;
-    private Pane remoteVideoPane;
+    private VideoPanel localVideoPanel;   // Local camera preview
+    private VideoPanel remoteVideoPanel;  // Remote user's video
     
     // State
     private boolean isMuted = false;
@@ -97,63 +100,25 @@ public class ActiveCallDialog {
         StackPane videoArea = new StackPane();
         videoArea.setStyle("-fx-background-color: #1a1a1a;");
         
-        // Remote video pane (full screen)
-        remoteVideoPane = new Pane();
-        remoteVideoPane.setStyle("-fx-background-color: #2c3e50;");
+        // Remote video panel (full screen) - Canvas for actual video rendering
+        remoteVideoPanel = new VideoPanel(640, 480);
+        remoteVideoPanel.setStyle("-fx-background-color: #2c3e50;");
+        // Bind size to video area
+        remoteVideoPanel.widthProperty().bind(videoArea.widthProperty());
+        remoteVideoPanel.heightProperty().bind(videoArea.heightProperty());
         
-        // Placeholder for remote video
-        VBox remoteVideoPlaceholder = new VBox(10);
-        remoteVideoPlaceholder.setAlignment(Pos.CENTER);
-        FontIcon remoteIcon = new FontIcon(videoEnabled ? 
-            FontAwesomeSolid.VIDEO : FontAwesomeSolid.USER);
-        remoteIcon.setIconSize(80);
-        remoteIcon.setIconColor(Color.web("#95a5a6"));
-        Label remoteLabel = new Label(videoEnabled ? 
-            "Remote Video" : remoteUsername);
-        remoteLabel.setStyle("-fx-text-fill: #95a5a6; -fx-font-size: 16px;");
-        remoteVideoPlaceholder.getChildren().addAll(remoteIcon, remoteLabel);
-        remoteVideoPane.getChildren().add(remoteVideoPlaceholder);
-        
-        // Bind placeholder to pane center
-        remoteVideoPlaceholder.layoutXProperty().bind(
-            remoteVideoPane.widthProperty().subtract(remoteVideoPlaceholder.widthProperty()).divide(2)
-        );
-        remoteVideoPlaceholder.layoutYProperty().bind(
-            remoteVideoPane.heightProperty().subtract(remoteVideoPlaceholder.heightProperty()).divide(2)
-        );
-        
-        // Local video preview (small, bottom-right corner)
-        videoPreviewPane = new Pane();
-        videoPreviewPane.setStyle("-fx-background-color: #34495e; -fx-background-radius: 8px;");
-        videoPreviewPane.setPrefSize(160, 120);
-        videoPreviewPane.setMaxSize(160, 120);
-        
-        VBox previewPlaceholder = new VBox(5);
-        previewPlaceholder.setAlignment(Pos.CENTER);
-        FontIcon previewIcon = new FontIcon(FontAwesomeSolid.USER);
-        previewIcon.setIconSize(32);
-        previewIcon.setIconColor(Color.web("#7f8c8d"));
-        Label previewLabel = new Label("You");
-        previewLabel.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 12px;");
-        previewPlaceholder.getChildren().addAll(previewIcon, previewLabel);
-        videoPreviewPane.getChildren().add(previewPlaceholder);
-        
-        // Center preview placeholder
-        previewPlaceholder.layoutXProperty().bind(
-            videoPreviewPane.widthProperty().subtract(previewPlaceholder.widthProperty()).divide(2)
-        );
-        previewPlaceholder.layoutYProperty().bind(
-            videoPreviewPane.heightProperty().subtract(previewPlaceholder.heightProperty()).divide(2)
-        );
-        
-        // Position video preview in bottom-right corner
-        StackPane.setAlignment(videoPreviewPane, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(videoPreviewPane, new Insets(15));
-        
+        // Local video preview (small, bottom-right corner) - Canvas for local camera
         if (videoEnabled) {
-            videoArea.getChildren().addAll(remoteVideoPane, videoPreviewPane);
+            localVideoPanel = new VideoPanel(160, 120);
+            localVideoPanel.setStyle("-fx-background-color: #34495e; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 10, 0, 0, 0);");
+            
+            // Position in bottom-right corner
+            StackPane.setAlignment(localVideoPanel, Pos.BOTTOM_RIGHT);
+            StackPane.setMargin(localVideoPanel, new Insets(15));
+            
+            videoArea.getChildren().addAll(remoteVideoPanel, localVideoPanel);
         } else {
-            videoArea.getChildren().add(remoteVideoPane);
+            videoArea.getChildren().add(remoteVideoPanel);
         }
         
         mainContainer.setCenter(videoArea);
@@ -318,7 +283,9 @@ public class ActiveCallDialog {
         ));
         
         // Update local preview visibility
-        videoPreviewPane.setVisible(isCameraOn);
+        if (localVideoPanel != null) {
+            localVideoPanel.setVisible(isCameraOn);
+        }
         
         System.out.printf("[ActiveCallDialog] Camera %s%n", isCameraOn ? "enabled" : "disabled");
     }
@@ -378,6 +345,38 @@ public class ActiveCallDialog {
     }
     
     /**
+     * Attach local video track for preview
+     */
+    public void attachLocalVideo(VideoTrack track) {
+        if (localVideoPanel != null && track != null) {
+            System.out.println("[ActiveCallDialog] Attaching local video track");
+            localVideoPanel.attachVideoTrack(track);
+        }
+    }
+    
+    /**
+     * Attach remote video track for display
+     */
+    public void attachRemoteVideo(VideoTrack track) {
+        if (remoteVideoPanel != null && track != null) {
+            System.out.println("[ActiveCallDialog] Attaching remote video track");
+            remoteVideoPanel.attachVideoTrack(track);
+        }
+    }
+    
+    /**
+     * Detach all video tracks
+     */
+    private void detachVideoTracks() {
+        if (localVideoPanel != null) {
+            localVideoPanel.detachVideoTrack();
+        }
+        if (remoteVideoPanel != null) {
+            remoteVideoPanel.detachVideoTrack();
+        }
+    }
+    
+    /**
      * Show the dialog
      */
     public void show() {
@@ -390,6 +389,7 @@ public class ActiveCallDialog {
      */
     public void close() {
         stopDurationTimer();
+        detachVideoTracks(); // Clean up video resources
         if (stage.isShowing()) {
             stage.close();
         }

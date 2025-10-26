@@ -8,6 +8,8 @@ import com.saferoom.gui.dialog.IncomingCallDialog;
 import com.saferoom.gui.dialog.OutgoingCallDialog;
 import com.saferoom.gui.dialog.ActiveCallDialog;
 import com.saferoom.webrtc.CallManager;
+import dev.onvoid.webrtc.media.MediaStreamTrack;
+import dev.onvoid.webrtc.media.video.VideoTrack;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -479,6 +481,15 @@ public class ChatViewController {
                     );
                     currentActiveCallDialog.show();
                     System.out.printf("[ChatView] 📺 ActiveCallDialog opened (video=%b)%n", currentCallVideoEnabled);
+                    
+                    // Attach local video track if video enabled
+                    if (currentCallVideoEnabled) {
+                        VideoTrack localVideo = callManager.getLocalVideoTrack();
+                        if (localVideo != null) {
+                            currentActiveCallDialog.attachLocalVideo(localVideo);
+                            System.out.println("[ChatView] 📹 Local video attached to dialog");
+                        }
+                    }
                 }
             });
         });
@@ -535,6 +546,22 @@ public class ChatViewController {
                 currentCallVideoEnabled = false;
                 
                 System.out.println("[ChatView] ✅ All call dialogs closed and state reset");
+            });
+        });
+        
+        // Remote track received (for video)
+        callManager.setOnRemoteTrackCallback(track -> {
+            javafx.application.Platform.runLater(() -> {
+                System.out.printf("[ChatView] 📺 Remote track received: kind=%s%n", track.getKind());
+                
+                // If it's a video track and we have an active call dialog, attach it
+                if (track instanceof VideoTrack && currentActiveCallDialog != null) {
+                    VideoTrack videoTrack = (VideoTrack) track;
+                    currentActiveCallDialog.attachRemoteVideo(videoTrack);
+                    System.out.println("[ChatView] 📹 Remote video attached to dialog");
+                } else if (!(track instanceof VideoTrack)) {
+                    System.out.println("[ChatView] 🎤 Remote audio track (handled by WebRTC)");
+                }
             });
         });
     }
