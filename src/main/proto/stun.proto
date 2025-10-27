@@ -311,8 +311,8 @@ message HeartbeatResponse {
 message WebRTCSignal {
     enum SignalType {
         REGISTRATION = 0;       // Stream registration (first message)
-        OFFER = 1;              // SDP offer
-        ANSWER = 2;             // SDP answer
+        OFFER = 1;              // SDP offer (for voice/video calls)
+        ANSWER = 2;             // SDP answer (for voice/video calls)
         ICE_CANDIDATE = 3;      // ICE candidate
         CALL_REQUEST = 4;       // Arama isteği
         CALL_ACCEPT = 5;        // Arama kabul edildi
@@ -320,6 +320,8 @@ message WebRTCSignal {
         CALL_END = 7;           // Arama sonlandı
         CALL_BUSY = 8;          // Kullanıcı meşgul
         CALL_CANCEL = 9;        // Arayan iptal etti
+        P2P_OFFER = 10;         // P2P messaging DataChannel offer (NOT for calls)
+        P2P_ANSWER = 11;        // P2P messaging DataChannel answer (NOT for calls)
     }
     
     SignalType type = 1;        // Sinyal tipi
