@@ -422,36 +422,13 @@ public class P2PConnectionManager {
             return CompletableFuture.completedFuture(false);
         }
         
-        if (connection.fileSender == null) {
-            System.err.printf("[P2P] ❌ File sender not initialized for %s%n", targetUsername);
+        if (connection.fileTransfer == null) {
+            System.err.printf("[P2P] ❌ File transfer not initialized for %s%n", targetUsername);
             return CompletableFuture.completedFuture(false);
         }
         
-        try {
-            System.out.printf("[P2P] 📤 Sending file to %s: %s%n", 
-                targetUsername, filePath.getFileName());
-            
-            // Use original EnhancedFileTransferSender!
-            long fileId = System.currentTimeMillis();
-            CompletableFuture<Boolean> future = new CompletableFuture<>();
-            
-            new Thread(() -> {
-                try {
-                    connection.fileSender.sendFile(filePath, fileId);
-                    future.complete(true);
-                } catch (Exception e) {
-                    System.err.printf("[P2P] File transfer error: %s%n", e.getMessage());
-                    e.printStackTrace();
-                    future.complete(false);
-                }
-            }, "FileTransfer-" + targetUsername).start();
-            
-            return future;
-            
-        } catch (Exception e) {
-            System.err.printf("[P2P] ❌ Error sending file: %s%n", e.getMessage());
-            return CompletableFuture.completedFuture(false);
-        }
+        // Use DataChannelFileTransfer (which uses ORIGINAL EnhancedFileTransferSender!)
+        return connection.fileTransfer.sendFile(targetUsername, filePath);
     }
     
     /**
@@ -466,10 +443,8 @@ public class P2PConnectionManager {
         RTCDataChannel dataChannel;
         DataChannelReliableMessaging reliableMessaging;  // Reliable messaging protocol
         
-        // File transfer: Wrapper + original file_transfer classes
-        DataChannelWrapper channelWrapper;
-        com.saferoom.file_transfer.EnhancedFileTransferSender fileSender;
-        com.saferoom.file_transfer.FileTransferReceiver fileReceiver;
+        // File transfer: DataChannelFileTransfer coordinates roles, uses original file_transfer/
+        DataChannelFileTransfer fileTransfer;
         
         volatile boolean active = false;
         
@@ -698,7 +673,7 @@ public class P2PConnectionManager {
         
         /**
          * Initialize file transfer protocol over DataChannel
-         * Uses DataChannelWrapper + original EnhancedFileTransferSender/Receiver
+         * Uses DataChannelFileTransfer which coordinates roles and uses original file_transfer/
          */
         void initializeFileTransfer() {
             if (dataChannel == null || dataChannel.getState() != RTCDataChannelState.OPEN) {
@@ -707,18 +682,19 @@ public class P2PConnectionManager {
             }
             
             try {
-                // Create wrapper that converts DataChannel to DatagramChannel
-                channelWrapper = new DataChannelWrapper(dataChannel, myUsername, remoteUsername);
+                // Create DataChannelFileTransfer (handles wrapper + original classes)
+                fileTransfer = new DataChannelFileTransfer(myUsername, dataChannel, remoteUsername);
                 
-                // Initialize original EnhancedFileTransferSender (with all optimizations!)
-                fileSender = new com.saferoom.file_transfer.EnhancedFileTransferSender(channelWrapper);
+                // Set download path and start receiver
+                java.nio.file.Path downloadPath = java.nio.file.Path.of(
+                    "downloads", 
+                    "received_from_" + remoteUsername + "_" + System.currentTimeMillis() + ".bin"
+                );
                 
-                // Initialize original FileTransferReceiver
-                fileReceiver = new com.saferoom.file_transfer.FileTransferReceiver();
-                fileReceiver.channel = channelWrapper;
-                fileReceiver.filePath = java.nio.file.Path.of("downloads");
+                // Start receiver (will wait for incoming file)
+                fileTransfer.startReceiver(downloadPath);
                 
-                System.out.printf("[P2P] ✅ File transfer initialized for %s (using original file_transfer classes)%n", 
+                System.out.printf("[P2P] ✅ File transfer initialized for %s (using ORIGINAL file_transfer/ classes)%n", 
                     remoteUsername);
                 
             } catch (Exception e) {
@@ -739,11 +715,11 @@ public class P2PConnectionManager {
                 // Messaging signals: 0x20-0x23 (SIG_RMSG_DATA, ACK, NACK, FIN)
                 
                 if ((signal >= 0x00 && signal <= 0x03) || (signal >= 0x10 && signal <= 0x11)) {
-                    // File transfer protocol - feed to wrapper
-                    if (channelWrapper != null) {
-                        channelWrapper.onDataChannelMessage(buffer);
+                    // File transfer protocol - feed to DataChannelFileTransfer
+                    if (fileTransfer != null) {
+                        fileTransfer.handleIncomingMessage(buffer);
                     } else {
-                        System.err.println("[P2P] ⚠️ Received file transfer message but wrapper not initialized");
+                        System.err.println("[P2P] ⚠️ Received file transfer message but fileTransfer not initialized");
                     }
                 } else if (signal >= 0x20 && signal <= 0x23) {
                     // Reliable messaging protocol
