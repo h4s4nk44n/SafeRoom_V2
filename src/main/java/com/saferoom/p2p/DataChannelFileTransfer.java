@@ -36,6 +36,9 @@ public class DataChannelFileTransfer {
     
     public DataChannelFileTransfer(String username, RTCDataChannel dataChannel, String remoteUsername) {
         this.username = username;
+        
+        // ⚠️ CRITICAL: Use SINGLE wrapper for BOTH sender and receiver!
+        // This ensures ACK packets reach the sender's queue
         this.channelWrapper = new DataChannelWrapper(dataChannel, username, remoteUsername);
         
         this.executor = Executors.newCachedThreadPool(r -> {
@@ -45,11 +48,12 @@ public class DataChannelFileTransfer {
         });
         
         try {
+            // Both sender and receiver use THE SAME wrapper!
             this.sender = new EnhancedFileTransferSender(channelWrapper);
             this.receiver = new FileTransferReceiver();
-            this.receiver.channel = channelWrapper;
+            this.receiver.channel = channelWrapper;  // SAME wrapper as sender!
             
-            System.out.printf("[DCFileTransfer] ✅ Initialized for %s%n", username);
+            System.out.printf("[DCFileTransfer] ✅ Initialized for %s (SHARED wrapper)%n", username);
         } catch (Exception e) {
             System.err.printf("[DCFileTransfer] ❌ Init error: %s%n", e.getMessage());
             throw new RuntimeException("Failed to initialize", e);

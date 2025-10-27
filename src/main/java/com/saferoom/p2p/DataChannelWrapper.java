@@ -52,6 +52,14 @@ public class DataChannelWrapper extends DatagramChannel {
      */
     public void onDataChannelMessage(RTCDataChannelBuffer buffer) {
         ByteBuffer data = buffer.data.duplicate();
+        
+        // DEBUG: Log what we're receiving
+        if (data.remaining() > 0) {
+            byte signal = data.get(0);
+            System.out.printf("[Wrapper] 📥 Received signal 0x%02X (%d bytes) from %s → queue (size: %d)%n",
+                signal, data.remaining(), remoteUsername, inboundQueue.size());
+        }
+        
         inboundQueue.offer(data);
     }
     
@@ -64,6 +72,13 @@ public class DataChannelWrapper extends DatagramChannel {
         }
         
         int remaining = src.remaining();
+        
+        // DEBUG: Log what we're sending
+        if (remaining > 0) {
+            byte signal = src.get(src.position());
+            System.out.printf("[Wrapper] 📤 Sending signal 0x%02X (%d bytes) to %s%n",
+                signal, remaining, remoteUsername);
+        }
         
         // Send via DataChannel
         try {
@@ -86,6 +101,13 @@ public class DataChannelWrapper extends DatagramChannel {
             ByteBuffer data = inboundQueue.poll(50, TimeUnit.MILLISECONDS);
             if (data == null) {
                 return null; // No data available
+            }
+            
+            // DEBUG: Log what we're reading from queue
+            if (data.remaining() > 0) {
+                byte signal = data.get(data.position());
+                System.out.printf("[Wrapper] 📖 Reading signal 0x%02X (%d bytes) from queue (remaining: %d)%n",
+                    signal, data.remaining(), inboundQueue.size());
             }
             
             // Copy to destination buffer
