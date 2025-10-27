@@ -712,11 +712,11 @@ public class P2PConnectionManager {
                 byte signal = data.get(0);
                 
                 // Route based on signal type
-                // File transfer signals: 0x00-0x03
-                // Messaging signals: 0x20-0x23
+                // File transfer signals: 0x00-0x03, 0x10-0x11 (DATA, SYN, NACK, FIN, ACK, SYN_ACK)
+                // Messaging signals: 0x20-0x23 (SIG_RMSG_DATA, ACK, NACK, FIN)
                 
-                if (signal >= 0x00 && signal <= 0x03) {
-                    // File transfer protocol
+                if ((signal >= 0x00 && signal <= 0x03) || (signal >= 0x10 && signal <= 0x11)) {
+                    // File transfer protocol (includes handshake: SYN=0x01, ACK=0x10, SYN_ACK=0x11)
                     if (fileTransfer != null) {
                         fileTransfer.handleIncomingMessage(buffer);
                     } else {
