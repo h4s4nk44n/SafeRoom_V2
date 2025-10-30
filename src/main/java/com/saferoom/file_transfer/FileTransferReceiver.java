@@ -56,6 +56,9 @@ public class FileTransferReceiver {
 					return false;
 				}
 				
+				// CRITICAL: Clear buffer before each receive attempt!
+				rcv_syn.clear();
+				
 				senderAddress = channel.receive(rcv_syn);
 				receiveAttempts++;
 				
@@ -73,7 +76,6 @@ public class FileTransferReceiver {
 				
 				r = rcv_syn.position();
 				if( r == 0 || r != HandShake_Packet.HEADER_SIZE || HandShake_Packet.get_signal(rcv_syn) != HandShake_Packet.SYN) {
-					rcv_syn.clear();
 					LockSupport.parkNanos(1_000_000); // 1ms bekleme
 				}
 			}while( r == 0 || r != HandShake_Packet.HEADER_SIZE || HandShake_Packet.get_signal(rcv_syn) != HandShake_Packet.SYN);
@@ -120,16 +122,16 @@ public class FileTransferReceiver {
 			}catch(IOException e){
 				System.err.println("[RECEIVER-HANDSHAKE] ❌ ACK send error: " + e);
 			}
-		 	
-			rcv_syn.clear();
 
 			int t;
 			
 			try{
 				do{
-				t = channel.read(rcv_syn);
-				if(t == 0 || t < 9 || t > 13) 
-					LockSupport.parkNanos(200_000);
+					// CRITICAL: Clear buffer before each read attempt!
+					rcv_syn.clear();
+					t = channel.read(rcv_syn);
+					if(t == 0 || t < 9 || t > 13) 
+						LockSupport.parkNanos(200_000);
 				}while(t == 0 || t < 9 || t > 13);
 			}catch(IOException e){
 				System.err.println("SYN + ACK Packet State Error: " + e);

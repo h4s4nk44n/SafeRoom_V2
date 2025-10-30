@@ -37,7 +37,7 @@ public class DataChannelFileTransfer {
     public DataChannelFileTransfer(String username, RTCDataChannel dataChannel, String remoteUsername) {
         this.username = username;
         
-        // ⚠️ CRITICAL: Use SINGLE wrapper for BOTH sender and receiver!
+        // CRITICAL: Use SINGLE wrapper for BOTH sender and receiver!
         // This ensures ACK packets reach the sender's queue
         this.channelWrapper = new DataChannelWrapper(dataChannel, username, remoteUsername);
         
@@ -53,9 +53,9 @@ public class DataChannelFileTransfer {
             this.receiver = new FileTransferReceiver();
             this.receiver.channel = channelWrapper;  // SAME wrapper as sender!
             
-            System.out.printf("[DCFileTransfer] ✅ Initialized for %s (SHARED wrapper)%n", username);
+            System.out.printf("[DCFileTransfer] Initialized for %s (SHARED wrapper)%n", username);
         } catch (Exception e) {
-            System.err.printf("[DCFileTransfer] ❌ Init error: %s%n", e.getMessage());
+            System.err.printf("[DCFileTransfer] Init error: %s%n", e.getMessage());
             throw new RuntimeException("Failed to initialize", e);
         }
     }
@@ -70,14 +70,14 @@ public class DataChannelFileTransfer {
         executor.execute(() -> {
             try {
                 long fileId = System.currentTimeMillis();
-                System.out.printf("[DCFileTransfer] 📤 Sending: %s to %s%n", filePath.getFileName(), receiver);
+                System.out.printf("[DCFileTransfer]Sending: %s to %s%n", filePath.getFileName(), receiver);
                 
                 sender.sendFile(filePath, fileId);
                 
-                System.out.printf("[DCFileTransfer] ✅ Sent: %s%n", filePath.getFileName());
+                System.out.printf("[DCFileTransfer]Sent: %s%n", filePath.getFileName());
                 future.complete(true);
             } catch (Exception e) {
-                System.err.printf("[DCFileTransfer] ❌ Send error: %s%n", e.getMessage());
+                System.err.printf("[DCFileTransfer]Send error: %s%n", e.getMessage());
                 future.complete(false);
             }
         });
@@ -91,16 +91,16 @@ public class DataChannelFileTransfer {
                 downloadPath.getParent().toFile().mkdirs();
                 receiver.filePath = downloadPath;
                 
-                System.out.printf("[DCFileTransfer] 📥 Receiver started: %s%n", downloadPath);
+                System.out.printf("[DCFileTransfer] Receiver started: %s%n", downloadPath);
                 receiver.ReceiveData();
                 
-                System.out.printf("[DCFileTransfer] ✅ Received: %s%n", downloadPath);
+                System.out.printf("[DCFileTransfer] Received: %s%n", downloadPath);
                 
                 if (transferCallback != null) {
                     transferCallback.onFileReceived(username, receiver.fileId, downloadPath, receiver.file_size);
                 }
             } catch (Exception e) {
-                System.err.printf("[DCFileTransfer] ❌ Receive error: %s%n", e.getMessage());
+                System.err.printf("[DCFileTransfer] Receive error: %s%n", e.getMessage());
             }
         });
     }

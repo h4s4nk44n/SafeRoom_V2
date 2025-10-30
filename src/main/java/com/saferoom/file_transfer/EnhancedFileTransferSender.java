@@ -87,6 +87,8 @@ public class EnhancedFileTransferSender {
 				lastSynTime = now;
 			}
 			
+			// CRITICAL: Clear buffer before each read attempt!
+			buffer.clear();
 			r = channel.read(buffer);
 			if(r <= 0) LockSupport.parkNanos(1_000_000); // 1ms bekleme
 		}while( r <= 0);

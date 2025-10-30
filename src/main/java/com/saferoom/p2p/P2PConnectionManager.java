@@ -224,7 +224,7 @@ public class P2PConnectionManager {
         }
         
         String remoteUsername = signal.getFrom();
-        System.out.printf("[P2P] 📨 Received %s from %s%n", signal.getType(), remoteUsername);
+        System.out.printf("[P2P] Received %s from %s%n", signal.getType(), remoteUsername);
         
         try {
             switch (signal.getType()) {
@@ -244,7 +244,7 @@ public class P2PConnectionManager {
                     break;
             }
         } catch (Exception e) {
-            System.err.printf("[P2P] ❌ Error handling signal: %s%n", e.getMessage());
+            System.err.printf("[P2P] Error handling signal: %s%n", e.getMessage());
             e.printStackTrace();
         }
     }
@@ -255,7 +255,7 @@ public class P2PConnectionManager {
     private void handleP2POffer(WebRTCSignal signal) {
         String remoteUsername = signal.getFrom();
         String incomingCallId = signal.getCallId();  // Extract callId from offer
-        System.out.printf("[P2P] 📥 Handling P2P_OFFER from %s (callId: %s)%n", remoteUsername, incomingCallId);
+        System.out.printf("[P2P] Handling P2P_OFFER from %s (callId: %s)%n", remoteUsername, incomingCallId);
         
         try {
             // Create P2P connection (answer side)
@@ -271,7 +271,7 @@ public class P2PConnectionManager {
             connection.peerConnection.setRemoteDescription(remoteDesc, new SetSessionDescriptionObserver() {
                 @Override
                 public void onSuccess() {
-                    System.out.printf("[P2P] ✅ Remote description set for %s%n", remoteUsername);
+                    System.out.printf("[P2P] Remote description set for %s%n", remoteUsername);
                     
                     // Create answer
                     connection.peerConnection.createAnswer(new RTCAnswerOptions(), new CreateSessionDescriptionObserver() {
