@@ -687,16 +687,8 @@ public class P2PConnectionManager {
                 // Create DataChannelFileTransfer (handles wrapper + original classes)
                 fileTransfer = new DataChannelFileTransfer(myUsername, dataChannel, remoteUsername);
                 
-                // Set download path and start receiver
-                java.nio.file.Path downloadPath = java.nio.file.Path.of(
-                    "downloads", 
-                    "received_from_" + remoteUsername + "_" + System.currentTimeMillis() + ".bin"
-                );
-                
-                // Start receiver (will wait for incoming file)
-                fileTransfer.startReceiver(downloadPath);
-                
-                System.out.printf("[P2P] ✅ File transfer initialized for %s (using ORIGINAL file_transfer/ classes)%n", 
+                // DON'T start receiver here! It will start LAZY on first SYN
+                System.out.printf("[P2P] ✅ File transfer initialized for %s (receiver will start on SYN)%n", 
                     remoteUsername);
                 
             } catch (Exception e) {

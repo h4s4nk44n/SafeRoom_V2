@@ -28,6 +28,7 @@ public class DataChannelFileTransfer {
     private final ExecutorService executor;
     
     private FileTransferCallback transferCallback;
+    private volatile boolean receiverStarted = false;  // Track if receiver is running
     
     @FunctionalInterface
     public interface FileTransferCallback {
@@ -86,26 +87,64 @@ public class DataChannelFileTransfer {
     }
     
     public void startReceiver(Path downloadPath) {
+        if (receiverStarted) {
+            System.out.printf("[DCFileTransfer] ⚠️  Receiver already started for %s%n", username);
+            return;
+        }
+        
+        receiverStarted = true;
+        
         executor.execute(() -> {
             try {
                 downloadPath.getParent().toFile().mkdirs();
                 receiver.filePath = downloadPath;
                 
-                System.out.printf("[DCFileTransfer] Receiver started: %s%n", downloadPath);
+                System.out.printf("[DCFileTransfer] 📥 Receiver started: %s%n", downloadPath);
                 receiver.ReceiveData();
                 
-                System.out.printf("[DCFileTransfer] Received: %s%n", downloadPath);
+                System.out.printf("[DCFileTransfer] ✅ Received: %s%n", downloadPath);
                 
                 if (transferCallback != null) {
                     transferCallback.onFileReceived(username, receiver.fileId, downloadPath, receiver.file_size);
                 }
             } catch (Exception e) {
-                System.err.printf("[DCFileTransfer] Receive error: %s%n", e.getMessage());
+                System.err.printf("[DCFileTransfer] ❌ Receive error: %s%n", e.getMessage());
+            } finally {
+                receiverStarted = false;
             }
         });
     }
     
+    /**
+     * Handle incoming file transfer signal - start receiver on first SYN
+     */
     public void handleIncomingMessage(RTCDataChannelBuffer buffer) {
+        // Check if this is a SYN packet (0x01)
+        java.nio.ByteBuffer data = buffer.data.duplicate();
+        if (data.remaining() > 0) {
+            byte signal = data.get(0);
+            
+            // If SYN and receiver not started, start it now (LAZY)
+            if (signal == 0x01 && !receiverStarted) {
+                System.out.printf("[DCFileTransfer] 🔔 First SYN received - starting receiver for %s%n", username);
+                
+                // Generate download path
+                java.nio.file.Path downloadPath = java.nio.file.Path.of(
+                    "downloads", 
+                    "received_from_" + username + "_" + System.currentTimeMillis() + ".bin"
+                );
+                
+                // Start receiver thread (will wait for NEXT SYN)
+                startReceiver(downloadPath);
+                
+                // DON'T queue this first SYN - let receiver catch the next one!
+                // Sender is looping SYN anyway, next one will come soon
+                System.out.printf("[DCFileTransfer] 🚫 Ignoring first SYN (receiver thread starting...)%n");
+                return;  // ✅ Exit without queuing!
+            }
+        }
+        
+        // Feed to wrapper queue (for receiver thread or sender's ACK reading)
         channelWrapper.onDataChannelMessage(buffer);
     }
     
