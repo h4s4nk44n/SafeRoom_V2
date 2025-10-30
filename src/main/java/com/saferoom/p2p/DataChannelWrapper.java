@@ -169,7 +169,7 @@ public class DataChannelWrapper extends DatagramChannel {
     
     @Override
     public java.net.DatagramSocket socket() {
-        // Return null - not a real UDP socket
+        // Not used anymore - EnhancedFileTransferSender uses getRemoteAddress() directly
         return null;
     }
     

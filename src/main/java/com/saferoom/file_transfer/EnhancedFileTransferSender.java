@@ -249,7 +249,7 @@ public class EnhancedFileTransferSender {
 	    	enhancedNackListener.hybridControl = hybridControl;
 	    	
 	    	// Network türüne göre optimize et
-	    	String targetHost = channel.socket().getRemoteSocketAddress().toString();
+	    	String targetHost = channel.getRemoteAddress().toString();
 	    	boolean isLocalNetwork = targetHost.contains("127.0.0.1") || targetHost.contains("localhost") || 
 	    	    targetHost.contains("192.168.") || targetHost.contains("10.");
 	    	    
