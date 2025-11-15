@@ -86,19 +86,42 @@ public class ScreenSharePickerDialog {
         this.availableScreens = screens;
         this.availableWindows = windows;
         
-        screensListView.getItems().setAll(screens);
-        windowsListView.getItems().setAll(windows);
+        // Clear existing items first
+        screensListView.getItems().clear();
+        windowsListView.getItems().clear();
+        
+        // Set new items (safely handle null)
+        if (screens != null && !screens.isEmpty()) {
+            screensListView.getItems().setAll(screens);
+        }
+        
+        if (windows != null && !windows.isEmpty()) {
+            windowsListView.getItems().setAll(windows);
+        }
         
         System.out.printf("[ScreenSharePicker] Sources loaded: %d screens, %d windows%n", 
-            screens.size(), windows.size());
+            screens != null ? screens.size() : 0, 
+            windows != null ? windows.size() : 0);
         
-        // Auto-select first screen if available
-        if (!screens.isEmpty()) {
-            screensListView.getSelectionModel().selectFirst();
-            sourceTabPane.getSelectionModel().selectFirst(); // Select screens tab
-        } else if (!windows.isEmpty()) {
-            windowsListView.getSelectionModel().selectFirst();
-            sourceTabPane.getSelectionModel().selectLast(); // Select windows tab
+        // Auto-select first screen if available (SAFE)
+        if (screens != null && !screens.isEmpty()) {
+            try {
+                screensListView.getSelectionModel().selectFirst();
+                sourceTabPane.getSelectionModel().selectFirst(); // Select screens tab
+                System.out.println("[ScreenSharePicker] Auto-selected first screen");
+            } catch (Exception e) {
+                System.err.printf("[ScreenSharePicker] ⚠️ Failed to auto-select screen: %s%n", e.getMessage());
+            }
+        } else if (windows != null && !windows.isEmpty()) {
+            try {
+                windowsListView.getSelectionModel().selectFirst();
+                sourceTabPane.getSelectionModel().selectLast(); // Select windows tab
+                System.out.println("[ScreenSharePicker] Auto-selected first window");
+            } catch (Exception e) {
+                System.err.printf("[ScreenSharePicker] ⚠️ Failed to auto-select window: %s%n", e.getMessage());
+            }
+        } else {
+            System.out.println("[ScreenSharePicker] ⚠️ No sources available for auto-selection");
         }
     }
     

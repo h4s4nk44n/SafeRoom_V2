@@ -474,14 +474,14 @@ public class ChatViewController {
         }
         
         try {
-            // Load screen share picker dialog
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/ScreenSharePickerDialog.fxml"));
-            VBox dialogRoot = loader.load();
-            ScreenSharePickerDialog pickerController = loader.getController();
+            // Load improved screen share picker dialog (Google Meet style)
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/ImprovedScreenSharePickerDialog.fxml"));
+            BorderPane dialogRoot = loader.load();
+            com.saferoom.gui.dialog.ImprovedScreenSharePickerDialog pickerController = loader.getController();
             
             // Create dialog stage
             Stage dialogStage = new Stage();
-            dialogStage.setTitle("Ekran Paylaşımı");
+            dialogStage.setTitle("Share Your Screen");
             dialogStage.initModality(Modality.APPLICATION_MODAL);
             dialogStage.setScene(new Scene(dialogRoot));
             pickerController.setDialogStage(dialogStage);

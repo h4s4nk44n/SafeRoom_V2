@@ -659,21 +659,42 @@ public class WebRTCClient {
             return new ArrayList<>();
         }
         
+        // CRITICAL: Native code can crash on Linux - wrap in extra safety
+        ScreenCapturer screenCapturer = null;
         try {
-            ScreenCapturer screenCapturer = new ScreenCapturer();
-            List<DesktopSource> screens = screenCapturer.getDesktopSources();
-            screenCapturer.dispose();
+            System.out.println("[WebRTC] Creating ScreenCapturer...");
+            screenCapturer = new ScreenCapturer();
             
-            System.out.printf("[WebRTC] Found %d screens%n", screens.size());
-            for (DesktopSource screen : screens) {
-                System.out.printf("  - Screen: %s (ID: %d)%n", screen.title, screen.id);
+            System.out.println("[WebRTC] Getting desktop sources from native code...");
+            List<DesktopSource> screens = screenCapturer.getDesktopSources();
+            
+            System.out.printf("[WebRTC] ✅ Found %d screens%n", screens != null ? screens.size() : 0);
+            if (screens != null) {
+                for (DesktopSource screen : screens) {
+                    System.out.printf("  - Screen: %s (ID: %d)%n", screen.title, screen.id);
+                }
             }
             
-            return screens;
-        } catch (Exception e) {
-            System.err.printf("[WebRTC] Failed to enumerate screens: %s%n", e.getMessage());
-            e.printStackTrace();
+            return screens != null ? screens : new ArrayList<>();
+            
+        } catch (Throwable t) {
+            // Catch ALL throwables including native crashes that made it to Java
+            System.err.println("[WebRTC] ❌❌❌ CRITICAL: Native screen enumeration failed!");
+            System.err.println("[WebRTC] Error type: " + t.getClass().getName());
+            System.err.println("[WebRTC] Error message: " + t.getMessage());
+            t.printStackTrace();
             return new ArrayList<>();
+            
+        } finally {
+            // Always dispose, even on error
+            if (screenCapturer != null) {
+                try {
+                    System.out.println("[WebRTC] Disposing ScreenCapturer...");
+                    screenCapturer.dispose();
+                } catch (Throwable t) {
+                    System.err.println("[WebRTC] Error disposing ScreenCapturer: " + t.getMessage());
+                }
+            }
         }
     }
     
@@ -688,21 +709,42 @@ public class WebRTCClient {
             return new ArrayList<>();
         }
         
+        // CRITICAL: Native code can crash on Linux - wrap in extra safety
+        WindowCapturer windowCapturer = null;
         try {
-            WindowCapturer windowCapturer = new WindowCapturer();
-            List<DesktopSource> windows = windowCapturer.getDesktopSources();
-            windowCapturer.dispose();
+            System.out.println("[WebRTC] Creating WindowCapturer...");
+            windowCapturer = new WindowCapturer();
             
-            System.out.printf("[WebRTC] Found %d windows%n", windows.size());
-            for (DesktopSource window : windows) {
-                System.out.printf("  - Window: %s (ID: %d)%n", window.title, window.id);
+            System.out.println("[WebRTC] Getting desktop sources from native code...");
+            List<DesktopSource> windows = windowCapturer.getDesktopSources();
+            
+            System.out.printf("[WebRTC] ✅ Found %d windows%n", windows != null ? windows.size() : 0);
+            if (windows != null) {
+                for (DesktopSource window : windows) {
+                    System.out.printf("  - Window: %s (ID: %d)%n", window.title, window.id);
+                }
             }
             
-            return windows;
-        } catch (Exception e) {
-            System.err.printf("[WebRTC] Failed to enumerate windows: %s%n", e.getMessage());
-            e.printStackTrace();
+            return windows != null ? windows : new ArrayList<>();
+            
+        } catch (Throwable t) {
+            // Catch ALL throwables including native crashes that made it to Java
+            System.err.println("[WebRTC] ❌❌❌ CRITICAL: Native window enumeration failed!");
+            System.err.println("[WebRTC] Error type: " + t.getClass().getName());
+            System.err.println("[WebRTC] Error message: " + t.getMessage());
+            t.printStackTrace();
             return new ArrayList<>();
+            
+        } finally {
+            // Always dispose, even on error
+            if (windowCapturer != null) {
+                try {
+                    System.out.println("[WebRTC] Disposing WindowCapturer...");
+                    windowCapturer.dispose();
+                } catch (Throwable t) {
+                    System.err.println("[WebRTC] Error disposing WindowCapturer: " + t.getMessage());
+                }
+            }
         }
     }
     

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml" 
+            fx:controller="com.saferoom.gui.dialog.ImprovedScreenSharePickerDialog"
+            prefWidth="900" prefHeight="600"
+            style="-fx-background-color: #1e1e1e;">
+    
+    <!-- Top Header -->
+    <top>
+        <VBox spacing="10" style="-fx-background-color: #2d2d2d; -fx-padding: 15;">
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <Label text="🖥️" style="-fx-font-size: 24px;"/>
+                <Label text="Select Screen or Window to Share" style="-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;"/>
+            </HBox>
+            
+            <!-- Tab Selector -->
+            <HBox fx:id="tabSelector" spacing="5">
+                <ToggleButton fx:id="screensTab" text="Entire Screen" 
+                              selected="true"
+                              style="-fx-background-color: #0078d4; -fx-text-fill: white; -fx-padding: 8 20; -fx-background-radius: 5;"/>
+                <ToggleButton fx:id="windowsTab" text="Application Window"
+                              style="-fx-background-color: #3d3d3d; -fx-text-fill: white; -fx-padding: 8 20; -fx-background-radius: 5;"/>
+            </HBox>
+        </VBox>
+    </top>
+    
+    <!-- Center Content - Grid of Thumbnails -->
+    <center>
+        <ScrollPane fitToWidth="true" fitToHeight="true" 
+                    style="-fx-background-color: #1e1e1e; -fx-background: #1e1e1e;">
+            <VBox fx:id="contentContainer" spacing="15" style="-fx-padding: 20;">
+                
+                <!-- Screens Grid (shown when screensTab selected) -->
+                <VBox fx:id="screensContainer" spacing="10">
+                    <Label text="Select a screen to share:" 
+                           style="-fx-text-fill: #cccccc; -fx-font-size: 14px;"/>
+                    <FlowPane fx:id="screensGrid" hgap="15" vgap="15" 
+                              prefWrapLength="900"/>
+                </VBox>
+                
+                <!-- Windows Grid (hidden initially) -->
+                <VBox fx:id="windowsContainer" spacing="10" visible="false" managed="false">
+                    <Label text="Select an application window to share:" 
+                           style="-fx-text-fill: #cccccc; -fx-font-size: 14px;"/>
+                    <FlowPane fx:id="windowsGrid" hgap="15" vgap="15" 
+                              prefWrapLength="900"/>
+                </VBox>
+                
+            </VBox>
+        </ScrollPane>
+    </center>
+    
+    <!-- Bottom Action Bar -->
+    <bottom>
+        <HBox spacing="10" alignment="CENTER_RIGHT" 
+              style="-fx-background-color: #2d2d2d; -fx-padding: 15; -fx-border-color: #3d3d3d; -fx-border-width: 1 0 0 0;">
+            
+            <Label fx:id="statusLabel" text="" 
+                   style="-fx-text-fill: #888888; -fx-font-size: 12px;"
+                   HBox.hgrow="ALWAYS"/>
+            
+            <Button fx:id="cancelButton" text="Cancel" 
+                    onAction="#handleCancel"
+                    style="-fx-background-color: #3d3d3d; -fx-text-fill: white; -fx-padding: 10 25; -fx-background-radius: 5; -fx-font-size: 13px;"/>
+            <Button fx:id="shareButton" text="Share" 
+                    onAction="#handleShare"
+                    defaultButton="true"
+                    disable="true"
+                    style="-fx-background-color: #0078d4; -fx-text-fill: white; -fx-padding: 10 30; -fx-background-radius: 5; -fx-font-size: 13px; -fx-font-weight: bold;"/>
+        </HBox>
+    </bottom>
+    
+</BorderPane>
