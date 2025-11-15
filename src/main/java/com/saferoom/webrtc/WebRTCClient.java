@@ -47,23 +47,73 @@ public class WebRTCClient {
         System.out.println("[WebRTC] Initializing WebRTC with native library...");
         
         try {
-            // Get default audio devices
-            AudioDevice defaultMic = MediaDevices.getDefaultAudioCaptureDevice();
-            AudioDevice defaultSpeaker = MediaDevices.getDefaultAudioRenderDevice();
+            // ===== FIX: Bluetooth Headset Support (MacOS/Windows/Linux) =====
+            // Problem: Bluetooth headsets have 2 separate devices on MacOS:
+            //   1. "Headset Name" (output only, high quality)
+            //   2. "Headset Name" (input/output, SCO mode for calls)
+            // Solution: Find a device that supports BOTH input AND output
+            
+            List<AudioDevice> micDevices = MediaDevices.getAudioCaptureDevices();
+            List<AudioDevice> speakerDevices = MediaDevices.getAudioRenderDevices();
+            
+            AudioDevice selectedMic = null;
+            AudioDevice selectedSpeaker = null;
+            
+            System.out.println("[WebRTC] === Audio Device Detection ===");
+            System.out.println("[WebRTC] Available Microphones:");
+            for (AudioDevice mic : micDevices) {
+                System.out.println("[WebRTC]   - " + mic.getName() + " [" + mic.getDescriptor() + "]");
+            }
+            System.out.println("[WebRTC] Available Speakers:");
+            for (AudioDevice speaker : speakerDevices) {
+                System.out.println("[WebRTC]   - " + speaker.getName() + " [" + speaker.getDescriptor() + "]");
+            }
+            
+            // Strategy 1: Try to find a Bluetooth device that appears in BOTH lists
+            // (This is the SCO/HFP mode device that supports bidirectional audio)
+            for (AudioDevice mic : micDevices) {
+                for (AudioDevice speaker : speakerDevices) {
+                    // Check if same device (by name similarity or descriptor)
+                    if (mic.getName().equals(speaker.getName()) || 
+                        isSameBluetoothDevice(mic, speaker)) {
+                        selectedMic = mic;
+                        selectedSpeaker = speaker;
+                        System.out.println("[WebRTC] ✅ Found matching Bluetooth device: " + mic.getName());
+                        break;
+                    }
+                }
+                if (selectedMic != null) break;
+            }
+            
+            // Strategy 2: If no matching device found, use defaults (might be separate devices)
+            if (selectedMic == null) {
+                selectedMic = MediaDevices.getDefaultAudioCaptureDevice();
+                selectedSpeaker = MediaDevices.getDefaultAudioRenderDevice();
+                
+                if (selectedMic != null && selectedSpeaker != null) {
+                    System.out.println("[WebRTC] ⚠️  Using separate devices (may not work for Bluetooth):");
+                    System.out.println("[WebRTC]      Mic: " + selectedMic.getName());
+                    System.out.println("[WebRTC]      Speaker: " + selectedSpeaker.getName());
+                }
+            }
             
             // Create and configure AudioDeviceModule
             AudioDeviceModule audioModule = new AudioDeviceModule();
             
-            if (defaultMic != null) {
-                System.out.println("[WebRTC] Default microphone: " + defaultMic.getName());
-                audioModule.setRecordingDevice(defaultMic);
+            if (selectedMic != null) {
+                System.out.println("[WebRTC] Selected microphone: " + selectedMic.getName());
+                audioModule.setRecordingDevice(selectedMic);
                 audioModule.initRecording();
+            } else {
+                System.err.println("[WebRTC] ❌ No microphone found!");
             }
             
-            if (defaultSpeaker != null) {
-                System.out.println("[WebRTC] Default speaker: " + defaultSpeaker.getName());
-                audioModule.setPlayoutDevice(defaultSpeaker);
+            if (selectedSpeaker != null) {
+                System.out.println("[WebRTC] Selected speaker: " + selectedSpeaker.getName());
+                audioModule.setPlayoutDevice(selectedSpeaker);
                 audioModule.initPlayout();
+            } else {
+                System.err.println("[WebRTC] ❌ No speaker found!");
             }
             
             // Initialize factory with audio device module
@@ -636,6 +686,65 @@ public class WebRTCClient {
             localVideoTrack.setEnabled(enabled);
         }
         System.out.printf("[WebRTC] Video %s%n", enabled ? "enabled" : "disabled");
+    }
+    
+    // ===============================
+    // Helper Methods
+    // ===============================
+    
+    /**
+     * Check if two audio devices are the same Bluetooth device
+     * (matching by name or descriptor patterns)
+     */
+    private static boolean isSameBluetoothDevice(AudioDevice mic, AudioDevice speaker) {
+        // Exact name match
+        if (mic.getName().equals(speaker.getName())) {
+            return true;
+        }
+        
+        // Bluetooth devices often have similar names with slight variations
+        // e.g., "AirPods Pro" (output) vs "AirPods Pro" (input/output)
+        String micName = mic.getName().toLowerCase().trim();
+        String speakerName = speaker.getName().toLowerCase().trim();
+        
+        // Remove common suffixes/prefixes
+        micName = micName.replace("(input)", "").replace("(output)", "")
+                         .replace("microphone", "").replace("speakers", "")
+                         .trim();
+        speakerName = speakerName.replace("(input)", "").replace("(output)", "")
+                                 .replace("microphone", "").replace("speakers", "")
+                                 .trim();
+        
+        // Check if base names match
+        if (micName.equals(speakerName)) {
+            return true;
+        }
+        
+        // Check descriptor similarity (MAC address for Bluetooth)
+        String micDesc = mic.getDescriptor().toLowerCase();
+        String speakerDesc = speaker.getDescriptor().toLowerCase();
+        
+        // If descriptors contain same MAC-like pattern (e.g., XX:XX:XX:XX:XX:XX)
+        if (micDesc.length() > 10 && speakerDesc.length() > 10) {
+            // Extract potential MAC address from descriptor
+            if (micDesc.contains(":") && speakerDesc.contains(":")) {
+                String[] micParts = micDesc.split(":");
+                String[] speakerParts = speakerDesc.split(":");
+                if (micParts.length >= 3 && speakerParts.length >= 3) {
+                    // Compare first 3 octets (manufacturer ID)
+                    boolean macMatch = true;
+                    for (int i = 0; i < Math.min(3, Math.min(micParts.length, speakerParts.length)); i++) {
+                        if (!micParts[i].equals(speakerParts[i])) {
+                            macMatch = false;
+                            break;
+                        }
+                    }
+                    if (macMatch) return true;
+                }
+            }
+        }
+        
+        return false;
     }
     
     // ===============================
