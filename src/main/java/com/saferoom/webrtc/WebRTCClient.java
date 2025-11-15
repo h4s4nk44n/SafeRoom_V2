@@ -547,29 +547,43 @@ public class WebRTCClient {
             VideoDevice camera = cameras.get(0);
             System.out.println("[WebRTC] Selected camera: " + camera.getName());
             
+            // ===== FIX: Cleanup existing video source first (MacOS freeze fix) =====
+            if (this.videoSource != null) {
+                System.out.println("[WebRTC] Cleaning up existing video source...");
+                try {
+                    videoSource.stop();
+                    videoSource.dispose();
+                } catch (Exception e) {
+                    System.err.println("[WebRTC] Error cleaning up old video source: " + e.getMessage());
+                }
+                this.videoSource = null;
+            }
+            
             // ===== VIDEO SOURCE WITH OPTIMIZED SETTINGS =====
             this.videoSource = new VideoDeviceSource();
             videoSource.setVideoCaptureDevice(camera);
             
-            // Set video format for optimal encoding performance
-            // WebRTC will automatically select best resolution/fps from camera
-            // and enable GPU hardware encoding if available
+            // FIX: Set explicit capability to avoid format detection issues on MacOS
+            VideoCaptureCapability capability = new VideoCaptureCapability(640, 480, 30);
+            videoSource.setVideoCaptureCapability(capability);
+            System.out.println("[WebRTC] Video capability set: 640x480@30fps (MacOS compatible)");
             
             // Create video track
             VideoTrack videoTrack = factory.createVideoTrack("video0", videoSource);
             
             // Start capturing (GPU encoding automatically enabled by WebRTC)
             videoSource.start();
+            System.out.println("[WebRTC] Camera capture started successfully");
             
             // Add track to peer connection with stream ID
             peerConnection.addTrack(videoTrack, List.of("stream1"));
             
             System.out.println("[WebRTC] ✅ Video track added with optimized settings:");
-            System.out.println("  ├─ Resolution: AUTO (best available from camera)");
-            System.out.println("  ├─ Frame rate: AUTO (optimized for network)");
+            System.out.println("  ├─ Resolution: 640x480 (MacOS stable)");
+            System.out.println("  ├─ Frame rate: 30 FPS (smooth playback)");
             System.out.println("  ├─ Codec: H.264/VP8/VP9 (negotiated via SDP)");
             System.out.println("  └─ Hardware encoding: AUTO-DETECTED by WebRTC");
-            System.out.println("[WebRTC] 🎥 GPU acceleration enabled (Intel QSV/NVENC/VideoToolbox)!");
+            System.out.println("[WebRTC] 🎥 GPU acceleration enabled (VideoToolbox on Mac)!");
             
             // Store reference for cleanup
             this.localVideoTrack = videoTrack;
