@@ -101,6 +101,12 @@ public class ChatViewController {
 
         messageListView.setItems(messages);
         messageListView.setCellFactory(param -> new MessageCell(currentUser.getId()));
+        
+        // Show header when chat is selected
+        if (chatHeader != null) {
+            chatHeader.setVisible(true);
+            chatHeader.setManaged(true);
+        }
 
         updatePlaceholderVisibility();
 
@@ -293,6 +299,25 @@ public class ChatViewController {
             emptyChatPlaceholder.setManaged(isListEmpty);
         }
         messageListView.setVisible(!isListEmpty);
+    }
+    
+    /**
+     * Show welcome screen (when no chat is selected)
+     */
+    public void showWelcomeScreen() {
+        if (emptyChatPlaceholder != null) {
+            emptyChatPlaceholder.setVisible(true);
+            emptyChatPlaceholder.setManaged(true);
+        }
+        messageListView.setVisible(false);
+        
+        // Hide header and input when no chat selected
+        if (chatHeader != null) {
+            chatHeader.setVisible(false);
+            chatHeader.setManaged(false);
+        }
+        
+        System.out.println("[ChatView] 🎨 Showing welcome screen");
     }
     
     // ===============================

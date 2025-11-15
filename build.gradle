@@ -57,9 +57,15 @@ dependencies {
     implementation files('libs/slf4j-api-1.7.36.jar')
     implementation files('libs/slf4j-simple-1.7.36.jar')
 
-    // WebRTC - Platform-specific native libraries
+    // WebRTC - Core library (platform-independent Java code)
     implementation 'dev.onvoid.webrtc:webrtc-java:0.14.0'
-    implementation group: 'dev.onvoid.webrtc', name: 'webrtc-java', version: '0.14.0', classifier: 'linux-x86_64'
+    
+    // WebRTC - Native libraries for all platforms
+    // Gradle downloads all, JVM loads the correct one at runtime based on OS
+    runtimeOnly group: 'dev.onvoid.webrtc', name: 'webrtc-java', version: '0.14.0', classifier: 'linux-x86_64'
+    runtimeOnly group: 'dev.onvoid.webrtc', name: 'webrtc-java', version: '0.14.0', classifier: 'macos-x86_64'
+    runtimeOnly group: 'dev.onvoid.webrtc', name: 'webrtc-java', version: '0.14.0', classifier: 'macos-aarch64'
+    runtimeOnly group: 'dev.onvoid.webrtc', name: 'webrtc-java', version: '0.14.0', classifier: 'windows-x86_64'
 
     // JUnit 5 for testing
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'

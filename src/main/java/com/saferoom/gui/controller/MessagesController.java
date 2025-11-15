@@ -45,10 +45,16 @@ public class MessagesController {
         
         // Load friends as contacts automatically
         loadFriendsAsContacts();
-
-        if (!contactListView.getItems().isEmpty()) {
-            contactListView.getSelectionModel().selectFirst();
+        
+        // Show welcome screen initially (no contact selected)
+        if (chatViewController != null) {
+            chatViewController.showWelcomeScreen();
         }
+
+        // Don't auto-select first contact - let user choose
+        // if (!contactListView.getItems().isEmpty()) {
+        //     contactListView.getSelectionModel().selectFirst();
+        // }
     }
     
     /**

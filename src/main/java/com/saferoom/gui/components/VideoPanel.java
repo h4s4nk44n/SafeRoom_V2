@@ -39,11 +39,11 @@ public class VideoPanel extends Canvas {
      */
     public void attachVideoTrack(VideoTrack track) {
         if (track == null) {
-            System.err.println("[VideoPanel] ❌ Cannot attach null video track");
+            System.err.println("[VideoPanel] Cannot attach null video track");
             return;
         }
         
-        System.out.println("[VideoPanel] 📹 Attaching video track: " + track.getId());
+        System.out.println("[VideoPanel] Attaching video track: " + track.getId());
         
         // Remove previous sink if exists
         detachVideoTrack();
@@ -62,7 +62,7 @@ public class VideoPanel extends Canvas {
         // Add sink to track
         track.addSink(videoSink);
         
-        System.out.println("[VideoPanel] ✅ Video track attached successfully");
+        System.out.println("[VideoPanel] Video track attached successfully");
     }
     
     /**
@@ -72,9 +72,9 @@ public class VideoPanel extends Canvas {
         if (videoTrack != null && videoSink != null) {
             try {
                 videoTrack.removeSink(videoSink);
-                System.out.println("[VideoPanel] 🔌 Video track detached");
+                System.out.println("[VideoPanel] Video track detached");
             } catch (Exception e) {
-                System.err.println("[VideoPanel] ⚠️ Error detaching video: " + e.getMessage());
+                System.err.println("[VideoPanel] Error detaching video: " + e.getMessage());
             }
         }
         
@@ -115,12 +115,12 @@ public class VideoPanel extends Canvas {
                     gc.drawImage(videoImage, 0, 0, getWidth(), getHeight());
                     
                 } catch (Exception e) {
-                    System.err.println("[VideoPanel] ❌ Error rendering frame: " + e.getMessage());
+                    System.err.println("[VideoPanel] Error rendering frame: " + e.getMessage());
                 }
             });
             
         } catch (Exception e) {
-            System.err.println("[VideoPanel] ❌ Error processing frame: " + e.getMessage());
+            System.err.println("[VideoPanel] Error processing frame: " + e.getMessage());
         }
     }
     

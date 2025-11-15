@@ -41,11 +41,45 @@
         <StackPane>
             <children>
                 <ListView fx:id="messageListView" styleClass="message-list-view" />
-                <VBox fx:id="emptyChatPlaceholder" alignment="CENTER" managed="false" spacing="16.0" styleClass="empty-chat-placeholder" visible="false">
+                <VBox fx:id="emptyChatPlaceholder" alignment="CENTER" managed="false" spacing="20.0" styleClass="empty-chat-placeholder" visible="false">
                     <children>
-                        <FontIcon iconLiteral="fas-comments" styleClass="empty-chat-icon" />
-                        <Label styleClass="empty-chat-text" text="No messages yet." />
-                        <Label styleClass="empty-chat-subtext" text="Start the conversation by sending the first message." />
+                        <!-- Main Icon with gradient background -->
+                        <StackPane styleClass="welcome-icon-container">
+                            <children>
+                                <FontIcon iconLiteral="fas-shield-alt" styleClass="welcome-shield-icon" />
+                                <FontIcon iconLiteral="fas-lock" styleClass="welcome-lock-icon" />
+                            </children>
+                        </StackPane>
+                        
+                        <!-- Main Title -->
+                        <Label styleClass="welcome-title" text="Secure Messaging" />
+                        
+                        <!-- Feature List -->
+                        <VBox alignment="CENTER" spacing="12.0" styleClass="welcome-features">
+                            <children>
+                                <HBox alignment="CENTER" spacing="10.0">
+                                    <children>
+                                        <FontIcon iconLiteral="fas-check-circle" styleClass="feature-check-icon" />
+                                        <Label styleClass="feature-text" text="End-to-End Encrypted Messages" />
+                                    </children>
+                                </HBox>
+                                <HBox alignment="CENTER" spacing="10.0">
+                                    <children>
+                                        <FontIcon iconLiteral="fas-check-circle" styleClass="feature-check-icon" />
+                                        <Label styleClass="feature-text" text="P2P Direct Connection" />
+                                    </children>
+                                </HBox>
+                                <HBox alignment="CENTER" spacing="10.0">
+                                    <children>
+                                        <FontIcon iconLiteral="fas-check-circle" styleClass="feature-check-icon" />
+                                        <Label styleClass="feature-text" text="Voice &amp; Video Calls" />
+                                    </children>
+                                </HBox>
+                            </children>
+                        </VBox>
+                        
+                        <!-- Call to Action -->
+                        <Label styleClass="welcome-cta" text="👈 Select a friend to start chatting" />
                     </children>
                 </VBox>
             </children>

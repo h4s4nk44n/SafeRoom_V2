@@ -1,6 +1,5 @@
 package com.saferoom.webrtc;
 
-import com.saferoom.grpc.SafeRoomProto;
 import com.saferoom.grpc.SafeRoomProto.WebRTCSignal;
 import com.saferoom.grpc.SafeRoomProto.WebRTCSignal.SignalType;
 import com.saferoom.grpc.SafeRoomProto.WebRTCResponse;
@@ -50,7 +49,7 @@ public class WebRTCSignalingClient {
      */
     private void initializeChannel() {
         try {
-            System.out.printf("[SignalingClient] 🔌 Connecting to %s:%d%n", SERVER_HOST, SERVER_PORT);
+            System.out.printf("[SignalingClient] Connecting to %s:%d%n", SERVER_HOST, SERVER_PORT);
             
             channel = ManagedChannelBuilder.forAddress(SERVER_HOST, SERVER_PORT)
                 .usePlaintext()
@@ -61,10 +60,10 @@ public class WebRTCSignalingClient {
             
             asyncStub = UDPHoleGrpc.newStub(channel);
             
-            System.out.println("[SignalingClient] ✅ Channel initialized");
+            System.out.println("[SignalingClient] Channel initialized");
             
         } catch (Exception e) {
-            System.err.printf("[SignalingClient] ❌ Failed to initialize channel: %s%n", e.getMessage());
+            System.err.printf("[SignalingClient] Failed to initialize channel: %s%n", e.getMessage());
             e.printStackTrace();
         }
     }
@@ -80,7 +79,7 @@ public class WebRTCSignalingClient {
         CompletableFuture<String> future = new CompletableFuture<>();
         
         try {
-            System.out.printf("[SignalingClient] 📞 Sending call request to %s (audio=%b, video=%b)%n", 
+            System.out.printf("[SignalingClient] Sending call request to %s (audio=%b, video=%b)%n", 
                 targetUsername, audioEnabled, videoEnabled);
             
             // Generate unique call ID
@@ -96,27 +95,27 @@ public class WebRTCSignalingClient {
                 .setTimestamp(System.currentTimeMillis())
                 .build();
             
-            // 🔧 FIX: Use stream instead of blocking stub!
+            // FIX: Use stream instead of blocking stub!
             if (streamActive && signalingStreamOut != null) {
-                System.out.printf("[SignalingClient] 📤 Sending CALL_REQUEST via stream (callId: %s)%n", callId);
+                System.out.printf("[SignalingClient] Sending CALL_REQUEST via stream (callId: %s)%n", callId);
                 signalingStreamOut.onNext(signal);
                 future.complete(callId);
             } else {
-                System.err.println("[SignalingClient] ❌ Stream not active, falling back to unary RPC");
+                System.err.println("[SignalingClient] Stream not active, falling back to unary RPC");
                 WebRTCResponse response = blockingStub.sendWebRTCSignal(signal);
                 
                 if (response.getSuccess()) {
                     String responseCallId = response.getCallId();
-                    System.out.printf("[SignalingClient] ✅ Call request sent (unary), callId: %s%n", responseCallId);
+                    System.out.printf("[SignalingClient] Call request sent (unary), callId: %s%n", responseCallId);
                     future.complete(responseCallId);
                 } else {
-                    System.err.printf("[SignalingClient] ❌ Call request failed: %s%n", response.getMessage());
+                    System.err.printf("[SignalingClient] Call request failed: %s%n", response.getMessage());
                     future.completeExceptionally(new Exception(response.getMessage()));
                 }
             }
             
         } catch (Exception e) {
-            System.err.printf("[SignalingClient] ❌ Error sending call request: %s%n", e.getMessage());
+            System.err.printf("[SignalingClient] Error sending call request: %s%n", e.getMessage());
             future.completeExceptionally(e);
         }
         
@@ -128,7 +127,7 @@ public class WebRTCSignalingClient {
      */
     public boolean sendCallAccept(String callId, String targetUsername) {
         try {
-            System.out.printf("[SignalingClient] ✅ Accepting call: %s%n", callId);
+            System.out.printf("[SignalingClient] Accepting call: %s%n", callId);
             
             WebRTCSignal signal = WebRTCSignal.newBuilder()
                 .setType(SignalType.CALL_ACCEPT)

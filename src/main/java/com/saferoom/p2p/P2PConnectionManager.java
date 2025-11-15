@@ -4,12 +4,8 @@ import com.saferoom.webrtc.WebRTCSignalingClient;
 import com.saferoom.webrtc.WebRTCClient;
 import com.saferoom.grpc.SafeRoomProto.WebRTCSignal;
 import com.saferoom.grpc.SafeRoomProto.WebRTCSignal.SignalType;
-import com.saferoom.natghost.LLS;
-import com.saferoom.natghost.ReliableMessageSender;
-import com.saferoom.natghost.ReliableMessageReceiver;
 import dev.onvoid.webrtc.*;
 
-import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -58,23 +54,23 @@ public class P2PConnectionManager {
     public void initialize(String username) {
         this.myUsername = username;
         
-        System.out.printf("[P2P] 🚀 Initializing P2P messaging for: %s%n", username);
+        System.out.printf("[P2P] Initializing P2P messaging for: %s%n", username);
         
         // Initialize WebRTC factory (shared with CallManager)
         if (!WebRTCClient.isInitialized()) {
-            System.out.println("[P2P] 🔧 WebRTC not initialized, initializing now...");
+            System.out.println("[P2P] WebRTC not initialized, initializing now...");
             WebRTCClient.initialize();
         }
         
         // Get factory reference from WebRTCClient
         this.factory = WebRTCClient.getFactory();
         if (this.factory == null) {
-            System.err.println("[P2P] ⚠️ WebRTC factory is null (running in mock mode)");
+            System.err.println("[P2P] WebRTC factory is null (running in mock mode)");
         } else {
-            System.out.println("[P2P] ✅ WebRTC factory initialized successfully");
+            System.out.println("[P2P] WebRTC factory initialized successfully");
         }
         
-        // ✅ IMPORTANT: Share WebRTCSignalingClient with CallManager
+        // IMPORTANT: Share WebRTCSignalingClient with CallManager
         // Get signaling client from CallManager to avoid callback conflicts
         try {
             com.saferoom.webrtc.CallManager callManager = 
@@ -86,26 +82,26 @@ public class P2PConnectionManager {
             this.signalingClient = (WebRTCSignalingClient) signalingField.get(callManager);
             
             if (this.signalingClient == null) {
-                System.err.println("[P2P] ⚠️ CallManager signaling client is null, creating new one");
+                System.err.println("[P2P] CallManager signaling client is null, creating new one");
                 this.signalingClient = new WebRTCSignalingClient(username);
                 this.signalingClient.startSignalingStream();
             }
             
-            System.out.println("[P2P] ✅ Using shared signaling client from CallManager");
+            System.out.println("[P2P] Using shared signaling client from CallManager");
             
             // Register our handler for P2P signals
             // Note: We'll need to modify CallManager to route P2P signals to us
             registerP2PSignalHandler();
             
         } catch (Exception e) {
-            System.err.println("[P2P] ⚠️ Failed to get CallManager signaling client: " + e.getMessage());
+            System.err.println("[P2P] Failed to get CallManager signaling client: " + e.getMessage());
             // Fallback: create our own (not recommended - callback conflict)
             this.signalingClient = new WebRTCSignalingClient(username);
             this.signalingClient.startSignalingStream();
             this.signalingClient.setOnIncomingSignalCallback(this::handleIncomingSignal);
         }
         
-        System.out.printf("[P2P] ✅ P2P messaging initialized for %s%n", username);
+        System.out.printf("[P2P] P2P messaging initialized for %s%n", username);
     }
     
     /**
@@ -122,10 +118,10 @@ public class P2PConnectionManager {
             if (callManager != null) {
                 // Add field to CallManager to store P2P handler
                 // This will be done via reflection or we need to modify CallManager
-                System.out.println("[P2P] ✅ P2P signal handler registered with CallManager");
+                System.out.println("[P2P] P2P signal handler registered with CallManager");
             }
         } catch (Exception e) {
-            System.err.println("[P2P] ⚠️ Could not register P2P handler: " + e.getMessage());
+            System.err.println("[P2P] Could not register P2P handler: " + e.getMessage());
         }
     }
     
@@ -134,18 +130,18 @@ public class P2PConnectionManager {
      * Called when friend comes online (from FriendsController)
      */
     public CompletableFuture<Boolean> createConnection(String targetUsername) {
-        System.out.printf("[P2P] 🔗 Creating P2P connection to: %s%n", targetUsername);
+        System.out.printf("[P2P] Creating P2P connection to: %s%n", targetUsername);
         
         // Check if already connected
         if (activeConnections.containsKey(targetUsername)) {
-            System.out.printf("[P2P] ⚠️ Already connected to %s%n", targetUsername);
+            System.out.printf("[P2P] Already connected to %s%n", targetUsername);
             return CompletableFuture.completedFuture(true);
         }
         
         // Check if connection attempt in progress
         CompletableFuture<Boolean> existingFuture = pendingConnections.get(targetUsername);
         if (existingFuture != null) {
-            System.out.printf("[P2P] ⚠️ Connection attempt already in progress for %s%n", targetUsername);
+            System.out.printf("[P2P] Connection attempt already in progress for %s%n", targetUsername);
             return existingFuture;
         }
         
@@ -168,7 +164,7 @@ public class P2PConnectionManager {
                     connection.peerConnection.setLocalDescription(description, new SetSessionDescriptionObserver() {
                         @Override
                         public void onSuccess() {
-                            System.out.printf("[P2P] ✅ Local description set for %s%n", targetUsername);
+                            System.out.printf("[P2P] Local description set for %s%n", targetUsername);
                             
                             // Send P2P_OFFER via signaling with "p2p-" callId prefix
                             String p2pCallId = "p2p-" + targetUsername + "-" + System.currentTimeMillis();
@@ -184,12 +180,12 @@ public class P2PConnectionManager {
                                 .build();
                             
                             signalingClient.sendSignalViaStream(signal);
-                            System.out.printf("[P2P] 📤 P2P_OFFER sent to %s (callId: %s)%n", targetUsername, p2pCallId);
+                            System.out.printf("[P2P] P2P_OFFER sent to %s (callId: %s)%n", targetUsername, p2pCallId);
                         }
                         
                         @Override
                         public void onFailure(String error) {
-                            System.err.printf("[P2P] ❌ Failed to set local description: %s%n", error);
+                            System.err.printf("[P2P] Failed to set local description: %s%n", error);
                             future.complete(false);
                         }
                     });
@@ -197,13 +193,13 @@ public class P2PConnectionManager {
                 
                 @Override
                 public void onFailure(String error) {
-                    System.err.printf("[P2P] ❌ Failed to create offer: %s%n", error);
+                    System.err.printf("[P2P] Failed to create offer: %s%n", error);
                     future.complete(false);
                 }
             });
             
         } catch (Exception e) {
-            System.err.printf("[P2P] ❌ Error creating connection: %s%n", e.getMessage());
+            System.err.printf("[P2P] Error creating connection: %s%n", e.getMessage());
             e.printStackTrace();
             future.complete(false);
             pendingConnections.remove(targetUsername);
@@ -280,7 +276,7 @@ public class P2PConnectionManager {
                             connection.peerConnection.setLocalDescription(description, new SetSessionDescriptionObserver() {
                                 @Override
                                 public void onSuccess() {
-                                    System.out.printf("[P2P] ✅ Answer created for %s%n", remoteUsername);
+                                    System.out.printf("[P2P] Answer created for %s%n", remoteUsername);
                                     
                                     // Send P2P_ANSWER via signaling with matching callId from offer
                                     WebRTCSignal answerSignal = WebRTCSignal.newBuilder()
@@ -293,31 +289,31 @@ public class P2PConnectionManager {
                                         .build();
                                     
                                     signalingClient.sendSignalViaStream(answerSignal);
-                                    System.out.printf("[P2P] 📤 P2P_ANSWER sent to %s (callId: %s)%n", remoteUsername, incomingCallId);
+                                    System.out.printf("[P2P] P2P_ANSWER sent to %s (callId: %s)%n", remoteUsername, incomingCallId);
                                 }
                                 
                                 @Override
                                 public void onFailure(String error) {
-                                    System.err.printf("[P2P] ❌ Failed to set local description: %s%n", error);
+                                    System.err.printf("[P2P] Failed to set local description: %s%n", error);
                                 }
                             });
                         }
                         
                         @Override
                         public void onFailure(String error) {
-                            System.err.printf("[P2P] ❌ Failed to create answer: %s%n", error);
+                            System.err.printf("[P2P] Failed to create answer: %s%n", error);
                         }
                     });
                 }
                 
                 @Override
                 public void onFailure(String error) {
-                    System.err.printf("[P2P] ❌ Failed to set remote description: %s%n", error);
+                    System.err.printf("[P2P] Failed to set remote description: %s%n", error);
                 }
             });
             
         } catch (Exception e) {
-            System.err.printf("[P2P] ❌ Error handling P2P_OFFER: %s%n", e.getMessage());
+            System.err.printf("[P2P] Error handling P2P_OFFER: %s%n", e.getMessage());
             e.printStackTrace();
         }
     }
@@ -327,11 +323,11 @@ public class P2PConnectionManager {
      */
     private void handleP2PAnswer(WebRTCSignal signal) {
         String remoteUsername = signal.getFrom();
-        System.out.printf("[P2P] 📥 Handling P2P_ANSWER from %s%n", remoteUsername);
+        System.out.printf("[P2P] Handling P2P_ANSWER from %s%n", remoteUsername);
         
         P2PConnection connection = activeConnections.get(remoteUsername);
         if (connection == null) {
-            System.err.printf("[P2P] ❌ No pending connection for %s%n", remoteUsername);
+            System.err.printf("[P2P] No pending connection for %s%n", remoteUsername);
             return;
         }
         
@@ -340,16 +336,16 @@ public class P2PConnectionManager {
             connection.peerConnection.setRemoteDescription(remoteDesc, new SetSessionDescriptionObserver() {
                 @Override
                 public void onSuccess() {
-                    System.out.printf("[P2P] ✅ Remote answer set for %s%n", remoteUsername);
+                    System.out.printf("[P2P] Remote answer set for %s%n", remoteUsername);
                 }
                 
                 @Override
                 public void onFailure(String error) {
-                    System.err.printf("[P2P] ❌ Failed to set remote answer: %s%n", error);
+                    System.err.printf("[P2P] Failed to set remote answer: %s%n", error);
                 }
             });
         } catch (Exception e) {
-            System.err.printf("[P2P] ❌ Error handling P2P_ANSWER: %s%n", e.getMessage());
+            System.err.printf("[P2P] Error handling P2P_ANSWER: %s%n", e.getMessage());
         }
     }
     
@@ -361,7 +357,7 @@ public class P2PConnectionManager {
         
         P2PConnection connection = activeConnections.get(remoteUsername);
         if (connection == null) {
-            System.err.printf("[P2P] ❌ No connection for ICE candidate from %s%n", remoteUsername);
+            System.err.printf("[P2P] No connection for ICE candidate from %s%n", remoteUsername);
             return;
         }
         
@@ -373,7 +369,7 @@ public class P2PConnectionManager {
             );
             connection.peerConnection.addIceCandidate(candidate);
         } catch (Exception e) {
-            System.err.printf("[P2P] ❌ Error adding ICE candidate: %s%n", e.getMessage());
+            System.err.printf("[P2P] Error adding ICE candidate: %s%n", e.getMessage());
         }
     }
     
@@ -392,22 +388,22 @@ public class P2PConnectionManager {
     public CompletableFuture<Boolean> sendMessage(String targetUsername, String message) {
         P2PConnection connection = activeConnections.get(targetUsername);
         if (connection == null || !connection.isActive()) {
-            System.err.printf("[P2P] ❌ No active connection to %s%n", targetUsername);
+            System.err.printf("[P2P] No active connection to %s%n", targetUsername);
             return CompletableFuture.completedFuture(false);
         }
         
         if (connection.reliableMessaging == null) {
-            System.err.printf("[P2P] ❌ Reliable messaging not initialized for %s%n", targetUsername);
+            System.err.printf("[P2P] Reliable messaging not initialized for %s%n", targetUsername);
             return CompletableFuture.completedFuture(false);
         }
         
         try {
             // Send via reliable messaging protocol (with chunking, ACK, NACK, CRC)
-            System.out.printf("[P2P] 📤 Sending reliable message to %s: %s%n", targetUsername, message);
+            System.out.printf("[P2P] Sending reliable message to %s: %s%n", targetUsername, message);
             return connection.reliableMessaging.sendMessage(targetUsername, message);
             
         } catch (Exception e) {
-            System.err.printf("[P2P] ❌ Error sending message: %s%n", e.getMessage());
+            System.err.printf("[P2P] Error sending message: %s%n", e.getMessage());
             return CompletableFuture.completedFuture(false);
         }
     }
@@ -418,12 +414,12 @@ public class P2PConnectionManager {
     public CompletableFuture<Boolean> sendFile(String targetUsername, java.nio.file.Path filePath) {
         P2PConnection connection = activeConnections.get(targetUsername);
         if (connection == null || !connection.isActive()) {
-            System.err.printf("[P2P] ❌ No active connection to %s%n", targetUsername);
+            System.err.printf("[P2P] No active connection to %s%n", targetUsername);
             return CompletableFuture.completedFuture(false);
         }
         
         if (connection.fileTransfer == null) {
-            System.err.printf("[P2P] ❌ File transfer not initialized for %s%n", targetUsername);
+            System.err.printf("[P2P] File transfer not initialized for %s%n", targetUsername);
             return CompletableFuture.completedFuture(false);
         }
         
@@ -455,7 +451,7 @@ public class P2PConnectionManager {
         
         void createPeerConnection() {
             if (factory == null) {
-                System.err.println("[P2P] ❌ WebRTC factory not initialized");
+                System.err.println("[P2P] WebRTC factory not initialized");
                 return;
             }
             
@@ -480,13 +476,13 @@ public class P2PConnectionManager {
             config.iceServers = iceServers;
             config.iceTransportPolicy = RTCIceTransportPolicy.ALL;  // Try all candidates (relay, srflx, host)
             
-            System.out.printf("[P2P] 🔧 Configuring peer connection with %d ICE servers%n", iceServers.size());
+            System.out.printf("[P2P] Configuring peer connection with %d ICE servers%n", iceServers.size());
             
             // Create peer connection
             peerConnection = factory.createPeerConnection(config, new PeerConnectionObserver() {
                 @Override
                 public void onIceCandidate(RTCIceCandidate candidate) {
-                    System.out.printf("[P2P] 🧊 ICE candidate generated for %s%n", remoteUsername);
+                    System.out.printf("[P2P] ICE candidate generated for %s%n", remoteUsername);
                     
                     // Send ICE candidate via signaling with "p2p-" callId
                     WebRTCSignal signal = WebRTCSignal.newBuilder()
@@ -501,18 +497,18 @@ public class P2PConnectionManager {
                         .build();
                     
                     signalingClient.sendSignalViaStream(signal);
-                    System.out.printf("[P2P] 📤 ICE candidate sent to %s (callId: %s)%n", remoteUsername, callId);
+                    System.out.printf("[P2P] ICE candidate sent to %s (callId: %s)%n", remoteUsername, callId);
                 }
                 
                 @Override
                 public void onIceConnectionChange(RTCIceConnectionState state) {
-                    System.out.printf("[P2P] 🔗 ICE state: %s (with %s)%n", state, remoteUsername);
+                    System.out.printf("[P2P] ICE state: %s (with %s)%n", state, remoteUsername);
                     
                     if (state == RTCIceConnectionState.CONNECTED || state == RTCIceConnectionState.COMPLETED) {
-                        System.out.printf("[P2P] ✅ ICE connected with %s%n", remoteUsername);
+                        System.out.printf("[P2P] ICE connected with %s%n", remoteUsername);
                     } else if (state == RTCIceConnectionState.FAILED) {
-                        System.err.printf("[P2P] ❌ ICE connection FAILED with %s%n", remoteUsername);
-                        System.err.println("[P2P] 💡 Possible causes:");
+                        System.err.printf("[P2P] ICE connection FAILED with %s%n", remoteUsername);
+                        System.err.println("[P2P] Possible causes:");
                         System.err.println("    1. Both clients behind symmetric NAT (need TURN server)");
                         System.err.println("    2. Firewall blocking UDP traffic");
                         System.err.println("    3. Testing on localhost (try different networks)");
@@ -524,9 +520,9 @@ public class P2PConnectionManager {
                         
                         // TODO: Fallback to server relay
                     } else if (state == RTCIceConnectionState.DISCONNECTED) {
-                        System.err.printf("[P2P] ⚠️ ICE disconnected with %s (may reconnect)%n", remoteUsername);
+                        System.err.printf("[P2P] ICE disconnected with %s (may reconnect)%n", remoteUsername);
                     } else if (state == RTCIceConnectionState.CLOSED) {
-                        System.out.printf("[P2P] 🔌 ICE connection closed with %s%n", remoteUsername);
+                        System.out.printf("[P2P] ICE connection closed with %s%n", remoteUsername);
                         activeConnections.remove(remoteUsername);
                     }
                 }
@@ -534,7 +530,7 @@ public class P2PConnectionManager {
                 @Override
                 public void onDataChannel(RTCDataChannel channel) {
                     // Incoming DataChannel (answer side)
-                    System.out.printf("[P2P] 📡 DataChannel received from %s%n", remoteUsername);
+                    System.out.printf("[P2P] DataChannel received from %s%n", remoteUsername);
                     P2PConnection.this.dataChannel = channel;
                     
                     // Set up data channel observer
@@ -548,7 +544,7 @@ public class P2PConnectionManager {
                             System.out.printf("[P2P] DataChannel state: %s (from %s)%n", state, remoteUsername);
                             
                             if (state == RTCDataChannelState.OPEN) {
-                                System.out.printf("[P2P] ✅ DataChannel OPEN with %s (incoming)%n", remoteUsername);
+                                System.out.printf("[P2P] DataChannel OPEN with %s (incoming)%n", remoteUsername);
                                 active = true;
                                 activeConnections.put(remoteUsername, P2PConnection.this);
                                 
@@ -565,12 +561,12 @@ public class P2PConnectionManager {
                 }
             });
             
-            System.out.printf("[P2P] ✅ Peer connection created for %s%n", remoteUsername);
+            System.out.printf("[P2P] Peer connection created for %s%n", remoteUsername);
         }
         
         void createDataChannel() {
             if (peerConnection == null) {
-                System.err.println("[P2P] ❌ Cannot create DataChannel - peer connection not created");
+                System.err.println("[P2P] Cannot create DataChannel - peer connection not created");
                 return;
             }
             
@@ -591,7 +587,7 @@ public class P2PConnectionManager {
                     System.out.printf("[P2P] DataChannel state: %s (to %s)%n", state, remoteUsername);
                     
                     if (state == RTCDataChannelState.OPEN) {
-                        System.out.printf("[P2P] ✅ DataChannel OPEN with %s%n", remoteUsername);
+                        System.out.printf("[P2P] DataChannel OPEN with %s%n", remoteUsername);
                         active = true;
                         activeConnections.put(remoteUsername, P2PConnection.this);
                         
@@ -603,7 +599,7 @@ public class P2PConnectionManager {
                             future.complete(true);
                         }
                     } else if (state == RTCDataChannelState.CLOSED) {
-                        System.out.printf("[P2P] ❌ DataChannel CLOSED with %s%n", remoteUsername);
+                        System.out.printf("[P2P] DataChannel CLOSED with %s%n", remoteUsername);
                         active = false;
                         activeConnections.remove(remoteUsername);
                     }
@@ -615,7 +611,7 @@ public class P2PConnectionManager {
                 }
             });
             
-            System.out.printf("[P2P] ✅ DataChannel created for %s%n", remoteUsername);
+            System.out.printf("[P2P] DataChannel created for %s%n", remoteUsername);
         }
         
         /**
@@ -633,7 +629,7 @@ public class P2PConnectionManager {
             reliableMessaging.setCompletionCallback((sender, messageId, messageBytes) -> {
                 try {
                     String messageText = new String(messageBytes, "UTF-8");
-                    System.out.printf("[P2P] 📨 Reliable message complete from %s: %s%n", 
+                    System.out.printf("[P2P] Reliable message complete from %s: %s%n", 
                         remoteUsername, messageText);
                     
                     // Forward to ChatService
@@ -653,7 +649,7 @@ public class P2PConnectionManager {
                             com.saferoom.gui.service.ContactService.getInstance()
                                 .updateLastMessage(remoteUsername, messageText, false);
                                 
-                            System.out.printf("[P2P] ✅ Message added to chat for %s%n", remoteUsername);
+                            System.out.printf("[P2P] Message added to chat for %s%n", remoteUsername);
                             
                         } catch (Exception e) {
                             System.err.println("[P2P] Error forwarding message: " + e.getMessage());
@@ -665,7 +661,7 @@ public class P2PConnectionManager {
                 }
             });
             
-            System.out.printf("[P2P] ✅ Reliable messaging initialized for %s%n", remoteUsername);
+            System.out.printf("[P2P] Reliable messaging initialized for %s%n", remoteUsername);
             
             // Also initialize file transfer (if not already initialized)
             if (fileTransfer == null) {
@@ -688,7 +684,7 @@ public class P2PConnectionManager {
                 fileTransfer = new DataChannelFileTransfer(myUsername, dataChannel, remoteUsername);
                 
                 // DON'T start receiver here! It will start LAZY on first SYN
-                System.out.printf("[P2P] ✅ File transfer initialized for %s (receiver will start on SYN)%n", 
+                System.out.printf("[P2P] File transfer initialized for %s (receiver will start on SYN)%n", 
                     remoteUsername);
                 
             } catch (Exception e) {
@@ -713,17 +709,17 @@ public class P2PConnectionManager {
                     if (fileTransfer != null) {
                         fileTransfer.handleIncomingMessage(buffer);
                     } else {
-                        System.err.println("[P2P] ⚠️ Received file transfer message but fileTransfer not initialized");
+                        System.err.println("[P2P]  Received file transfer message but fileTransfer not initialized");
                     }
                 } else if (signal >= 0x20 && signal <= 0x23) {
                     // Reliable messaging protocol
                     if (reliableMessaging != null) {
                         reliableMessaging.handleIncomingMessage(buffer);
                     } else {
-                        System.err.println("[P2P] ⚠️ Received message but reliable messaging not initialized");
+                        System.err.println("[P2P]  Received message but reliable messaging not initialized");
                     }
                 } else {
-                    System.err.printf("[P2P] ⚠️ Unknown protocol signal: 0x%02X%n", signal);
+                    System.err.printf("[P2P] Unknown protocol signal: 0x%02X%n", signal);
                 }
                 
             } catch (Exception e) {

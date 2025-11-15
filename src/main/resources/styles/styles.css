@@ -594,7 +594,63 @@
 }
 .empty-chat-placeholder {
   -fx-alignment: center;
+  -fx-spacing: 20px;
+  -fx-padding: 40px;
 }
+
+/* Welcome Screen Styles */
+.welcome-icon-container {
+  -fx-pref-width: 120px;
+  -fx-pref-height: 120px;
+  -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #667eea, #764ba2);
+  -fx-background-radius: 60px;
+  -fx-effect: dropshadow(gaussian, rgba(102, 126, 234, 0.4), 20, 0, 0, 5);
+}
+
+.welcome-shield-icon {
+  -fx-icon-color: white;
+  -fx-icon-size: 60px;
+  -fx-opacity: 0.9;
+}
+
+.welcome-lock-icon {
+  -fx-icon-color: white;
+  -fx-icon-size: 28px;
+  -fx-translate-y: 2px;
+}
+
+.welcome-title {
+  -fx-font-size: 28px;
+  -fx-font-weight: bold;
+  -fx-text-fill: #e2e8f0;
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 4, 0, 0, 2);
+}
+
+.welcome-features {
+  -fx-padding: 20px 0;
+  -fx-spacing: 12px;
+}
+
+.feature-check-icon {
+  -fx-icon-color: #10b981;
+  -fx-icon-size: 20px;
+}
+
+.feature-text {
+  -fx-font-size: 15px;
+  -fx-text-fill: #94a3b8;
+  -fx-font-weight: 500;
+}
+
+.welcome-cta {
+  -fx-font-size: 16px;
+  -fx-text-fill: #64748b;
+  -fx-font-style: italic;
+  -fx-padding: 20px 0 0 0;
+  -fx-effect: innershadow(gaussian, rgba(0, 0, 0, 0.2), 3, 0, 0, 1);
+}
+
+/* Legacy empty chat styles (for when chat is selected but has no messages) */
 .empty-chat-icon {
   -fx-icon-color: #475569;
   -fx-icon-size: 64px;
