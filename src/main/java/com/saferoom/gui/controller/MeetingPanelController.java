@@ -172,17 +172,19 @@ public class MeetingPanelController {
     }
 
     public void initData(Meeting meeting, UserRole userRole) {
+        initData(meeting, userRole, true, true); // Default: camera and mic ON
+    }
+    
+    public void initData(Meeting meeting, UserRole userRole, boolean withCamera, boolean withMic) {
         this.currentMeeting = meeting;
         this.meetingNameLabel.setText(meeting.getMeetingName());
 
         if (userRole == UserRole.ADMIN) {
             this.roleStrategy = new AdminRoleStrategy();
-            // FIX: Kamera varsayılan olarak AÇIK olmalı
-            this.currentUser = new Participant("Admin User (You)", UserRole.ADMIN, true, true);
+            this.currentUser = new Participant("Admin User (You)", UserRole.ADMIN, !withMic, withCamera);
         } else {
             this.roleStrategy = new UserRoleStrategy();
-            // FIX: Kamera varsayılan olarak AÇIK olmalı
-            this.currentUser = new Participant("Standard User (You)", UserRole.USER, true, true);
+            this.currentUser = new Participant("Standard User (You)", UserRole.USER, !withMic, withCamera);
         }
 
         // Don't add dummy participants - we'll use real peers

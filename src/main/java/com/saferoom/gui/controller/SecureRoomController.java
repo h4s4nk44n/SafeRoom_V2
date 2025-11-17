@@ -6,9 +6,12 @@ import com.jfoenix.controls.JFXComboBox;
 import com.jfoenix.controls.JFXSlider;
 import com.jfoenix.controls.JFXToggleButton;
 import com.saferoom.gui.MainApp;
+import com.saferoom.gui.components.VideoPanel;
 import com.saferoom.gui.model.Meeting;
 import com.saferoom.gui.model.UserRole;
 import com.saferoom.gui.utils.WindowStateManager;
+import com.saferoom.webrtc.WebRTCClient;
+import dev.onvoid.webrtc.media.video.*;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -19,9 +22,11 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 
@@ -40,6 +45,7 @@ public class SecureRoomController {
     @FXML private JFXCheckBox autoDestroyCheck;
     @FXML private JFXCheckBox noLogsCheck;
     @FXML private TextField roomIdField;
+    @FXML private StackPane cameraView; // Sol taraftaki kamera preview alanı
 
     // Window state manager for dragging functionality
     private WindowStateManager windowStateManager = new WindowStateManager();
@@ -47,6 +53,11 @@ public class SecureRoomController {
 
     private Timeline micAnimation;
     private Scene returnScene;
+    
+    // Camera preview
+    private VideoPanel cameraPreview;
+    private VideoDeviceSource videoSource;
+    private VideoTrack videoTrack;
 
     /**
      * Ana controller referansını ayarlar (geri dönüş için)
@@ -107,10 +118,15 @@ public class SecureRoomController {
                 }
                 // =========================================================================
 
-                // Artık 'roomId' değişkenini kullanarak Meeting nesnesini güvenle oluşturabiliriz.
+                // Meeting oluştur
                 Meeting secureMeeting = new Meeting(roomId, "Secure Room");
+                
+                // Kamera ve mikrofon ayarlarını al
+                boolean withCamera = cameraToggle.isSelected();
+                boolean withMic = micToggle.isSelected();
 
-                meetingController.initData(secureMeeting, UserRole.ADMIN);
+                // Meeting controller'ı camera/mic durumlarıyla başlat
+                meetingController.initData(secureMeeting, UserRole.ADMIN, withCamera, withMic);
 
                 // Ana controller'ın content area'sına meeting panel'i yükle
                 mainController.contentArea.getChildren().setAll(meetingRoot);

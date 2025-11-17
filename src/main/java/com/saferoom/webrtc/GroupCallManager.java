@@ -36,6 +36,10 @@ public class GroupCallManager {
     // Mesh connections: peerId → WebRTCClient
     private final Map<String, WebRTCClient> peerConnections = new ConcurrentHashMap<>();
     
+    // Local video track for preview (created immediately, shared by all peer connections)
+    private VideoTrack localVideoTrack;
+    private dev.onvoid.webrtc.media.video.VideoDeviceSource localVideoSource;
+    
     // Signaling client
     private WebRTCSignalingClient signalingClient;
     
@@ -133,6 +137,11 @@ public class GroupCallManager {
         this.audioEnabled = audio;
         this.videoEnabled = video;
         this.inRoom = true;
+        
+        // FIX: Create local video track immediately for self-preview
+        if (video) {
+            createLocalVideoTrack();
+        }
         
         // Send ROOM_JOIN signal
         WebRTCSignal joinSignal = WebRTCSignal.newBuilder()
@@ -356,7 +365,12 @@ public class GroupCallManager {
             client.addAudioTrack();
         }
         if (videoEnabled) {
-            client.addVideoTrack();
+            // Use SHARED video track from GroupCallManager (don't create new camera source)
+            if (localVideoTrack != null) {
+                client.addSharedVideoTrack(localVideoTrack);
+            } else {
+                System.err.println("[GroupCallManager] Local video track not ready!");
+            }
         }
         
         // If we initiate, create and send offer
@@ -438,6 +452,30 @@ public class GroupCallManager {
         }
         
         peerConnections.clear();
+        
+        // Stop and dispose local video track
+        if (localVideoSource != null) {
+            try {
+                localVideoSource.stop();
+                localVideoSource.dispose();
+                System.out.println("[GroupCallManager] Local video source stopped and disposed");
+            } catch (Exception e) {
+                System.err.println("[GroupCallManager] Error disposing video source: " + e.getMessage());
+            }
+            localVideoSource = null;
+        }
+        
+        if (localVideoTrack != null) {
+            try {
+                localVideoTrack.setEnabled(false);
+                localVideoTrack.dispose();
+                System.out.println("[GroupCallManager] Local video track disposed");
+            } catch (Exception e) {
+                System.err.println("[GroupCallManager] Error disposing video track: " + e.getMessage());
+            }
+            localVideoTrack = null;
+        }
+        
         inRoom = false;
         currentRoomId = null;
         
@@ -483,14 +521,57 @@ public class GroupCallManager {
      * Get local video track (for self-preview)
      */
     public VideoTrack getLocalVideoTrack() {
-        // Get track from any peer connection (all have same local track)
-        for (WebRTCClient client : peerConnections.values()) {
-            VideoTrack track = client.getLocalVideoTrack();
-            if (track != null) {
-                return track;
+        // Return our pre-created local video track
+        return localVideoTrack;
+    }
+    
+    /**
+     * Create local video track for self-preview and sharing with peers
+     */
+    private void createLocalVideoTrack() {
+        try {
+            System.out.println("[GroupCallManager] Creating local video track for preview...");
+            
+            // Get PeerConnectionFactory from WebRTCClient
+            dev.onvoid.webrtc.PeerConnectionFactory factory = WebRTCClient.getFactory();
+            if (factory == null) {
+                System.err.println("[GroupCallManager] Factory not available");
+                return;
             }
+            
+            // Get list of available cameras
+            java.util.List<dev.onvoid.webrtc.media.video.VideoDevice> cameras = 
+                dev.onvoid.webrtc.media.MediaDevices.getVideoCaptureDevices();
+            if (cameras.isEmpty()) {
+                System.err.println("[GroupCallManager] No cameras found!");
+                return;
+            }
+            
+            // Use first available camera
+            dev.onvoid.webrtc.media.video.VideoDevice camera = cameras.get(0);
+            System.out.println("[GroupCallManager] Using camera: " + camera.getName());
+            
+            // Create video source
+            localVideoSource = new dev.onvoid.webrtc.media.video.VideoDeviceSource();
+            localVideoSource.setVideoCaptureDevice(camera);
+            
+            // Set capability
+            dev.onvoid.webrtc.media.video.VideoCaptureCapability capability = 
+                new dev.onvoid.webrtc.media.video.VideoCaptureCapability(640, 480, 30);
+            localVideoSource.setVideoCaptureCapability(capability);
+            
+            // Create video track
+            localVideoTrack = factory.createVideoTrack("local_video", localVideoSource);
+            
+            // Start capturing
+            localVideoSource.start();
+            
+            System.out.println("[GroupCallManager] ✅ Local video track created and started");
+            
+        } catch (Exception e) {
+            System.err.printf("[GroupCallManager] Failed to create local video track: %s%n", e.getMessage());
+            e.printStackTrace();
         }
-        return null;
     }
     
     /**

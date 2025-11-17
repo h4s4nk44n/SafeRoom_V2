@@ -415,7 +415,9 @@ public class WebRTCClient {
             localAudioTrack = null;
         }
         
-        if (localVideoTrack != null) {
+        // IMPORTANT: Don't dispose localVideoTrack if it's shared from GroupCallManager
+        // Only dispose if we own the video source (videoSource != null)
+        if (localVideoTrack != null && videoSource != null) {
             try {
                 localVideoTrack.setEnabled(false); // Disable first
                 localVideoTrack.dispose();
@@ -424,9 +426,12 @@ public class WebRTCClient {
                 System.err.printf("[WebRTC] Error disposing video track: %s%n", e.getMessage());
             }
             localVideoTrack = null;
+        } else if (localVideoTrack != null) {
+            System.out.println("[WebRTC] Video track is shared - not disposing (GroupCallManager owns it)");
+            localVideoTrack = null;
         }
         
-        // Stop video source (release camera)
+        // Stop video source (release camera) - only if we own it
         if (videoSource != null) {
             try {
                 videoSource.stop();
@@ -599,6 +604,43 @@ public class WebRTCClient {
             
         } catch (Exception e) {
             System.err.println("[WebRTC] Failed to add video track: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Add shared video track (from GroupCallManager) to peer connection
+     * This allows multiple peer connections to share the same camera source
+     */
+    public void addSharedVideoTrack(VideoTrack sharedTrack) {
+        if (factory == null) {
+            System.err.println("[WebRTC] Cannot add video track - factory not initialized");
+            return;
+        }
+        
+        if (peerConnection == null) {
+            System.err.println("[WebRTC] Cannot add video track - peer connection not created");
+            return;
+        }
+        
+        if (sharedTrack == null) {
+            System.err.println("[WebRTC] Shared video track is null");
+            return;
+        }
+        
+        try {
+            System.out.println("[WebRTC] Adding SHARED video track to peer connection...");
+            
+            // Add track to peer connection with stream ID
+            videoSender = peerConnection.addTrack(sharedTrack, List.of("stream1"));
+            
+            // Store reference (but DON'T dispose it in close() - GroupCallManager owns it)
+            this.localVideoTrack = sharedTrack;
+            
+            System.out.println("[WebRTC] ✅ Shared video track added successfully");
+            
+        } catch (Exception e) {
+            System.err.println("[WebRTC] Failed to add shared video track: " + e.getMessage());
             e.printStackTrace();
         }
     }
