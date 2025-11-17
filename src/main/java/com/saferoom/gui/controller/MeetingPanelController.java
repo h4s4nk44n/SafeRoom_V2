@@ -177,10 +177,12 @@ public class MeetingPanelController {
 
         if (userRole == UserRole.ADMIN) {
             this.roleStrategy = new AdminRoleStrategy();
-            this.currentUser = new Participant("Admin User (You)", UserRole.ADMIN, true, false);
+            // FIX: Kamera varsayılan olarak AÇIK olmalı
+            this.currentUser = new Participant("Admin User (You)", UserRole.ADMIN, true, true);
         } else {
             this.roleStrategy = new UserRoleStrategy();
-            this.currentUser = new Participant("Standard User (You)", UserRole.USER, true, false);
+            // FIX: Kamera varsayılan olarak AÇIK olmalı
+            this.currentUser = new Participant("Standard User (You)", UserRole.USER, true, true);
         }
 
         // Don't add dummy participants - we'll use real peers
@@ -236,9 +238,17 @@ public class MeetingPanelController {
             boolean audio = !currentUser.isMuted();
             boolean video = currentUser.isCameraOn();
             
+            System.out.printf("[MeetingPanel] Joining room with audio=%b, video=%b%n", audio, video);
+            
             groupCallManager.joinRoom(roomId, audio, video)
                 .thenAccept(v -> {
                     System.out.println("[MeetingPanel] Successfully joined room");
+                    
+                    // Update video grid on UI thread after join completes
+                    javafx.application.Platform.runLater(() -> {
+                        System.out.println("[MeetingPanel] Updating video grid with local camera");
+                        updateVideoGrid();
+                    });
                 })
                 .exceptionally(ex -> {
                     System.err.printf("[MeetingPanel] Failed to join room: %s%n", ex.getMessage());
@@ -695,11 +705,17 @@ public class MeetingPanelController {
     private void leaveMeeting() {
         System.out.println("[MeetingPanel] Leaving meeting...");
         
-        // Cleanup group call
+        // Dispose all video tiles FIRST (detach tracks from UI)
+        for (VideoTile tile : videoTiles.values()) {
+            tile.dispose();
+        }
+        videoTiles.clear();
+        
+        // Cleanup group call (this closes all peer connections and releases camera)
         if (groupCallManager != null) {
             groupCallManager.leaveRoom()
                 .thenAccept(v -> {
-                    System.out.println("[MeetingPanel] Left room successfully");
+                    System.out.println("[MeetingPanel] ✅ Left room successfully - camera released");
                 })
                 .exceptionally(ex -> {
                     System.err.printf("[MeetingPanel] Error leaving room: %s%n", ex.getMessage());
@@ -707,15 +723,10 @@ public class MeetingPanelController {
                 });
         }
         
-        // Dispose all video tiles
-        for (VideoTile tile : videoTiles.values()) {
-            tile.dispose();
-        }
-        videoTiles.clear();
-        
         // Stop signaling
         if (signalingClient != null) {
             signalingClient.stopSignalingStream();
+            System.out.println("[MeetingPanel] Signaling stream stopped");
         }
         
         // Ana pencereye geri dön (content değiştirme yaklaşımı)
