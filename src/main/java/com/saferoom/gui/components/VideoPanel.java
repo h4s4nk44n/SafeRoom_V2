@@ -135,8 +135,37 @@ public class VideoPanel extends Canvas {
                     // Convert YUV to RGB
                     convertYUVtoRGB(i420, videoImage);
                     
-                    // Draw image to canvas (scaled to fit)
-                    gc.drawImage(videoImage, 0, 0, getWidth(), getHeight());
+                    // Clear canvas with black background
+                    gc.setFill(Color.BLACK);
+                    gc.fillRect(0, 0, getWidth(), getHeight());
+                    
+                    // Calculate aspect ratio preserving dimensions (letterbox/pillarbox)
+                    double canvasWidth = getWidth();
+                    double canvasHeight = getHeight();
+                    double videoWidth = videoImage.getWidth();
+                    double videoHeight = videoImage.getHeight();
+                    
+                    double canvasAspect = canvasWidth / canvasHeight;
+                    double videoAspect = videoWidth / videoHeight;
+                    
+                    double drawWidth, drawHeight, drawX, drawY;
+                    
+                    if (videoAspect > canvasAspect) {
+                        // Video is wider - fit to width, add letterbox top/bottom
+                        drawWidth = canvasWidth;
+                        drawHeight = canvasWidth / videoAspect;
+                        drawX = 0;
+                        drawY = (canvasHeight - drawHeight) / 2;
+                    } else {
+                        // Video is taller - fit to height, add pillarbox left/right
+                        drawHeight = canvasHeight;
+                        drawWidth = canvasHeight * videoAspect;
+                        drawX = (canvasWidth - drawWidth) / 2;
+                        drawY = 0;
+                    }
+                    
+                    // Draw image with preserved aspect ratio
+                    gc.drawImage(videoImage, drawX, drawY, drawWidth, drawHeight);
                     
                 } catch (Exception e) {
                     System.err.println("[VideoPanel] Error rendering frame: " + e.getMessage());
@@ -209,14 +238,20 @@ public class VideoPanel extends Canvas {
      * Draw placeholder text when no video available
      */
     private void drawPlaceholder(String text) {
-        gc.setFill(Color.rgb(30, 30, 30));
+        // Black background (professional look)
+        gc.setFill(Color.BLACK);
         gc.fillRect(0, 0, getWidth(), getHeight());
         
-        gc.setFill(Color.rgb(150, 150, 150));
-        gc.setFont(javafx.scene.text.Font.font(16));
+        // Light gray text
+        gc.setFill(Color.rgb(180, 180, 180));
+        gc.setFont(javafx.scene.text.Font.font("System", 14));
         
-        double textWidth = 80; // Approximate
-        double textHeight = 16;
+        // Measure text for centering
+        javafx.scene.text.Text tempText = new javafx.scene.text.Text(text);
+        tempText.setFont(gc.getFont());
+        double textWidth = tempText.getLayoutBounds().getWidth();
+        double textHeight = tempText.getLayoutBounds().getHeight();
+        
         gc.fillText(text, 
             (getWidth() - textWidth) / 2, 
             (getHeight() + textHeight) / 2);

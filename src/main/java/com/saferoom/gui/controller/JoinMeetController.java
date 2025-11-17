@@ -299,26 +299,121 @@ public class JoinMeetController {
     private void handleJoin() {
         if (micAnimation != null) micAnimation.stop();
         
-        // CRITICAL: Stop camera preview before leaving (prevent camera conflict)
-        stopCameraPreview();
+        // DON'T stop camera preview here - only stop if join is successful
+        // Camera should stay active if validation fails
 
         // =========================================================================
-        // DEGISIKLIK BURADA: Oda ID'sinin bos olup olmadigini kontrol ediyoruz.
+        // Room ID validation
         // =========================================================================
         String roomId = roomIdField.getText();
         if (roomId == null || roomId.trim().isEmpty()) {
-            // Hata stilini ekle ve metodu sonlandır.
-            roomIdField.getStyleClass().remove("error-field"); // Önceki hatayı temizle
-            roomIdField.getStyleClass().add("error-field"); // Yeni hatayı ekle
-            System.out.println("HATA: Katılmak için Oda ID'si girilmelidir.");
-            return; // Katılma işlemini burada durdur.
+            roomIdField.getStyleClass().remove("error-field");
+            roomIdField.getStyleClass().add("error-field");
+            showErrorAlert("Invalid Room ID", "Please enter a valid Room ID to join.");
+            return;
         }
 
-        // Eğer doğrulama başarılıysa, hata stili (varsa) kaldırılır.
         roomIdField.getStyleClass().remove("error-field");
+        
         // =========================================================================
-
-        // Ana controller üzerinden meeting panel'i yükle (content değiştirme)
+        // VALIDATE ROOM BEFORE OPENING MEETING PANEL
+        // Send ROOM_JOIN with JOIN_MODE to check if room exists
+        // =========================================================================
+        boolean withCamera = cameraToggle.isSelected();
+        boolean withMic = micToggle.isSelected();
+        
+        try {
+            System.out.printf("[JoinMeet] Validating room: %s%n", roomId);
+            
+            // Show loading indicator
+            javafx.scene.control.ProgressIndicator progressIndicator = new javafx.scene.control.ProgressIndicator();
+            progressIndicator.setPrefSize(50, 50);
+            
+            javafx.scene.layout.StackPane loadingPane = new javafx.scene.layout.StackPane(progressIndicator);
+            loadingPane.setStyle("-fx-background-color: rgba(0, 0, 0, 0.5);");
+            
+            // Add loading overlay
+            javafx.scene.layout.StackPane rootPane = (javafx.scene.layout.StackPane) roomIdField.getScene().getRoot();
+            rootPane.getChildren().add(loadingPane);
+            
+            // Initialize WebRTC for validation
+            if (!com.saferoom.webrtc.WebRTCClient.isInitialized()) {
+                com.saferoom.webrtc.WebRTCClient.initialize();
+            }
+            
+            // Get current username
+            String currentUsername = getCurrentUsername();
+            
+            // Create signaling client for validation
+            com.saferoom.webrtc.WebRTCSignalingClient tempSignalingClient = 
+                new com.saferoom.webrtc.WebRTCSignalingClient(currentUsername);
+            tempSignalingClient.startSignalingStream();
+            
+            // Create GroupCallManager for validation
+            com.saferoom.webrtc.GroupCallManager tempManager = 
+                com.saferoom.webrtc.GroupCallManager.getInstance();
+            tempManager.initialize(tempSignalingClient, currentUsername);
+            
+            // Setup error callback for validation
+            final boolean[] roomValidated = {false};
+            final String[] errorMessage = {null};
+            
+            tempManager.setOnRoomErrorCallback((errorType, roomIdError) -> {
+                javafx.application.Platform.runLater(() -> {
+                    // Remove loading overlay
+                    rootPane.getChildren().remove(loadingPane);
+                    
+                    // Show error
+                    if ("ROOM_NOT_FOUND".equals(errorType)) {
+                        errorMessage[0] = "Room not found: " + roomIdError + "\nThis room does not exist or has been closed.";
+                    } else if ("ROOM_FULL".equals(errorType)) {
+                        errorMessage[0] = "Room is full: " + roomIdError + "\nMaximum 4 participants allowed.";
+                    } else {
+                        errorMessage[0] = "Cannot join room: " + errorType;
+                    }
+                    
+                    showErrorAlert("Room Join Error", errorMessage[0]);
+                    
+                    // Cleanup temp resources
+                    tempManager.leaveRoom();
+                    tempSignalingClient.stopSignalingStream();
+                });
+            });
+            
+            // Setup success callback
+            tempManager.setOnRoomJoinedCallback(() -> {
+                javafx.application.Platform.runLater(() -> {
+                    roomValidated[0] = true;
+                    
+                    // Remove loading overlay
+                    rootPane.getChildren().remove(loadingPane);
+                    
+                    // Leave temporary connection
+                    tempManager.leaveRoom();
+                    tempSignalingClient.stopSignalingStream();
+                    
+                    // STOP camera preview ONLY on successful validation
+                    stopCameraPreview();
+                    
+                    // NOW open meeting panel (room validated)
+                    openMeetingPanel(roomId, withCamera, withMic);
+                });
+            });
+            
+            // Attempt to join room (validation)
+            tempManager.joinRoom(roomId, withMic, withCamera, "JOIN_MODE");
+            
+        } catch (Exception e) {
+            System.err.printf("[JoinMeet] Error validating room: %s%n", e.getMessage());
+            e.printStackTrace();
+            showErrorAlert("Connection Error", "Failed to connect to server: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Open meeting panel after successful room validation
+     */
+    private void openMeetingPanel(String roomId, boolean withCamera, boolean withMic) {
         if (mainController != null) {
             try {
                 FXMLLoader meetingLoader = new FXMLLoader(MainApp.class.getResource("/view/MeetingPanelView.fxml"));
@@ -327,17 +422,10 @@ public class JoinMeetController {
                 MeetingPanelController meetingController = meetingLoader.getController();
                 meetingController.setMainController(mainController);
 
-                // roomName için artık 'roomId' değişkenini kullanıyoruz.
                 String roomName = roomId.isEmpty() ? "Joined Room" : roomId;
-
-                // Meeting nesnesini 'roomId' ile oluşturuyoruz.
                 Meeting meetingToJoin = new Meeting(roomId, roomName);
-                
-                // Kamera ve mikrofon ayarlarını al
-                boolean withCamera = cameraToggle.isSelected();
-                boolean withMic = micToggle.isSelected();
 
-                // Meeting controller'ı JOIN_MODE ile başlat (room validation)
+                // Meeting controller'ı JOIN_MODE ile başlat
                 meetingController.initData(meetingToJoin, UserRole.USER, withCamera, withMic, "JOIN_MODE");
 
                 // Ana controller'ın content area'sına meeting panel'i yükle
@@ -345,8 +433,39 @@ public class JoinMeetController {
 
             } catch (IOException e) {
                 e.printStackTrace();
+                showErrorAlert("UI Error", "Failed to load meeting panel: " + e.getMessage());
             }
         }
+    }
+    
+    /**
+     * Show error alert dialog
+     */
+    private void showErrorAlert(String title, String message) {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+            javafx.scene.control.Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText("Cannot Join Room");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+    
+    /**
+     * Get current username from session
+     */
+    private String getCurrentUsername() {
+        try {
+            // Get from UserSession
+            String username = com.saferoom.gui.utils.UserSession.getInstance().getDisplayName();
+            if (username != null && !username.isEmpty() && !"Username".equals(username)) {
+                return username;
+            }
+        } catch (Exception e) {
+            System.err.println("[JoinMeet] Failed to get username from session: " + e.getMessage());
+        }
+        
+        // Fallback: generate temporary username
+        return "User_" + System.currentTimeMillis();
     }
 
     private void startMicTestAnimation() {

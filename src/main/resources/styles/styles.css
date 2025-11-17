@@ -1662,7 +1662,7 @@
   -fx-background-color: #dc2626;
 }
 .video-tile {
-  -fx-background-color: #0f172a;
+  -fx-background-color: transparent;
   -fx-background-radius: 12px;
   -fx-alignment: center;
 }
@@ -1763,15 +1763,19 @@
   -fx-icon-color: #cbd5e1;
 }
 .layout-button {
-  -fx-background-color: transparent;
-  -fx-padding: 8px 12px;
-  -fx-background-radius: 6px;
+  -fx-background-color: #334155;
+  -fx-padding: 10px 16px;
+  -fx-background-radius: 8px;
   -fx-border-color: transparent;
   -fx-border-width: 0 0 3px 0;
+  -fx-cursor: hand;
 }
 .layout-icon {
-  -fx-icon-color: #94a3b8;
-  -fx-icon-size: 18px;
+  -fx-icon-color: #cbd5e1;
+  -fx-icon-size: 20px;
+}
+.layout-button:hover {
+  -fx-background-color: #475569;
 }
 .layout-button:hover .layout-icon {
   -fx-icon-color: white;
@@ -1780,7 +1784,8 @@
   -fx-icon-color: white;
 }
 .layout-button.active {
-  -fx-border-color: #3b82f6;
+  -fx-background-color: #3b82f6;
+  -fx-border-color: #60a5fa;
 }
 .participant-action-button {
   -fx-background-color: transparent;

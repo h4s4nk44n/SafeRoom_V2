@@ -15,7 +15,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<BorderPane styleClass="meeting-panel-root" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.saferoom.gui.controller.MeetingPanelController" stylesheets="@../styles/styles.css" style="-fx-background-color: #1e293b;">
+<BorderPane styleClass="meeting-panel-root" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.saferoom.gui.controller.MeetingPanelController" stylesheets="@../styles/styles.css">
     <top>
         <HBox alignment="CENTER_LEFT" prefHeight="60.0" spacing="16.0" styleClass="meeting-top-bar">
             <padding><Insets left="24.0" right="24.0" /></padding>
@@ -29,10 +29,10 @@
                 <Pane HBox.hgrow="ALWAYS" />
                 <HBox alignment="CENTER" spacing="8.0" styleClass="layout-button-container">
                     <children>
-                        <JFXButton fx:id="gridViewButton" styleClass="layout-button">
+                        <JFXButton fx:id="gridViewButton" onAction="#showGridView" styleClass="layout-button">
                             <graphic><FontIcon iconLiteral="fas-th-large" styleClass="layout-icon" /></graphic>
                         </JFXButton>
-                        <JFXButton fx:id="speakerViewButton" styleClass="layout-button">
+                        <JFXButton fx:id="speakerViewButton" onAction="#showSpeakerView" styleClass="layout-button">
                             <graphic><FontIcon iconLiteral="fas-user" styleClass="layout-icon" /></graphic>
                         </JFXButton>
                     </children>
@@ -54,12 +54,12 @@
             <children>
                 <StackPane fx:id="contentStackPane" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                     <children>
-                        <GridPane fx:id="videoGrid" hgap="16.0" vgap="16.0">
+                        <GridPane fx:id="videoGrid" hgap="16.0" vgap="16.0" visible="true" managed="true">
                             <padding>
                                 <Insets bottom="16.0" left="24.0" right="24.0" top="16.0" />
                             </padding>
                         </GridPane>
-                        <BorderPane fx:id="speakerViewPane" visible="false">
+                        <BorderPane fx:id="speakerViewPane" visible="false" managed="false">
                             <padding>
                                 <Insets bottom="16.0" left="24.0" right="24.0" top="16.0" />
                             </padding>
