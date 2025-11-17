@@ -172,10 +172,18 @@ public class MeetingPanelController {
     }
 
     public void initData(Meeting meeting, UserRole userRole) {
-        initData(meeting, userRole, true, true); // Default: camera and mic ON
+        initData(meeting, userRole, true, true, "CREATE_MODE"); // Default: camera/mic ON, CREATE mode
     }
     
     public void initData(Meeting meeting, UserRole userRole, boolean withCamera, boolean withMic) {
+        initData(meeting, userRole, withCamera, withMic, "CREATE_MODE"); // Default: CREATE mode
+    }
+    
+    /**
+     * Initialize meeting with join mode
+     * @param joinMode "CREATE_MODE" (SecureRoom) or "JOIN_MODE" (Join Meeting)
+     */
+    public void initData(Meeting meeting, UserRole userRole, boolean withCamera, boolean withMic, String joinMode) {
         this.currentMeeting = meeting;
         this.meetingNameLabel.setText(meeting.getMeetingName());
 
@@ -204,21 +212,21 @@ public class MeetingPanelController {
         updateCameraButtonState();
         
         // ===============================
-        // INITIALIZE GROUP CALL
+        // INITIALIZE GROUP CALL WITH MODE
         // ===============================
-        initializeGroupCall(meeting.getMeetingId(), userRole);
+        initializeGroupCall(meeting.getMeetingId(), userRole, joinMode);
     }
     
     /**
-     * Initialize group call manager and join room
+     * Initialize group call manager and join room with mode
      */
-    private void initializeGroupCall(String roomId, UserRole userRole) {
+    private void initializeGroupCall(String roomId, UserRole userRole, String joinMode) {
         try {
             // Get current username (from login session)
             this.currentUsername = getCurrentUsername();
             
-            System.out.printf("[MeetingPanel] Initializing group call for room: %s, user: %s%n", 
-                roomId, currentUsername);
+            System.out.printf("[MeetingPanel] Initializing group call for room: %s, user: %s, mode: %s%n", 
+                roomId, currentUsername, joinMode);
             
             // Initialize WebRTC if not already done
             if (!WebRTCClient.isInitialized()) {
@@ -233,16 +241,17 @@ public class MeetingPanelController {
             groupCallManager = GroupCallManager.getInstance();
             groupCallManager.initialize(signalingClient, currentUsername);
             
-            // Setup callbacks
+            // Setup callbacks (including error callback)
             setupGroupCallCallbacks();
             
-            // Join room
+            // Join room with mode
             boolean audio = !currentUser.isMuted();
             boolean video = currentUser.isCameraOn();
             
-            System.out.printf("[MeetingPanel] Joining room with audio=%b, video=%b%n", audio, video);
+            System.out.printf("[MeetingPanel] Joining room with mode=%s, audio=%b, video=%b%n", 
+                joinMode, audio, video);
             
-            groupCallManager.joinRoom(roomId, audio, video)
+            groupCallManager.joinRoom(roomId, audio, video, joinMode)
                 .thenAccept(v -> {
                     System.out.println("[MeetingPanel] Successfully joined room");
                     
@@ -328,6 +337,36 @@ public class MeetingPanelController {
                     
                     // Update grid to show new video
                     updateVideoGrid();
+                }
+            });
+        });
+        
+        // Room error callback (room not found, full, etc.)
+        groupCallManager.setOnRoomErrorCallback((errorType, roomId) -> {
+            javafx.application.Platform.runLater(() -> {
+                System.err.printf("[MeetingPanel] ❌ Room error: %s (room=%s)%n", errorType, roomId);
+                
+                // Show error message based on error type
+                String errorMessage;
+                if ("ROOM_NOT_FOUND".equals(errorType)) {
+                    errorMessage = "Room not found: " + roomId + "\nThis room does not exist or has been closed.";
+                } else if ("ROOM_FULL".equals(errorType)) {
+                    errorMessage = "Room is full: " + roomId + "\nMaximum 4 participants allowed (mesh topology).";
+                } else {
+                    errorMessage = "Failed to join room: " + roomId + "\nError: " + errorType;
+                }
+                
+                // Show error alert
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.ERROR);
+                alert.setTitle("Room Join Error");
+                alert.setHeaderText("Cannot Join Room");
+                alert.setContentText(errorMessage);
+                alert.showAndWait();
+                
+                // Return to main view
+                if (mainController != null) {
+                    mainController.returnToMainView();
                 }
             });
         });

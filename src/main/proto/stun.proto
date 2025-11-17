@@ -245,9 +245,10 @@ message WebRTCSignal {
         ROOM_PEER_JOINED = 16;  // Notify existing peers: new peer joined
         ROOM_PEER_LEFT = 17;    // Notify: peer left room
         ROOM_LEAVE = 18;        // Leave room
-        MESH_OFFER = 19;        // Mesh SDP offer (peer-to-peer)
-        MESH_ANSWER = 20;       // Mesh SDP answer (peer-to-peer)
-        MESH_ICE_CANDIDATE = 21;// Mesh ICE candidate (peer-to-peer)
+        ROOM_ERROR = 19;        // Room error (not found, full, etc.)
+        MESH_OFFER = 20;        // Mesh SDP offer (peer-to-peer)
+        MESH_ANSWER = 21;       // Mesh SDP answer (peer-to-peer)
+        MESH_ICE_CANDIDATE = 22;// Mesh ICE candidate (peer-to-peer)
     }
     
     SignalType type = 1;        // Sinyal tipi

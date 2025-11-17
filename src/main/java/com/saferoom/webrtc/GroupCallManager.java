@@ -53,6 +53,7 @@ public class GroupCallManager {
     private PeerJoinedCallback onPeerJoinedCallback;
     private PeerLeftCallback onPeerLeftCallback;
     private RemoteTrackCallback onRemoteTrackCallback;
+    private RoomErrorCallback onRoomErrorCallback; // NEW: Room error callback
     
     /**
      * Singleton pattern
@@ -119,14 +120,23 @@ public class GroupCallManager {
         signalingClient.addSignalHandler(WebRTCSignal.SignalType.MESH_ICE_CANDIDATE, signal -> {
             handleMeshIceCandidate(signal);
         });
+        
+        // Handle ROOM_ERROR (room not found, full, etc.)
+        signalingClient.addSignalHandler(WebRTCSignal.SignalType.ROOM_ERROR, signal -> {
+            handleRoomError(signal);
+        });
     }
     
     /**
-     * Join a room (creates room if doesn't exist)
+     * Join a room with mode validation
+     * @param roomId Room ID to join
+     * @param audio Enable audio
+     * @param video Enable video
+     * @param mode "CREATE_MODE" (always create) or "JOIN_MODE" (only join existing)
      */
-    public CompletableFuture<Void> joinRoom(String roomId, boolean audio, boolean video) {
-        System.out.printf("[GroupCallManager] Joining room: %s (audio=%b, video=%b)%n", 
-            roomId, audio, video);
+    public CompletableFuture<Void> joinRoom(String roomId, boolean audio, boolean video, String mode) {
+        System.out.printf("[GroupCallManager] Joining room: %s (mode=%s, audio=%b, video=%b)%n", 
+            roomId, mode, audio, video);
         
         if (inRoom) {
             System.err.println("[GroupCallManager] Already in a room, leave first!");
@@ -143,25 +153,34 @@ public class GroupCallManager {
             createLocalVideoTrack();
         }
         
-        // Send ROOM_JOIN signal
+        // Send ROOM_JOIN signal with mode
         WebRTCSignal joinSignal = WebRTCSignal.newBuilder()
             .setType(WebRTCSignal.SignalType.ROOM_JOIN)
             .setFrom(localUsername)
             .setRoomId(roomId)
             .setAudioEnabled(audio)
             .setVideoEnabled(video)
+            .setMetadata(mode) // "CREATE_MODE" or "JOIN_MODE"
             .setTimestamp(System.currentTimeMillis())
             .build();
         
         return signalingClient.sendSignal(joinSignal)
             .thenAccept(response -> {
-                System.out.println("[GroupCallManager] Room join signal sent successfully");
+                System.out.printf("[GroupCallManager] Room join signal sent (mode=%s)%n", mode);
             })
             .exceptionally(ex -> {
                 System.err.printf("[GroupCallManager] Failed to join room: %s%n", ex.getMessage());
                 inRoom = false;
                 return null;
             });
+    }
+    
+    /**
+     * Join a room (creates room if doesn't exist) - backward compatibility
+     * Default mode: CREATE_MODE
+     */
+    public CompletableFuture<Void> joinRoom(String roomId, boolean audio, boolean video) {
+        return joinRoom(roomId, audio, video, "CREATE_MODE");
     }
     
     /**
@@ -255,6 +274,30 @@ public class GroupCallManager {
         // Notify UI
         if (onPeerLeftCallback != null) {
             onPeerLeftCallback.onPeerLeft(peerUsername);
+        }
+    }
+    
+    /**
+     * Handle ROOM_ERROR signal (room not found, full, etc.)
+     */
+    private void handleRoomError(WebRTCSignal signal) {
+        String errorType = signal.hasMetadata() ? signal.getMetadata() : "UNKNOWN_ERROR";
+        String roomId = signal.getRoomId();
+        
+        System.err.printf("[GroupCallManager] ❌ Room error: %s (room=%s)%n", errorType, roomId);
+        
+        // Reset state
+        inRoom = false;
+        currentRoomId = null;
+        
+        // Cleanup any partial initialization
+        cleanup();
+        
+        // Notify UI
+        if (onRoomErrorCallback != null) {
+            javafx.application.Platform.runLater(() -> {
+                onRoomErrorCallback.onRoomError(errorType, roomId);
+            });
         }
     }
     
@@ -622,6 +665,10 @@ public class GroupCallManager {
         this.onRemoteTrackCallback = callback;
     }
     
+    public void setOnRoomErrorCallback(RoomErrorCallback callback) {
+        this.onRoomErrorCallback = callback;
+    }
+    
     // ===============================
     // Callback Interfaces
     // ===============================
@@ -639,6 +686,11 @@ public class GroupCallManager {
     @FunctionalInterface
     public interface RemoteTrackCallback {
         void onRemoteTrack(String peerUsername, MediaStreamTrack track);
+    }
+    
+    @FunctionalInterface
+    public interface RoomErrorCallback {
+        void onRoomError(String errorType, String roomId);
     }
     
     // ===============================

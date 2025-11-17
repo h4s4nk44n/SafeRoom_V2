@@ -1206,6 +1206,11 @@ public void sendFriendRequest(FriendRequest request, StreamObserver<FriendRespon
 	/**
 	 * Handle ROOM_JOIN signal
 	 * Server creates/joins room and sends back ROOM_JOINED with peer list
+	 * 
+	 * VALIDATION:
+	 * - If metadata="CREATE_MODE": Always create new room (SecureRoom flow)
+	 * - If metadata="JOIN_MODE": Only join existing room, error if not found (Join Meeting flow)
+	 * - Room capacity: Max 4 participants (mesh topology limit)
 	 */
 	private void handleRoomJoin(SafeRoomProto.WebRTCSignal signal, 
 			StreamObserver<SafeRoomProto.WebRTCSignal> responseObserver) {
@@ -1214,16 +1219,66 @@ public void sendFriendRequest(FriendRequest request, StreamObserver<FriendRespon
 		String roomId = signal.getRoomId();
 		boolean audio = signal.getAudioEnabled();
 		boolean video = signal.getVideoEnabled();
+		String mode = signal.hasMetadata() ? signal.getMetadata() : "CREATE_MODE"; // Default: create
 		
-		System.out.printf("[WebRTC-Room] User %s joining room %s (audio=%b, video=%b)%n", 
-			username, roomId, audio, video);
+		System.out.printf("[WebRTC-Room] User %s joining room %s (mode=%s, audio=%b, video=%b)%n", 
+			username, roomId, mode, audio, video);
 		
-		// Get current participants before joining (for broadcasting)
+		// Get current room state
 		WebRTCSessionManager.RoomSession room = WebRTCSessionManager.getRoom(roomId);
-		List<String> existingParticipants = room != null ? room.getParticipantList() : new java.util.ArrayList<>();
+		boolean roomExists = (room != null);
 		
-		// Join room
+		// ===== VALIDATION: JOIN_MODE requires existing room =====
+		if ("JOIN_MODE".equals(mode) && !roomExists) {
+			System.err.printf("[WebRTC-Room] ❌ Room %s not found (JOIN_MODE)%n", roomId);
+			
+			// Send ROOM_ERROR
+			SafeRoomProto.WebRTCSignal errorSignal = SafeRoomProto.WebRTCSignal.newBuilder()
+				.setType(SafeRoomProto.WebRTCSignal.SignalType.ROOM_ERROR)
+				.setFrom("server")
+				.setTo(username)
+				.setRoomId(roomId)
+				.setMetadata("ROOM_NOT_FOUND")
+				.setTimestamp(System.currentTimeMillis())
+				.build();
+			
+			responseObserver.onNext(errorSignal);
+			System.out.printf("[WebRTC-Room] Sent ROOM_ERROR to %s: Room not found%n", username);
+			return;
+		}
+		
+		// ===== VALIDATION: Room capacity (max 4 participants for mesh) =====
+		if (roomExists) {
+			List<String> currentParticipants = room.getParticipantList();
+			if (currentParticipants.size() >= 4) {
+				System.err.printf("[WebRTC-Room] ❌ Room %s is full (%d/4 participants)%n", 
+					roomId, currentParticipants.size());
+				
+				// Send ROOM_ERROR
+				SafeRoomProto.WebRTCSignal errorSignal = SafeRoomProto.WebRTCSignal.newBuilder()
+					.setType(SafeRoomProto.WebRTCSignal.SignalType.ROOM_ERROR)
+					.setFrom("server")
+					.setTo(username)
+					.setRoomId(roomId)
+					.setMetadata("ROOM_FULL")
+					.setTimestamp(System.currentTimeMillis())
+					.build();
+				
+				responseObserver.onNext(errorSignal);
+				System.out.printf("[WebRTC-Room] Sent ROOM_ERROR to %s: Room full%n", username);
+				return;
+			}
+		}
+		
+		// ===== ROOM JOIN SUCCESS =====
+		// Get current participants before joining (for broadcasting)
+		List<String> existingParticipants = roomExists ? room.getParticipantList() : new java.util.ArrayList<>();
+		
+		// Join room (creates if doesn't exist in CREATE_MODE)
 		room = WebRTCSessionManager.joinRoom(roomId, username, audio, video);
+		
+		System.out.printf("[WebRTC-Room] ✅ User %s joined room %s (%d existing peers)%n", 
+			username, roomId, existingParticipants.size());
 		
 		// Send ROOM_JOINED confirmation with peer list to the new participant
 		SafeRoomProto.WebRTCSignal joinedSignal = SafeRoomProto.WebRTCSignal.newBuilder()

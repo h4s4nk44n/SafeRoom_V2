@@ -337,8 +337,8 @@ public class JoinMeetController {
                 boolean withCamera = cameraToggle.isSelected();
                 boolean withMic = micToggle.isSelected();
 
-                // Meeting controller'ı camera/mic durumlarıyla başlat
-                meetingController.initData(meetingToJoin, UserRole.USER, withCamera, withMic);
+                // Meeting controller'ı JOIN_MODE ile başlat (room validation)
+                meetingController.initData(meetingToJoin, UserRole.USER, withCamera, withMic, "JOIN_MODE");
 
                 // Ana controller'ın content area'sına meeting panel'i yükle
                 mainController.contentArea.getChildren().setAll(meetingRoot);
