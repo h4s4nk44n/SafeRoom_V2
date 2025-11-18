@@ -226,6 +226,10 @@ public class GroupCallManager {
         for (String peerUsername : peerList) {
             if (!peerUsername.equals(localUsername)) {
                 createPeerConnection(peerUsername, true); // true = we initiate offer
+                
+                if (onPeerJoinedCallback != null) {
+                    javafx.application.Platform.runLater(() -> onPeerJoinedCallback.onPeerJoined(peerUsername));
+                }
             }
         }
         

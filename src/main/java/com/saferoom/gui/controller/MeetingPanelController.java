@@ -233,8 +233,10 @@ public class MeetingPanelController {
                 System.out.printf("[MeetingPanel] Peer joined: %s%n", peerUsername);
                 
                 // ESKİ TASARIM: Add peer to participant list (camera OFF initially, will turn ON when track arrives)
-                Participant peer = new Participant(peerUsername, UserRole.USER, false, true);
-                currentMeeting.getParticipants().add(peer);
+                if (findParticipantByUsername(peerUsername) == null) {
+                    Participant peer = new Participant(peerUsername, UserRole.USER, false, true);
+                    currentMeeting.getParticipants().add(peer);
+                }
                 
                 updateParticipantsList();
                 updateVideoGrid();  // ESKİ TASARIM: Refresh grid (will show avatar placeholder)
