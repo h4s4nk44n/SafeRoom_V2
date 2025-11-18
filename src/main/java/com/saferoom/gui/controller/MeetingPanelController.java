@@ -8,6 +8,7 @@ import com.saferoom.gui.controller.strategy.UserRoleStrategy;
 import com.saferoom.gui.model.Meeting;
 import com.saferoom.gui.model.Participant;
 import com.saferoom.gui.model.UserRole;
+import com.saferoom.gui.utils.UserSession;
 import com.saferoom.gui.utils.WindowStateManager;
 import com.saferoom.webrtc.GroupCallManager;
 import com.saferoom.webrtc.WebRTCClient;
@@ -133,12 +134,10 @@ public class MeetingPanelController {
 
         if (userRole == UserRole.ADMIN) {
             this.roleStrategy = new AdminRoleStrategy();
-            // Constructor params: (name, role, cameraOn, muted)
-            this.currentUser = new Participant("Admin User (You)", UserRole.ADMIN, withCamera, !withMic);
+            this.currentUser = new Participant(resolveDisplayName("(You)"), UserRole.ADMIN, withCamera, !withMic);
         } else {
             this.roleStrategy = new UserRoleStrategy();
-            // Constructor params: (name, role, cameraOn, muted)
-            this.currentUser = new Participant("Standard User (You)", UserRole.USER, withCamera, !withMic);
+            this.currentUser = new Participant(resolveDisplayName("(You)"), UserRole.USER, withCamera, !withMic);
         }
 
         // ESKİ TASARIM: Keep participants list (real peers will be added/removed dynamically)
@@ -327,13 +326,30 @@ public class MeetingPanelController {
      * TODO: Replace with actual session management
      */
     private String getCurrentUsername() {
-        // For now, extract from currentUser name
-        // In production, get from SessionManager or AuthService
-        String name = currentUser.getName();
-        if (name.contains("(You)")) {
-            name = name.replace(" (You)", "").trim();
+        try {
+            String username = UserSession.getInstance().getDisplayName();
+            if (username != null && !username.isBlank() && !"Username".equalsIgnoreCase(username)) {
+                return username.trim();
+            }
+        } catch (Exception ignored) {}
+        
+        if (currentUser != null && currentUser.getName() != null) {
+            String fallback = currentUser.getName().replace(" (You)", "").trim();
+            if (!fallback.isEmpty()) {
+                return fallback;
+            }
         }
-        return name.isEmpty() ? "User-" + System.currentTimeMillis() : name;
+        return "user-" + System.currentTimeMillis();
+    }
+    
+    private String resolveDisplayName(String suffix) {
+        try {
+            String username = UserSession.getInstance().getDisplayName();
+            if (username != null && !username.isBlank() && !"Username".equalsIgnoreCase(username)) {
+                return suffix == null ? username : username + " " + suffix;
+            }
+        } catch (Exception ignored) {}
+        return suffix == null ? "User" : "User " + suffix;
     }
     
     /**
