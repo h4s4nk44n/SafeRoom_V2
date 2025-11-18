@@ -703,6 +703,177 @@
   -fx-effect: none; /* Gölgeyi kaldır */
 }
 
+/* =================================================================
+   USER INFO SIDEBAR (SAĞ PANEL - OVERLAY STİLİ)
+   ================================================================= */
+
+/* Panelin Ana Kutusu */
+.user-info-sidebar {
+  -fx-background-color: #0f172a; /* Uygulamanın ana arka plan rengi */
+
+  /* SOL TARAFA GÖLGE (Chat'ten ayrıştırmak için kritik) */
+  /* Bu gölge panelin chat'in 'üstünde' durduğu hissini verir */
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 25, 0.2, -5, 0);
+
+  /* Sola ince bir sınır çizgisi */
+  -fx-border-color: transparent transparent transparent #334155;
+  -fx-border-width: 0 0 0 1px;
+}
+
+/* Panelin Başlığı (Header) */
+.info-sidebar-header {
+  -fx-padding: 0 20px; /* İç boşluk */
+  -fx-pref-height: 80px; /* Ana Chat Header ile aynı yükseklik (Hizalama için) */
+  -fx-min-height: 80px;
+  -fx-border-color: transparent transparent #334155 transparent; /* Alt çizgi */
+  -fx-border-width: 0 0 1px 0;
+  -fx-alignment: center-left;
+}
+
+.info-sidebar-title {
+  -fx-text-fill: #e2e8f0;
+  -fx-font-size: 16px;
+  -fx-font-weight: 700;
+  -fx-font-family: "Segoe UI", sans-serif;
+}
+
+/* İçerik Kaydırma Alanı */
+.info-scroll-pane {
+  -fx-background-color: transparent;
+  -fx-background: transparent;
+  -fx-padding: 0;
+}
+.info-scroll-pane .viewport {
+  -fx-background-color: transparent;
+}
+
+/* İçerik Kutusu */
+.info-content {
+  -fx-padding: 30px 20px;
+  -fx-background-color: transparent;
+  -fx-spacing: 25px; /* Elemanlar arası boşluk */
+}
+
+/* --- PROFİL DETAYLARI --- */
+
+/* Büyük Avatar */
+.info-avatar-large {
+  /* Logo renkleri (Mor-Yeşil) */
+  -fx-background-color: linear-gradient(to bottom right, #7F5AF0, #2CB67D);
+  -fx-background-radius: 50%;
+
+  /* Boyutlar */
+  -fx-min-width: 100px;
+  -fx-min-height: 100px;
+  -fx-pref-width: 100px;
+  -fx-pref-height: 100px;
+
+  -fx-text-fill: white;
+  -fx-font-size: 36px;
+  -fx-font-weight: 800;
+  -fx-alignment: center;
+
+  /* Hafif parlama */
+  -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.4), 20, 0, 0, 5);
+}
+
+.info-name {
+  -fx-text-fill: white;
+  -fx-font-size: 22px;
+  -fx-font-weight: 700;
+  -fx-font-family: "Segoe UI", sans-serif;
+}
+
+.info-status {
+  -fx-text-fill: #94a3b8; /* Slate Gri */
+  -fx-font-size: 14px;
+  -fx-font-weight: 500;
+}
+
+/* --- YUVARLAK AKSİYON BUTONLARI (Ses, Video, Ara) --- */
+.action-item {
+  -fx-cursor: hand;
+}
+
+.action-circle-btn {
+  -fx-background-color: #1e293b; /* Koyu gri zemin */
+  -fx-background-radius: 50%;
+  -fx-min-width: 48px;
+  -fx-min-height: 48px;
+  -fx-max-width: 48px;
+  -fx-max-height: 48px;
+
+  -fx-border-color: #334155;
+  -fx-border-radius: 50%;
+  -fx-cursor: hand;
+  -fx-alignment: center;
+  -fx-padding: 0;
+}
+
+.action-circle-btn:hover {
+  -fx-background-color: #334155;
+  -fx-border-color: #7F5AF0; /* Üzerine gelince mor çerçeve */
+  -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.4), 10, 0, 0, 0);
+}
+
+.action-label {
+  -fx-text-fill: #94a3b8;
+  -fx-font-size: 12px;
+  -fx-font-weight: 600;
+}
+
+/* Ayırıcı Çizgi */
+.separator-line {
+  -fx-background-color: #334155;
+  -fx-min-height: 1px;
+  -fx-pref-height: 1px;
+  -fx-max-height: 1px;
+  -fx-opacity: 0.5;
+}
+
+/* Bölüm Başlıkları */
+.section-header-label {
+  -fx-text-fill: #94a3b8;
+  -fx-font-size: 13px;
+  -fx-font-weight: 700;
+  -fx-padding: 0 0 5px 0;
+}
+
+/* Medya Yer Tutucuları */
+.media-placeholder {
+  -fx-background-color: #1e293b;
+  -fx-background-radius: 12px;
+  -fx-pref-width: 80px;
+  -fx-pref-height: 80px;
+  -fx-border-color: #334155;
+  -fx-border-radius: 12px;
+  -fx-cursor: hand;
+}
+.media-placeholder:hover {
+  -fx-border-color: #7F5AF0;
+}
+
+/* Tehlikeli Butonlar (Engelle / Sil) */
+.danger-text-btn {
+  -fx-background-color: transparent;
+  -fx-text-fill: #ef4444; /* Kırmızı */
+  -fx-font-size: 14px;
+  -fx-font-weight: 600;
+  -fx-alignment: center-left;
+  -fx-cursor: hand;
+  -fx-padding: 12px 15px;
+  -fx-background-radius: 8px;
+}
+
+.danger-text-btn:hover {
+  -fx-background-color: rgba(239, 68, 68, 0.1); /* Hafif kırmızı zemin */
+}
+
+
+
+
+
+
 
 
 /* EMPTY STATE / WELCOME SCREEN */
