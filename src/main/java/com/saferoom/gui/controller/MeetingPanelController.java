@@ -1,7 +1,6 @@
 package com.saferoom.gui.controller;
 
 import com.jfoenix.controls.JFXButton;
-import com.saferoom.gui.MainApp;
 import com.saferoom.gui.components.VideoPanel;
 import com.saferoom.gui.controller.strategy.AdminRoleStrategy;
 import com.saferoom.gui.controller.strategy.MeetingRoleStrategy;
@@ -20,13 +19,11 @@ import javafx.animation.Timeline;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
@@ -37,10 +34,8 @@ import javafx.scene.layout.*;
 import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 public class MeetingPanelController {
 
@@ -87,8 +82,8 @@ public class MeetingPanelController {
     private WebRTCSignalingClient signalingClient;
     private String currentUsername;
     
-    // Video management: Participant → VideoPanel mapping (ESKİ TASARIM uyumlu)
-    private final Map<Participant, VideoPanel> videoPanelMap = new java.util.HashMap<>();
+    // Video management: participantName → VideoPanel cache (tek instance)
+    private final Map<String, VideoPanel> participantVideoPanels = new java.util.HashMap<>();
     private final Map<String, VideoTrack> remoteVideoTracks = new java.util.concurrent.ConcurrentHashMap<>();  // username → VideoTrack
 
     @FXML
@@ -262,10 +257,7 @@ public class MeetingPanelController {
                     currentMeeting.getParticipants().remove(removedPeer);
                     
                     // Cleanup video panel
-                    VideoPanel panel = videoPanelMap.remove(removedPeer);
-                    if (panel != null) {
-                        panel.dispose();
-                    }
+                    disposeVideoPanel(removedPeer.getName());
                     
                     // Remove video track
                     remoteVideoTracks.remove(peerUsername);
@@ -290,7 +282,10 @@ public class MeetingPanelController {
                     Participant peer = findParticipantByUsername(peerUsername);
                     if (peer != null) {
                         peer.setCameraOn(true);
-                        updateVideoGrid();  // ESKİ TASARIM: Refresh grid (will show video now)
+                        boolean attached = attachTrackIfPanelReady(peer.getName(), (VideoTrack) track);
+                        if (!attached) {
+                            updateVideoGrid();  // Panel henüz yoksa grid'i güncelle
+                        }
                     }
                 }
             });
@@ -678,27 +673,29 @@ public class MeetingPanelController {
         StackPane tile = new StackPane();
         tile.getStyleClass().add("video-tile");
         
+        String participantName = participant.getName();
+
         // Camera OFF: Avatar göster (ESKİ TASARIM)
         if (!participant.isCameraOn()) {
-            Label avatarLabel = new Label(participant.getName().substring(0, 1));
+            detachPanelTrack(participantName);
+            
+            Label avatarLabel = new Label(participantName.substring(0, 1));
             avatarLabel.getStyleClass().add("video-tile-avatar-label");
             tile.getChildren().add(avatarLabel);
         } else {
-            // Camera ON: VideoPanel ekle (YENİ)
-            VideoPanel videoPanel = new VideoPanel(320, 240);
-            videoPanel.widthProperty().bind(tile.widthProperty());
-            videoPanel.heightProperty().bind(tile.heightProperty());
+            // Camera ON: VideoPanel ekle (YENİ) — cache kullan
+            VideoPanel videoPanel = getOrCreateVideoPanel(participantName);
+            mountVideoPanel(videoPanel, tile);
             
             // Attach video track if available
             VideoTrack track = getVideoTrackForParticipant(participant);
             if (track != null) {
                 videoPanel.attachVideoTrack(track);
+            } else {
+                videoPanel.detachVideoTrack();
             }
             
             tile.getChildren().add(videoPanel);
-            
-            // Store VideoPanel reference for cleanup
-            videoPanelMap.put(participant, videoPanel);
         }
         
         // ESKİ TASARIM: Name tag overlay (DEĞİŞMEDİ)
@@ -741,12 +738,54 @@ public class MeetingPanelController {
      * Dispose all video panels (cleanup)
      */
     private void disposeAllVideoPanels() {
-        for (VideoPanel panel : videoPanelMap.values()) {
+        for (VideoPanel panel : participantVideoPanels.values()) {
             if (panel != null) {
                 panel.dispose();
             }
         }
-        videoPanelMap.clear();
+        participantVideoPanels.clear();
+    }
+
+    private VideoPanel getOrCreateVideoPanel(String participantName) {
+        return participantVideoPanels.computeIfAbsent(participantName, name -> new VideoPanel(320, 240));
+    }
+
+    private void mountVideoPanel(VideoPanel panel, StackPane container) {
+        Parent parent = panel.getParent();
+        if (parent instanceof Pane) {
+            ((Pane) parent).getChildren().remove(panel);
+        }
+        panel.widthProperty().unbind();
+        panel.heightProperty().unbind();
+        panel.widthProperty().bind(container.widthProperty());
+        panel.heightProperty().bind(container.heightProperty());
+    }
+
+    private void detachPanelTrack(String participantName) {
+        VideoPanel panel = participantVideoPanels.get(participantName);
+        if (panel != null) {
+            panel.detachVideoTrack();
+        }
+    }
+
+    private void disposeVideoPanel(String participantName) {
+        VideoPanel panel = participantVideoPanels.remove(participantName);
+        if (panel != null) {
+            panel.dispose();
+            Parent parent = panel.getParent();
+            if (parent instanceof Pane) {
+                ((Pane) parent).getChildren().remove(panel);
+            }
+        }
+    }
+
+    private boolean attachTrackIfPanelReady(String participantName, VideoTrack track) {
+        VideoPanel panel = participantVideoPanels.get(participantName);
+        if (panel != null) {
+            panel.attachVideoTrack(track);
+            return true;
+        }
+        return false;
     }
 
     @FXML

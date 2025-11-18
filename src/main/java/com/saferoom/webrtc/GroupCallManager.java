@@ -1,7 +1,6 @@
 package com.saferoom.webrtc;
 
 import com.saferoom.grpc.SafeRoomProto.WebRTCSignal;
-import dev.onvoid.webrtc.RTCIceCandidate;
 import dev.onvoid.webrtc.media.MediaStreamTrack;
 import dev.onvoid.webrtc.media.video.VideoTrack;
 
@@ -582,42 +581,11 @@ public class GroupCallManager {
         try {
             System.out.println("[GroupCallManager] Creating local video track for preview...");
             
-            // Get PeerConnectionFactory from WebRTCClient
-            dev.onvoid.webrtc.PeerConnectionFactory factory = WebRTCClient.getFactory();
-            if (factory == null) {
-                System.err.println("[GroupCallManager] Factory not available");
-                return;
-            }
+            CameraCaptureService.CameraCaptureResource resource =
+                CameraCaptureService.createCameraTrack("group_local_video");
             
-            // Get list of available cameras
-            java.util.List<dev.onvoid.webrtc.media.video.VideoDevice> cameras = 
-                dev.onvoid.webrtc.media.MediaDevices.getVideoCaptureDevices();
-            if (cameras.isEmpty()) {
-                System.err.println("[GroupCallManager] No cameras found!");
-                return;
-            }
-            
-            // Use first available camera
-            dev.onvoid.webrtc.media.video.VideoDevice camera = cameras.get(0);
-            System.out.println("[GroupCallManager] Using camera: " + camera.getName());
-            
-            // Create video source
-            localVideoSource = new dev.onvoid.webrtc.media.video.VideoDeviceSource();
-            localVideoSource.setVideoCaptureDevice(camera);
-            
-            // Set capability
-            dev.onvoid.webrtc.media.video.VideoCaptureCapability capability = 
-                new dev.onvoid.webrtc.media.video.VideoCaptureCapability(640, 480, 30);
-            localVideoSource.setVideoCaptureCapability(capability);
-            
-            // Create video track
-            localVideoTrack = factory.createVideoTrack("local_video", localVideoSource);
-            
-            // CRITICAL: Enable video track (tracks are disabled by default)
-            localVideoTrack.setEnabled(true);
-            
-            // Start capturing
-            localVideoSource.start();
+            localVideoSource = resource.getSource();
+            localVideoTrack = resource.getTrack();
             
             System.out.println("[GroupCallManager] ✅ Local video track created, enabled, and started");
             

@@ -1747,7 +1747,7 @@
   -fx-background-color: #dc2626;
 }
 .video-tile {
-  -fx-background-color: #0f172a;
+  -fx-background-color: transparent;
   -fx-background-radius: 12px;
   -fx-alignment: center;
 }
@@ -1757,7 +1757,7 @@
   -fx-text-fill: #475569;
 }
 .video-tile-nametag {
-  -fx-background-color: rgba(0, 0, 0, 0.5);
+  -fx-background-color: transparent;
   -fx-background-radius: 6px;
   -fx-padding: 4px 8px;
 }

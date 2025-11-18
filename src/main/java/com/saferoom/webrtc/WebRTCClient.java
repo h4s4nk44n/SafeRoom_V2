@@ -550,17 +550,6 @@ public class WebRTCClient {
         try {
             System.out.println("[WebRTC] Adding video track with optimized settings...");
             
-            // Get list of available cameras
-            List<VideoDevice> cameras = MediaDevices.getVideoCaptureDevices();
-            if (cameras.isEmpty()) {
-                System.err.println("[WebRTC] No cameras found!");
-                return;
-            }
-            
-            // Use first available camera (usually default)
-            VideoDevice camera = cameras.get(0);
-            System.out.println("[WebRTC] Selected camera: " + camera.getName());
-            
             // ===== FIX: Cleanup existing video source first (MacOS freeze fix) =====
             if (this.videoSource != null) {
                 System.out.println("[WebRTC] Cleaning up existing video source...");
@@ -574,26 +563,17 @@ public class WebRTCClient {
             }
             
             // ===== VIDEO SOURCE WITH OPTIMIZED SETTINGS =====
-            this.videoSource = new VideoDeviceSource();
-            videoSource.setVideoCaptureDevice(camera);
+            CameraCaptureService.CameraCaptureResource resource =
+                CameraCaptureService.createCameraTrack("video0");
             
-            // FIX: Set explicit capability to avoid format detection issues on MacOS
-            VideoCaptureCapability capability = new VideoCaptureCapability(640, 480, 30);
-            videoSource.setVideoCaptureCapability(capability);
-            System.out.println("[WebRTC] Video capability set: 640x480@30fps (MacOS compatible)");
+            this.videoSource = resource.getSource();
+            VideoTrack videoTrack = resource.getTrack();
             
-            // Create video track
-            VideoTrack videoTrack = factory.createVideoTrack("video0", videoSource);
-            
-            // Start capturing (GPU encoding automatically enabled by WebRTC)
-            videoSource.start();
-            System.out.println("[WebRTC] Camera capture started successfully");
-            
-            // Add track to peer connection with stream ID and store sender
+            // Add track to peer connection with stream ID ve sender referansı
             videoSender = peerConnection.addTrack(videoTrack, List.of("stream1"));
             
             System.out.println("[WebRTC] ✅ Video track added with optimized settings:");
-            System.out.println("  ├─ Resolution: 640x480 (MacOS stable)");
+            System.out.println("  ├─ Resolution: 640x480 (CameraCaptureService)");
             System.out.println("  ├─ Frame rate: 30 FPS (smooth playback)");
             System.out.println("  ├─ Codec: H.264/VP8/VP9 (negotiated via SDP)");
             System.out.println("  └─ Hardware encoding: AUTO-DETECTED by WebRTC");
