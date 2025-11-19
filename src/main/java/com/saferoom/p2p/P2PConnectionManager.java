@@ -7,11 +7,15 @@ import com.saferoom.grpc.SafeRoomProto.WebRTCSignal.SignalType;
 import dev.onvoid.webrtc.*;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 /**
  * P2P Connection Manager for WebRTC-based messaging/file transfer
@@ -29,6 +33,13 @@ import java.util.ArrayList;
 public class P2PConnectionManager {
     
     private static P2PConnectionManager instance;
+    
+    private static final String FILE_CTRL_PREFIX = "__FT_CTRL__";
+    private static final String CTRL_UR_RECEIVER = "UR_RECEIVER";
+    private static final String CTRL_OK_SNDFILE = "OK_SNDFILE";
+    private static final Base64.Encoder BASE64_ENCODER = Base64.getUrlEncoder().withoutPadding();
+    private static final Base64.Decoder BASE64_DECODER = Base64.getUrlDecoder();
+    private static final long RECEIVER_READY_TIMEOUT_SEC = 30;
     
     private String myUsername;
     private WebRTCSignalingClient signalingClient;
@@ -425,12 +436,31 @@ public class P2PConnectionManager {
         }
         
         if (connection.fileTransfer == null) {
+            connection.initializeFileTransfer();
+        }
+        if (connection.fileTransfer == null) {
             System.err.printf("[P2P] File transfer not initialized for %s%n", targetUsername);
             return CompletableFuture.completedFuture(false);
         }
         
-        // Use DataChannelFileTransfer (which uses ORIGINAL EnhancedFileTransferSender!)
-        return connection.fileTransfer.sendFile(targetUsername, filePath);
+        try {
+            long fileSize = Files.size(filePath);
+            long fileId = System.currentTimeMillis();
+            
+            CompletableFuture<Void> readyFuture = connection.fileTransfer.awaitReceiverReady(fileId);
+            connection.sendControlMessage(connection.buildUrReceiverControl(
+                fileId, fileSize, filePath.getFileName().toString()));
+            
+            return readyFuture.orTimeout(RECEIVER_READY_TIMEOUT_SEC, TimeUnit.SECONDS)
+                .thenCompose(v -> connection.fileTransfer.sendFile(filePath, fileId))
+                .exceptionally(ex -> {
+                    System.err.printf("[P2P] File transfer failed: %s%n", ex.getMessage());
+                    return false;
+                });
+        } catch (Exception e) {
+            System.err.printf("[P2P] Error preparing file transfer: %s%n", e.getMessage());
+            return CompletableFuture.completedFuture(false);
+        }
     }
     
     /**
@@ -634,9 +664,13 @@ public class P2PConnectionManager {
             // Set callback for completed messages
             reliableMessaging.setCompletionCallback((sender, messageId, messageBytes) -> {
                 try {
-                    String messageText = new String(messageBytes, "UTF-8");
+                    String messageText = new String(messageBytes, StandardCharsets.UTF_8);
                     System.out.printf("[P2P] Reliable message complete from %s: %s%n", 
                         remoteUsername, messageText);
+                    
+                    if (handleFileTransferControl(messageText)) {
+                        return;
+                    }
                     
                     // Forward to ChatService
                     javafx.application.Platform.runLater(() -> {
@@ -730,6 +764,77 @@ public class P2PConnectionManager {
                 
             } catch (Exception e) {
                 System.err.println("[P2P] Error handling DataChannel message: " + e.getMessage());
+            }
+        }
+        
+        private boolean handleFileTransferControl(String messageText) {
+            if (!messageText.startsWith(FILE_CTRL_PREFIX)) {
+                return false;
+            }
+            
+            String[] parts = messageText.split("\\|");
+            if (parts.length < 3) {
+                return true;
+            }
+            
+            String type = parts[1];
+            if (CTRL_UR_RECEIVER.equals(type)) {
+                if (parts.length < 5) {
+                    return true;
+                }
+                
+                long fileId = parseLongSafe(parts[2]);
+                String fileName = decodeFileName(parts[4]);
+                
+                if (fileTransfer == null) {
+                    initializeFileTransfer();
+                }
+                
+                if (fileTransfer != null) {
+                    fileTransfer.prepareIncomingFile(fileId, fileName);
+                    fileTransfer.startPreparedReceiver(fileId);
+                    sendControlMessage(buildOkControl(fileId));
+                }
+            } else if (CTRL_OK_SNDFILE.equals(type)) {
+                long fileId = parseLongSafe(parts[2]);
+                if (fileTransfer != null) {
+                    fileTransfer.markReceiverReady(fileId);
+                }
+            }
+            
+            return true;
+        }
+        
+        private void sendControlMessage(String payload) {
+            if (reliableMessaging == null) {
+                System.err.println("[P2P] Reliable messaging not ready for control message");
+                return;
+            }
+            reliableMessaging.sendMessage(remoteUsername, payload);
+        }
+        
+        private String buildUrReceiverControl(long fileId, long fileSize, String fileName) {
+            String encodedName = BASE64_ENCODER.encodeToString(fileName.getBytes(StandardCharsets.UTF_8));
+            return FILE_CTRL_PREFIX + "|" + CTRL_UR_RECEIVER + "|" + fileId + "|" + fileSize + "|" + encodedName;
+        }
+        
+        private String buildOkControl(long fileId) {
+            return FILE_CTRL_PREFIX + "|" + CTRL_OK_SNDFILE + "|" + fileId;
+        }
+        
+        private long parseLongSafe(String value) {
+            try {
+                return Long.parseLong(value);
+            } catch (NumberFormatException ex) {
+                return 0L;
+            }
+        }
+        
+        private String decodeFileName(String encoded) {
+            try {
+                return new String(BASE64_DECODER.decode(encoded), StandardCharsets.UTF_8);
+            } catch (IllegalArgumentException ex) {
+                return "file.bin";
             }
         }
         
