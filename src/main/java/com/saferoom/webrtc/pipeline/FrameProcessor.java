@@ -24,6 +24,7 @@ public final class FrameProcessor implements AutoCloseable {
 
     private final BlockingQueue<VideoFrame> queue;
     private final AtomicBoolean running = new AtomicBoolean(true);
+    private final AtomicBoolean paused = new AtomicBoolean(false);
     private final Consumer<FrameRenderResult> consumer;
     private final Thread workerThread;
 
@@ -44,6 +45,9 @@ public final class FrameProcessor implements AutoCloseable {
         if (!running.get() || frame == null) {
             return;
         }
+        if (paused.get()) {
+            return;
+        }
         frame.retain();
         if (!queue.offer(frame)) {
             VideoFrame dropped = queue.poll();
@@ -59,6 +63,10 @@ public final class FrameProcessor implements AutoCloseable {
             try {
                 VideoFrame frame = queue.poll(POLL_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
                 if (frame == null) {
+                    continue;
+                }
+                if (paused.get()) {
+                    frame.release();
                     continue;
                 }
                 try {
@@ -109,6 +117,14 @@ public final class FrameProcessor implements AutoCloseable {
         running.set(false);
         workerThread.interrupt();
         drainQueue();
+    }
+
+    public void pause() {
+        paused.set(true);
+    }
+
+    public void resume() {
+        paused.set(false);
     }
 }
 

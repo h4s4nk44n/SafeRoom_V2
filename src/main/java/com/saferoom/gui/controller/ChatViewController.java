@@ -28,7 +28,6 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-import org.kordamp.ikonli.javafx.FontIcon; // FontIcon hala dialog'daki "x" için gerekli
 
 import java.io.File;
 import java.nio.file.Path;
@@ -463,14 +462,6 @@ public class ChatViewController {
                 if (currentIncomingDialog != null) { currentIncomingDialog.close(); currentIncomingDialog = null; }
                 if (currentActiveCallDialog != null) { currentActiveCallDialog.close(); currentActiveCallDialog = null; }
                 currentCallVideoEnabled = false;
-            });
-        });
-
-        callManager.setOnRemoteTrackCallback(track -> {
-            Platform.runLater(() -> {
-                if (track instanceof VideoTrack && currentActiveCallDialog != null) {
-                    currentActiveCallDialog.attachRemoteVideo((VideoTrack) track);
-                }
             });
         });
 

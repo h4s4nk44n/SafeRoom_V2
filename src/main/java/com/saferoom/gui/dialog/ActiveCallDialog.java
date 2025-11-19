@@ -2,7 +2,6 @@ package com.saferoom.gui.dialog;
 
 import com.saferoom.gui.components.VideoPanel;
 import com.saferoom.webrtc.CallManager;
-import dev.onvoid.webrtc.media.MediaStreamTrack;
 import dev.onvoid.webrtc.media.video.VideoTrack;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -124,6 +123,8 @@ public class ActiveCallDialog {
         remoteScreenPanel.heightProperty().bind(videoArea.heightProperty());
         remoteScreenPanel.setVisible(false);
         remoteScreenPanel.setManaged(false);
+        remoteScreenPanel.pauseRendering();
+        remoteScreenPanel.pauseRendering();
         
         // Local video preview (small, bottom-right corner) - Canvas for local camera
         if (videoEnabled) {
@@ -330,6 +331,11 @@ public class ActiveCallDialog {
         // Update local preview visibility
         if (localVideoPanel != null) {
             localVideoPanel.setVisible(isCameraOn);
+            if (isCameraOn) {
+                localVideoPanel.resumeRendering();
+            } else {
+                localVideoPanel.pauseRendering();
+            }
         }
         
         System.out.printf("[ActiveCallDialog] Camera %s%n", isCameraOn ? "enabled" : "disabled");
@@ -736,6 +742,11 @@ public class ActiveCallDialog {
             
             // Attach new track (will show camera or screen share depending on sender)
             remoteVideoPanel.attachVideoTrack(track);
+            if (isShowingScreen) {
+                remoteVideoPanel.pauseRendering();
+            } else {
+                remoteVideoPanel.resumeRendering();
+            }
             
             System.out.printf("[ActiveCallDialog] ✅ Video track attached: %s%n", trackId);
         }
@@ -765,9 +776,11 @@ public class ActiveCallDialog {
         
         remoteVideoPanel.setVisible(false);
         remoteVideoPanel.setManaged(false);
+        remoteVideoPanel.pauseRendering();
         
         remoteScreenPanel.setVisible(true);
         remoteScreenPanel.setManaged(true);
+        remoteScreenPanel.resumeRendering();
         
         isShowingScreen = true;
         
@@ -787,9 +800,11 @@ public class ActiveCallDialog {
         
         remoteScreenPanel.setVisible(false);
         remoteScreenPanel.setManaged(false);
+        remoteScreenPanel.pauseRendering();
         
         remoteVideoPanel.setVisible(true);
         remoteVideoPanel.setManaged(true);
+        remoteVideoPanel.resumeRendering();
         
         isShowingScreen = false;
         
@@ -840,6 +855,11 @@ public class ActiveCallDialog {
             // Detach screen track
             if (remoteScreenPanel != null) {
                 remoteScreenPanel.detachVideoTrack();
+                remoteScreenPanel.pauseRendering();
+            }
+            
+            if (remoteVideoPanel != null) {
+                remoteVideoPanel.resumeRendering();
             }
         });
     }
@@ -881,6 +901,7 @@ public class ActiveCallDialog {
     public void close() {
         stopDurationTimer();
         detachVideoTracks(); // Clean up video resources
+        callManager.setOnRemoteTrackCallback(null);
         if (stage.isShowing()) {
             stage.close();
         }

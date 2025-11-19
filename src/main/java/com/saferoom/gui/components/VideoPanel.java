@@ -34,6 +34,7 @@ public class VideoPanel extends Canvas {
     private FrameProcessor frameProcessor;
     private boolean isActive = false;
     private boolean animationRunning = false;
+    private volatile boolean renderingPaused = false;
     
     /**
      * Constructor
@@ -46,7 +47,7 @@ public class VideoPanel extends Canvas {
         this.animationTimer = new AnimationTimer() {
             @Override
             public void handle(long now) {
-                if (!isActive) {
+                if (!isActive || renderingPaused) {
                     return;
                 }
                 FrameRenderResult frame = latestFrame.getAndSet(null);
@@ -72,7 +73,7 @@ public class VideoPanel extends Canvas {
         System.out.println("[VideoPanel] Attaching video track: " + track.getId());
         
         detachVideoTrack();
-        
+        this.renderingPaused = false;
         this.videoTrack = track;
         this.isActive = true;
 
@@ -94,6 +95,7 @@ public class VideoPanel extends Canvas {
      */
     public void detachVideoTrack() {
         stopAnimation();
+        renderingPaused = false;
         
         if (videoTrack != null && videoSink != null) {
             try {
@@ -192,6 +194,21 @@ public class VideoPanel extends Canvas {
     public void dispose() {
         detachVideoTrack();
         videoImage = null;
+    }
+
+    public void pauseRendering() {
+        renderingPaused = true;
+        latestFrame.set(null);
+        if (frameProcessor != null) {
+            frameProcessor.pause();
+        }
+    }
+
+    public void resumeRendering() {
+        renderingPaused = false;
+        if (frameProcessor != null) {
+            frameProcessor.resume();
+        }
     }
 
     private void startAnimation() {
