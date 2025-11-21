@@ -17,7 +17,7 @@
 
     <VBox spacing="0" StackPane.alignment="TOP_CENTER">
         <padding>
-            <Insets bottom="20" left="20" right="20" top="20" />
+            <Insets bottom="0" left="5" right="5" top="10" />
         </padding>
 
         <!-- HEADER: Title + Stats -->
@@ -114,23 +114,35 @@
             </VBox.margin>
         </HBox>
 
-        <!-- FRIENDS LIST CONTAINER -->
-        <VBox fx:id="friendsContainer"
-              spacing="0"
-              styleClass="friends-list-modern-container"
-              VBox.vgrow="ALWAYS" />
+        <!-- FRIENDS LIST HEADER -->
+        <Label fx:id="listHeaderLabel"
+               text="ALL FRIENDS — 0"
+               styleClass="friends-list-header-modern">
+            <VBox.margin>
+                <Insets bottom="8" />
+            </VBox.margin>
+        </Label>
+
+        <!-- OPTIMIZED LISTVIEW - VIRTUALIZED -->
+        <ListView fx:id="friendsListView"
+                  styleClass="friends-list-view-optimized"
+                  VBox.vgrow="ALWAYS">
+            <VBox.margin>
+                <Insets top="0"/>
+            </VBox.margin>
+        </ListView>
 
     </VBox>
 
     <!-- SEARCH RESULTS DROPDOWN -->
     <ListView fx:id="searchResultsList"
               visible="false"
-              prefHeight="50"
+              prefHeight="80"
               styleClass="friends-search-results"
               maxHeight="300"
               StackPane.alignment="TOP_CENTER">
         <StackPane.margin>
-            <Insets top="140" left="20" right="20" />
+            <Insets top="170" left="20" right="20" />
         </StackPane.margin>
     </ListView>
 
