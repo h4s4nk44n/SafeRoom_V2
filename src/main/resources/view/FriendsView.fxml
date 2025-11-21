@@ -15,52 +15,122 @@
            xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="com.saferoom.gui.controller.FriendsController">
 
-    <VBox spacing="0.0" StackPane.alignment="TOP_CENTER">
+    <VBox spacing="0" StackPane.alignment="TOP_CENTER">
         <padding>
-            <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+            <Insets bottom="20" left="20" right="20" top="20" />
         </padding>
 
-        <children>
-            <HBox spacing="12.0" alignment="CENTER_LEFT"  styleClass="add-friend-section">
-                <children>
-                    <TextField fx:id="searchField" promptText="Search users..." styleClass="search-field-compact" HBox.hgrow="ALWAYS" />
-                    <JFXButton fx:id="addFriendButton" styleClass="add-friend-button" prefWidth="120" prefHeight="44">
-                        <graphic>
-                            <HBox spacing="8.0" alignment="CENTER">
-                                <FontIcon iconLiteral="fas-user-plus" styleClass="add-friend-icon" />
-                                <Label text="Add Friend" style="-fx-text-fill: white; -fx-font-size: 14px;" />
-                            </HBox>
-                        </graphic>
-                    </JFXButton>
-                </children>
-                <VBox.margin>
-                    <Insets bottom="15.0" />
-                </VBox.margin>
+        <!-- HEADER: Title + Stats -->
+        <HBox styleClass="friends-modern-header" spacing="20" alignment="CENTER_LEFT">
+            <VBox spacing="4" HBox.hgrow="ALWAYS">
+                <Label text="Friends" styleClass="friends-main-title" />
+                <Label text="Connect with your network" styleClass="friends-subtitle-text" />
+            </VBox>
+
+            <!-- Stats Cards -->
+            <HBox spacing="12" styleClass="friends-stats-compact">
+                <VBox styleClass="stat-card-mini" alignment="CENTER" spacing="2">
+                    <Label text="0" fx:id="onlineCountLabel" styleClass="stat-mini-number" />
+                    <Label text="Online" styleClass="stat-mini-label" />
+                </VBox>
+
+                <VBox styleClass="stat-card-mini" alignment="CENTER" spacing="2">
+                    <Label text="0" fx:id="totalCountLabel" styleClass="stat-mini-number" />
+                    <Label text="Total" styleClass="stat-mini-label" />
+                </VBox>
+
+                <VBox styleClass="stat-card-mini" alignment="CENTER" spacing="2">
+                    <Label text="0" fx:id="pendingCountLabel" styleClass="stat-mini-number" />
+                    <Label text="Pending" styleClass="stat-mini-label" />
+                </VBox>
             </HBox>
 
+            <VBox.margin>
+                <Insets bottom="20" />
+            </VBox.margin>
+        </HBox>
 
+        <!-- SEARCH + ADD FRIEND -->
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="friends-action-bar">
+            <TextField fx:id="searchField"
+                       promptText="Search friends..."
+                       styleClass="friends-search-input"
+                       HBox.hgrow="ALWAYS" />
 
+            <JFXButton fx:id="addFriendButton" styleClass="friends-add-btn">
+                <graphic>
+                    <HBox spacing="8" alignment="CENTER">
+                        <FontIcon iconLiteral="fas-user-plus" styleClass="add-friend-icon-modern" />
+                        <Label text="Add Friend" styleClass="add-friend-text-modern" />
+                    </HBox>
+                </graphic>
+            </JFXButton>
 
-            <HBox fx:id="filterBar" styleClass="filter-tabs" spacing="30.0" alignment="CENTER_LEFT">
-                <children>
-                    <JFXButton fx:id="onlineFilterButton" styleClass="filter-tab" text="Online" />
-                    <JFXButton fx:id="allFilterButton" styleClass="filter-tab" text="All Friends" />
-                    <JFXButton fx:id="pendingFilterButton" styleClass="filter-tab" text="Pending" />
-                    <JFXButton fx:id="blockedFilterButton" styleClass="filter-tab" text="Blocked" />
-                </children>
-                <VBox.margin>
-                    <Insets bottom="15.0" />
-                </VBox.margin>
-            </HBox>
+            <VBox.margin>
+                <Insets bottom="16" />
+            </VBox.margin>
+        </HBox>
 
-            <VBox fx:id="friendsContainer" spacing="6.0" styleClass="friends-list-container" VBox.vgrow="ALWAYS" />
+        <!-- FILTER TABS -->
+        <HBox fx:id="filterBar" styleClass="friends-filter-bar-modern" spacing="8" alignment="CENTER_LEFT">
+            <JFXButton fx:id="onlineFilterButton" styleClass="filter-pill-button">
+                <graphic>
+                    <HBox spacing="6" alignment="CENTER">
+                        <FontIcon iconLiteral="fas-circle" styleClass="filter-icon-online" />
+                        <Label text="Online" styleClass="filter-pill-text" />
+                    </HBox>
+                </graphic>
+            </JFXButton>
 
-        </children>
+            <JFXButton fx:id="allFilterButton" styleClass="filter-pill-button">
+                <graphic>
+                    <HBox spacing="6" alignment="CENTER">
+                        <FontIcon iconLiteral="fas-users" styleClass="filter-icon" />
+                        <Label text="All Friends" styleClass="filter-pill-text" />
+                    </HBox>
+                </graphic>
+            </JFXButton>
+
+            <JFXButton fx:id="pendingFilterButton" styleClass="filter-pill-button">
+                <graphic>
+                    <HBox spacing="6" alignment="CENTER">
+                        <FontIcon iconLiteral="fas-clock" styleClass="filter-icon-pending" />
+                        <Label text="Pending" styleClass="filter-pill-text" />
+                    </HBox>
+                </graphic>
+            </JFXButton>
+
+            <JFXButton fx:id="blockedFilterButton" styleClass="filter-pill-button">
+                <graphic>
+                    <HBox spacing="6" alignment="CENTER">
+                        <FontIcon iconLiteral="fas-ban" styleClass="filter-icon-blocked" />
+                        <Label text="Blocked" styleClass="filter-pill-text" />
+                    </HBox>
+                </graphic>
+            </JFXButton>
+
+            <VBox.margin>
+                <Insets bottom="16" />
+            </VBox.margin>
+        </HBox>
+
+        <!-- FRIENDS LIST CONTAINER -->
+        <VBox fx:id="friendsContainer"
+              spacing="0"
+              styleClass="friends-list-modern-container"
+              VBox.vgrow="ALWAYS" />
+
     </VBox>
 
-    <ListView fx:id="searchResultsList" visible="false" prefHeight="50" styleClass="search-results-list" maxHeight="200" StackPane.alignment="TOP_CENTER">
+    <!-- SEARCH RESULTS DROPDOWN -->
+    <ListView fx:id="searchResultsList"
+              visible="false"
+              prefHeight="50"
+              styleClass="friends-search-results"
+              maxHeight="300"
+              StackPane.alignment="TOP_CENTER">
         <StackPane.margin>
-            <Insets top="55.0" left="20.0" right="20.0" />
+            <Insets top="140" left="20" right="20" />
         </StackPane.margin>
     </ListView>
 
