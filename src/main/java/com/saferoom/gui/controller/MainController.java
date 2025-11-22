@@ -154,7 +154,7 @@ public class MainController {
         setUserStatus(UserStatus.ONLINE);
 
         if (userAvatar != null) {
-            userAvatar.setText("U");
+            userAvatar.setText(getCurrentUserInitials());
         }
 
         // Initialize WebRTC

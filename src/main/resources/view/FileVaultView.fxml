@@ -27,12 +27,12 @@
                 <Label styleClass="section-title" text="Your Encrypted Files" />
 
                 <!-- DÜZELTME: Filtreleme çubuğu sola hizalandı -->
-                <HBox fx:id="fileFilterBar" styleClass="filter-bar" spacing="10.0">
+                <HBox fx:id="fileFilterBar" styleClass="file-filter-bar" spacing="10.0">
                     <children>
-                        <JFXButton text="All" styleClass="filter-button" />
-                        <JFXButton text="Documents" styleClass="filter-button" />
-                        <JFXButton text="Images" styleClass="filter-button" />
-                        <JFXButton text="Archives" styleClass="filter-button" />
+                        <JFXButton text="All" styleClass="file-filter-button" />
+                        <JFXButton text="Documents" styleClass="file-filter-button" />
+                        <JFXButton text="Images" styleClass="file-filter-button" />
+                        <JFXButton text="Archives" styleClass="file-filter-button" />
                     </children>
                 </HBox>
 

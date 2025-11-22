@@ -27,11 +27,11 @@
                         <Insets left="25.0" right="25.0" />
                     </padding>
                     <children>
-                        <Label fx:id="chatPartnerAvatar" styleClass="chat-header-avatar" text="A"/>
+                        <Label fx:id="chatPartnerAvatar" styleClass="chat-header-avatar" text="A" onMouseClicked="#handleUserInfoToggle"/>
 
                         <VBox alignment="CENTER_LEFT" spacing="2.0">
                             <children>
-                                <Label fx:id="chatPartnerName" styleClass="chat-header-name" text="Username" />
+                                <Label fx:id="chatPartnerName" styleClass="chat-header-name" text="Username" onMouseClicked="#handleUserInfoToggle"/>
                                 <Label fx:id="chatPartnerStatus" styleClass="chat-header-status" text="Offline" />
                             </children>
                         </VBox>
@@ -62,13 +62,14 @@
             <center>
                 <StackPane fx:id="chatContentArea">
                     <children>
+                        
                         <ListView fx:id="messageListView" styleClass="message-list-view" visible="false" managed="false" />
 
                         <VBox fx:id="noMessagesPlaceholder" alignment="CENTER" spacing="10.0" visible="false" managed="false">
                             <children>
                                 <StackPane>
                                     <children>
-                                        <javafx.scene.shape.Circle radius="50.0" styleClass="chat-empty-glow-simple" />
+                                        <Circle radius="50.0" styleClass="chat-empty-glow-simple" />
                                         <FontIcon iconLiteral="fas-comment-alt" styleClass="chat-empty-icon-sharp" />
                                     </children>
                                     <VBox.margin>
@@ -130,7 +131,7 @@
                         <Insets top="15" bottom="15" left="20" right="20"/>
                     </padding>
                     <children>
-                        <Button fx:id="attachmentButton" mnemonicParsing="false" onAction="#handleAttachmentClick" styleClass="icon-button">
+                        <Button fx:id="attachmentButton" mnemonicParsing="false" onAction="#handleAttachmentMenu" styleClass="icon-button">
                             <graphic>
                                 <FontIcon iconLiteral="fas-plus" styleClass="input-area-icon" />
                             </graphic>

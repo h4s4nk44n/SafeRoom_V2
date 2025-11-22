@@ -416,7 +416,7 @@
    4. DASHBOARD
    ================================================================= */
 .welcome-banner {
-  -fx-background-color: #0f172a;
+  -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, rgba(15, 23, 42, 1.0) 0%, rgba(30, 43, 59, 0.95) 100%);
   -fx-background-radius: 20px;
   -fx-padding: 32px;
   -fx-border-color: #334155;
@@ -662,7 +662,7 @@
 }
 .message-list-view {
   -fx-background-color: transparent;
-  -fx-padding: 24px;
+  -fx-padding: 0px 5px 0px 24px;
 }
 .message-list-view .list-cell {
   -fx-padding: 4px 0;
@@ -871,7 +871,50 @@
 
 
 
+/* =================================================================
+   CHAT CONTEXT MENU STYLES (FINAL OVERRIDE)
+   ================================================================= */
 
+/* 1. İKON RENGİNİN BEYAZ OLMASINI ZORLA */
+/* İkonu ezilmeyen en yüksek öncelikle hedefliyoruz */
+.chat-context-menu .menu-item .font-icon { 
+    -fx-icon-color: white !important; 
+    -fx-icon-size: 18px;
+}
+
+/* 2. HAREKET VE TİTREMEYİ SIFIRLA */
+.chat-context-menu .menu-item {
+    /* Genel item'lara sıfırlama uyguluyoruz */
+    -fx-scale-x: 1.0 !important;
+    -fx-scale-y: 1.0 !important;
+    -fx-translate-y: 0 !important;
+    
+    /* Çerçeve ve Arkaplanı düzenle */
+    -fx-background-color: transparent;
+    -fx-padding: 10px 12px !important;
+    -fx-background-radius: 8px;
+}
+
+/* 3. HOVER/FOCUSED STİLİ (Titremesiz Vurgu) */
+.chat-context-menu .menu-item:focused {
+    /* Vurgu Rengi: Kontrastı yüksek, temiz bir mavi kullanıyoruz */
+    -fx-background-color: #4A3B70 !important; 
+    
+    /* Vurgu anında bile boyutta/konumda değişiklik olmasın diye tekrar sıfırlıyoruz */
+    -fx-scale-x: 1.0 !important;
+    -fx-translate-x: 0 !important;
+    -fx-effect: none !important;
+    
+    /* Yazı ve İkonlar Beyaz Kalmalı */
+    -fx-text-fill: white !important;
+    -fx-icon-color: white !important;
+}
+
+/* 4. YAZI RENGİ (Normal Durum) */
+.chat-context-menu .menu-item .label {
+    -fx-text-fill: #e2e8f0 !important; 
+    -fx-font-weight: 600;
+}
 
 
 
@@ -1060,355 +1103,513 @@
 }
 
 /* =================================================================
-   6. FRIENDS
+   FRIENDS - MODERN COMPACT DESIGN
    ================================================================= */
-.summary-card {
-  -fx-background-color: #0f172a;
-  -fx-background-radius: 12px;
-  -fx-padding: 20px;
-  -fx-border-color: #334155;
-  -fx-border-radius: 12px;
-  -fx-min-width: 120px;
-  -fx-pref-width: 120px;
-  -fx-alignment: center;
-}
-.summary-card-title {
-  -fx-font-size: 28px;
-  -fx-font-family: "System Bold";
-  -fx-text-fill: white;
-}
-.summary-card-subtitle {
-  -fx-font-size: 14px;
-  -fx-text-fill: #94a3b8;
-}
-.icon-button-filled {
-  -fx-background-color: #334155;
-  -fx-background-radius: 8px;
-  -fx-padding: 8px;
-  -fx-cursor: hand;
-}
-.icon-button-filled:hover {
-  -fx-background-color: #475569;
-}
-.filter-bar {
-  -fx-padding: 8px;
-  -fx-background-color: #0f172a;
-  -fx-background-radius: 12px;
-}
-.filter-button {
+
+/* ========== HEADER SECTION ========== */
+.friends-modern-header {
   -fx-background-color: transparent;
+  -fx-padding: 0 0 8 0;
+}
+
+.friends-main-title {
+  -fx-text-fill: white;
+  -fx-font-size: 32px;
+  -fx-font-weight: 800;
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 2, 0, 0, 1);
+}
+
+.friends-subtitle-text {
   -fx-text-fill: #94a3b8;
   -fx-font-size: 14px;
-  -fx-font-weight: bold;
-  -fx-padding: 8px 16px;
-  -fx-background-radius: 8px;
-  -fx-cursor: hand;
+  -fx-font-weight: 500;
 }
-.filter-button:hover,
-.filter-button.active {
-  -fx-background-color: linear-gradient(from 0% 0% to 100% 0%, rgba(59, 130, 246, 0.4) 0%, rgba(168, 85, 247, 0.4) 100%);
+
+/* ========== MINI STAT CARDS ========== */
+.friends-stats-compact {
+  -fx-alignment: CENTER_RIGHT;
+}
+
+.stat-card-mini {
+  -fx-background-color: rgba(30, 43, 59, 0.6);
+  -fx-background-radius: 10px;
+  -fx-padding: 12 20;
+  -fx-border-color: rgba(51, 65, 85, 0.4);
+  -fx-border-width: 1px;
+  -fx-border-radius: 10px;
+  -fx-min-width: 80px;
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.15), 6, 0, 0, 2);
+  -fx-transition: all 0.3s ease;
+}
+
+.stat-card-mini:hover {
+  -fx-border-color: rgba(59, 130, 246, 0.6);
+  -fx-translate-y: -2px;
+  -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.2), 12, 0, 0, 4);
+}
+
+.stat-mini-number {
   -fx-text-fill: white;
+  -fx-font-size: 24px;
+  -fx-font-weight: 800;
 }
-.friends-list-view .list-cell:filled:hover {
-  -fx-background-color: #1e2b3b;
-  -fx-border-color: #2563eb;
-  -fx-border-radius: 12px;
+
+.stat-online-color {
+  -fx-text-fill: #22c55e;
 }
-.friends-section-box,
-.friends-section-box .viewport {
-  -fx-background-color: transparent;
+
+.stat-pending-color {
+  -fx-text-fill: #f59e0b;
+}
+
+.stat-mini-label {
+  -fx-text-fill: #94a3b8;
+  -fx-font-size: 11px;
+  -fx-font-weight: 600;
+  -fx-letter-spacing: 0.5px;
+}
+
+/* ========== SEARCH + ADD FRIEND BAR ========== */
+.friends-action-bar {
   -fx-padding: 0;
 }
-#friendsContainer {
-  -fx-background-color: #1e2b3b;
-  -fx-background-radius: 12px;
-  -fx-padding: 12px;
-}
-.friends-list-view {
-  -fx-background-color: transparent;
-}
-.friends-list-view .list-cell:filled {
-  -fx-background-color: #111827;
-  -fx-background-radius: 12px;
-  -fx-padding: 16px;
-  -fx-cursor: hand;
-  -fx-border-width: 0 0 0 4px;
-  -fx-border-color: transparent;
-  -fx-background-insets: 0 0 10px 0;
-}
-.friends-list-view .list-cell:filled:hover {
-  -fx-background-color: #1e2b3b;
-}
-.friends-list-view .list-cell {
-  -fx-background-color: transparent;
-  -fx-padding: 16px;
-}
-.friend-avatar {
-  -fx-background-color: #2563eb;
-  -fx-background-radius: 50%;
-  -fx-pref-width: 48px;
-  -fx-pref-height: 48px;
-  -fx-font-size: 18px;
-  -fx-font-weight: bold;
-  -fx-alignment: center;
-}
-.friend-name {
-  -fx-font-size: 16px;
-  -fx-font-weight: bold;
-  -fx-text-fill: white;
-}
-.friend-status {
-  -fx-font-size: 12px;
-  -fx-text-fill: #94a3b8;
-}
-.friend-activity-type {
-  -fx-font-size: 12px;
-  -fx-text-fill: #94a3b8;
-}
-.friend-activity {
-  -fx-font-size: 12px;
-  -fx-font-weight: bold;
-  -fx-text-fill: #60a5fa;
-}
-.action-icon {
-  -fx-icon-color: #94a3b8;
-  -fx-icon-size: 18px;
-  -fx-cursor: hand;
-}
-.action-icon:hover {
-  -fx-icon-color: white;
-}
 
-/* ===== Clean and Compact Friends View Styles ===== */
-.search-field-compact {
-  -fx-background-color: rgba(30, 43, 59, 0.8);
-  -fx-background-radius: 8px;
+.friends-search-input {
+  -fx-background-color: rgba(15, 23, 42, 0.8);
+  -fx-background-radius: 12px;
   -fx-border-color: rgba(51, 65, 85, 0.6);
-  -fx-border-radius: 8px;
+  -fx-border-radius: 12px;
   -fx-border-width: 1px;
   -fx-text-fill: white;
-  -fx-prompt-text-fill: #94a3b8;
-  -fx-padding: 12px 16px;
+  -fx-prompt-text-fill: #64748b;
+  -fx-padding: 14px 18px;
   -fx-font-size: 14px;
-  -fx-pref-height: 44px;
+  -fx-pref-height: 48px;
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 4, 0, 0, 1);
 }
 
-.search-field-compact:focused {
+.friends-search-input:focused {
   -fx-border-color: #3b82f6;
-  -fx-background-color: rgba(30, 43, 59, 1.0);
+  -fx-background-color: rgba(15, 23, 42, 1.0);
+  -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.3), 8, 0, 0, 2);
 }
 
-.add-friend-button {
-  -fx-background-color: #3b82f6;
-  -fx-background-radius: 8px;
+.friends-add-btn {
+  -fx-background-color: linear-gradient(to right, rgba(59, 130, 246, 0.9), rgba(168, 85, 247, 0.9));
+  -fx-background-radius: 12px;
   -fx-cursor: hand;
-  -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.5), 10, 0.4, 0, 3);
-  -fx-pref-width: 120px;
-  -fx-pref-height: 44px;
-  -fx-min-height: 44px;
-  -fx-font-size: 14px;
-  -fx-font-weight: bold;
+  -fx-pref-width: 140px;
+  -fx-pref-height: 48px;
+  -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.4), 8, 0, 0, 3);
+  -fx-transition: all 0.3s ease;
 }
 
-.add-friend-icon {
+.friends-add-btn:hover {
+  -fx-background-color: linear-gradient(to right, rgba(96, 165, 250, 1.0), rgba(192, 132, 252, 1.0));
+  -fx-scale-x: 1.02;
+  -fx-scale-y: 1.02;
+  -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.6), 12, 0, 0, 4);
+}
+
+.friends-add-btn:pressed {
+  -fx-scale-x: 0.98;
+  -fx-scale-y: 0.98;
+}
+
+.add-friend-icon-modern {
   -fx-icon-color: white;
   -fx-icon-size: 16px;
 }
 
-.stat-card-compact {
-  -fx-background-color: rgba(30, 43, 59, 0.6);
-  -fx-background-radius: 10px;
-  -fx-padding: 16px 12px;
-  -fx-border-color: rgba(51, 65, 85, 0.4);
-  -fx-border-radius: 10px;
-  -fx-border-width: 1px;
-  -fx-alignment: center;
-  -fx-min-width: 80px;
-  -fx-pref-width: 100px;
-}
-
-/* ===== FIXED STATS CARDS - UNIFIED STYLE ===== */
-.stat-card-enhanced {
-  -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, rgba(30, 43, 59, 0.95) 0%, rgba(15, 23, 42, 1.0) 100%);
-  -fx-background-radius: 14px;
-  -fx-padding: 24px 20px;
-  -fx-border-radius: 14px;
-  -fx-alignment: center;
-  -fx-min-width: 120px;
-  -fx-pref-width: 150px;
-  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.8), 20, 0.6, 0, 6);
-}
-
-.stat-card-enhanced:hover {
-  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.9), 25, 0.7, 0, 8);
-  -fx-cursor: hand;
-}
-
-.stat-number-large {
-  -fx-font-size: 36px;
-  -fx-font-family: "System Bold";
+.add-friend-text-modern {
   -fx-text-fill: white;
-  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 2, 0.3, 0, 1);
-}
-
-.stat-label-enhanced {
   -fx-font-size: 14px;
-  -fx-text-fill: #cbd5e1;
-  -fx-font-weight: 600;
-  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 1, 0.2, 0, 1);
+  -fx-font-weight: 700;
 }
 
-.filter-tabs {
+/* ========== FILTER PILLS ========== */
+.friends-filter-bar-modern {
+  -fx-padding: 8px;
   -fx-background-color: rgba(15, 23, 42, 0.6);
-  -fx-background-radius: 8px;
-  -fx-padding: 4px;
-  -fx-border-color: rgba(51, 65, 85, 0.3);
-  -fx-border-width: 1px;
-  -fx-border-radius: 8px;
-}
-
-.filter-tab {
-  -fx-background-color: transparent;
-  -fx-text-fill: #cbd5e1;
-  -fx-font-size: 14px;
-  -fx-font-weight: bold;
-  -fx-padding: 8px 16px;
-  -fx-background-radius: 6px;
-  -fx-cursor: hand;
-  -fx-min-width: 70px;
-}
-
-.filter-tab:hover {
-  -fx-background-color: rgba(51, 65, 85, 0.3);
-  -fx-text-fill: #e2e8f0;
-}
-
-.filter-tab.active-tab {
-  -fx-background-color: #3b82f6;
-  -fx-text-fill: white;
-}
-
-/* Special style for the active "Online" tab to make it stand out */
-#onlineFilterButton.active-tab {
-  -fx-background-color: #10b981; /* Vibrant Green Background */
-  -fx-text-fill: white;
-  -fx-font-size: 15px; /* Slightly larger font */
-  -fx-effect: dropshadow(gaussian, rgba(74, 222, 128, 0.7), 15, 0.5, 0, 0); /* Green Glow */
-}
-
-.friends-scroll,
-.friends-scroll .viewport {
-  -fx-background-color: transparent;
-  -fx-padding: 0;
-  -fx-min-height: 350px; /* Prevents collapsing when list is empty */
-}
-
-.friends-list-container {
-  -fx-background-color: rgba(30, 43, 59, 0.3);
-  -fx-background-radius: 10px;
-  -fx-padding: 12px;
-  -fx-border-color: rgba(51, 65, 85, 0.3);
-  -fx-border-width: 1px;
-  -fx-border-radius: 10px;
-  -fx-min-height: 400px; /* Sabit minimum yükseklik */
-}
-
-/* Override old styles */
-.page-title {
-  -fx-font-size: 32px;
-  -fx-font-family: "System Bold";
-  -fx-text-fill: white;
-  -fx-padding: 0 0 8 0;
-}
-
-.friends-header-section {
-  -fx-background-color: transparent;
-}
-
-.friends-stats-section {
-  -fx-background-color: rgba(15, 23, 42, 0.6);
-  -fx-background-radius: 16px;
-  -fx-padding: 20px;
-  -fx-border-color: rgba(51, 65, 85, 0.3);
-  -fx-border-width: 1px;
-  -fx-border-radius: 16px;
-}
-
-.summary-card-enhanced {
-  -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, rgba(30, 43, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
-  -fx-background-radius: 12px;
-  -fx-padding: 18px 16px;
-  -fx-border-color: rgba(51, 65, 85, 0.4);
-  -fx-border-radius: 12px;
-  -fx-border-width: 1px;
-  -fx-alignment: center;
-  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 8, 0.3, 0, 2);
-}
-
-.summary-card-enhanced.online-card {
-  -fx-border-color: rgba(34, 197, 94, 0.3);
-  -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, rgba(15, 23, 42, 0.9) 0%, rgba(22, 163, 74, 0.1) 100%);
-}
-
-.summary-card-enhanced.pending-card {
-  -fx-border-color: rgba(249, 115, 22, 0.3);
-  -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, rgba(15, 23, 42, 0.9) 0%, rgba(249, 115, 22, 0.1) 100%);
-}
-
-.summary-card-title-large {
-  -fx-font-size: 32px;
-  -fx-font-family: "System Bold";
-  -fx-text-fill: white;
-}
-
-.friends-filter-section {
-  -fx-background-color: transparent;
-}
-
-.filter-bar-enhanced {
-  -fx-padding: 6px;
-  -fx-background-color: rgba(15, 23, 42, 0.7);
   -fx-background-radius: 12px;
   -fx-border-color: rgba(51, 65, 85, 0.3);
   -fx-border-width: 1px;
   -fx-border-radius: 12px;
 }
 
-.filter-button-enhanced {
+.filter-pill-button {
   -fx-background-color: transparent;
+  -fx-background-radius: 20px;
+  -fx-padding: 10px 18px;
+  -fx-cursor: hand;
+  -fx-border-color: transparent;
+  -fx-border-width: 1px;
+  -fx-border-radius: 20px;
+  -fx-transition: all 0.25s ease;
+}
+
+.filter-pill-button:hover {
+  -fx-background-color: rgba(51, 65, 85, 0.5);
+  -fx-border-color: rgba(59, 130, 246, 0.3);
+}
+
+.filter-pill-button.active-filter-pill {
+  -fx-background-color: linear-gradient(to right, rgba(59, 130, 246, 0.3), rgba(168, 85, 247, 0.3));
+  -fx-border-color: rgba(59, 130, 246, 0.6);
+  -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.3), 8, 0, 0, 2);
+}
+
+.filter-pill-text {
   -fx-text-fill: #94a3b8;
   -fx-font-size: 13px;
   -fx-font-weight: 600;
-  -fx-padding: 10px 18px;
-  -fx-background-radius: 8px;
-  -fx-cursor: hand;
-  -fx-transition-duration: 200ms;
 }
 
-.filter-button-enhanced:hover {
-  -fx-background-color: rgba(51, 65, 85, 0.4);
+.filter-pill-button.active-filter-pill .filter-pill-text {
   -fx-text-fill: white;
 }
 
-.filter-button-enhanced.active {
-  -fx-background-color: linear-gradient(from 0% 0% to 100% 0%, #3b82f6 0%, #a855f7 100%);
-  -fx-text-fill: white;
-  -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.4), 6, 0.4, 0, 2);
+.filter-icon {
+  -fx-icon-color: #94a3b8;
+  -fx-icon-size: 12px;
 }
 
-.friends-section-box-enhanced,
-.friends-section-box-enhanced .viewport {
+.filter-icon-online {
+  -fx-icon-color: #22c55e;
+  -fx-icon-size: 10px;
+}
+
+.filter-icon-pending {
+  -fx-icon-color: #f59e0b;
+  -fx-icon-size: 12px;
+}
+
+.filter-icon-blocked {
+  -fx-icon-color: #ef4444;
+  -fx-icon-size: 12px;
+}
+
+.filter-pill-button.active-filter-pill .filter-icon {
+  -fx-icon-color: white;
+}
+
+/* ========== FRIENDS LIST CONTAINER ========== */
+.friends-list-modern-container {
+  -fx-background-color: rgba(15, 23, 42, 0.4);
+  -fx-background-radius: 12px;
+  -fx-padding: 12px;
+  -fx-border-color: rgba(51, 65, 85, 0.3);
+  -fx-border-width: 1px;
+  -fx-border-radius: 12px;
+}
+
+/* ========== OPTIMIZED FRIENDS LIST VIEW ========== */
+.friends-list-view-optimized {
+  -fx-background-color: rgba(15, 23, 42, 0.4);
+  -fx-background-radius: 12px;
+  -fx-padding: 12px;
+  -fx-border-color: rgba(51, 65, 85, 0.3);
+  -fx-border-width: 1px;
+  -fx-border-radius: 12px;
+}
+
+.friends-list-view-optimized .list-cell {
+  -fx-background-color: transparent;
+  -fx-padding: 0;
+  -fx-background-insets: 0;
+  -fx-border-width: 0;
+}
+
+.friends-list-view-optimized .list-cell:empty {
+  -fx-background-color: transparent;
+  -fx-opacity: 0;
+  -fx-pref-height: 0;
+  -fx-min-height: 0;
+  -fx-max-height: 0;
+}
+
+/* Virtual Flow optimization - smooth scrolling */
+.friends-list-view-optimized .virtual-flow .clipped-container .sheet .list-cell {
+  -fx-padding: 0;
+}
+
+/* Scrollbar styling for friends list */
+.friends-list-view-optimized .scroll-bar {
+  -fx-background-color: transparent;
+}
+
+.friends-list-view-optimized .scroll-bar:vertical {
+  -fx-pref-width: 8px;
+}
+
+.friends-list-view-optimized .scroll-bar .thumb {
+  -fx-background-color: rgba(71, 85, 105, 0.6);
+  -fx-background-radius: 4px;
+}
+
+.friends-list-view-optimized .scroll-bar .thumb:hover {
+  -fx-background-color: rgba(96, 165, 250, 0.8);
+}
+
+.friends-list-view-optimized .scroll-bar .track {
+  -fx-background-color: transparent;
+}
+
+.friends-list-view-optimized .scroll-bar .increment-button,
+.friends-list-view-optimized .scroll-bar .decrement-button {
   -fx-background-color: transparent;
   -fx-padding: 0;
 }
 
-.friends-container-enhanced {
-  -fx-background-color: rgba(30, 43, 59, 0.4);
-  -fx-background-radius: 12px;
-  -fx-padding: 16px;
-  -fx-border-color: rgba(51, 65, 85, 0.3);
+/* ========== FRIEND CARD (COMPACT) ========== */
+.friend-card-modern {
+  -fx-background-color: rgba(30, 43, 59, 0.6);
+  -fx-background-radius: 10px;
+  -fx-padding: 14px 16px;
+  -fx-border-color: rgba(51, 65, 85, 0.4);
+  -fx-border-width: 1px;
+  -fx-border-radius: 10px;
+  -fx-cursor: hand;
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 4, 0, 0, 1);
+  -fx-transition: all 0.25s ease;
+  -fx-background-insets: 0 8px 8px 8px;
+  -fx-border-insets: 0 8px 8px 8px;
+}
+
+.friend-card-modern:hover {
+  -fx-background-color: linear-gradient(to right, rgba(127, 90, 240, 0.20), rgba(44, 182, 125, 0.05));
+  -fx-border-color: rgba(127, 90, 240, 0.4);
+  -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.2), 12, 0, 0, 4);
+}
+
+/* ========== FRIEND AVATAR (MODERN) ========== */
+.friend-avatar-modern {
+  -fx-background-color: linear-gradient(to bottom right, #3b82f6, #8b5cf6);
+  -fx-background-radius: 50%;
+  -fx-min-width: 48px;
+  -fx-min-height: 48px;
+  -fx-max-width: 48px;
+  -fx-max-height: 48px;
+  -fx-text-fill: white;
+  -fx-font-size: 18px;
+  -fx-font-weight: 800;
+  -fx-alignment: CENTER;
+  -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.4), 8, 0, 0, 2);
+}
+
+/* ========== ONLINE INDICATOR ========== */
+.online-dot-modern {
+  -fx-background-color: #22c55e;
+  -fx-background-radius: 50%;
+  -fx-min-width: 12px;
+  -fx-min-height: 12px;
+  -fx-max-width: 12px;
+  -fx-max-height: 12px;
+  -fx-border-color: rgba(30, 43, 59, 1.0);
+  -fx-border-width: 2px;
+  -fx-border-radius: 50%;
+  -fx-effect: dropshadow(gaussian, rgba(34, 197, 94, 0.6), 6, 0, 0, 0);
+}
+
+.offline-dot-modern {
+  -fx-background-color: #64748b;
+  -fx-background-radius: 50%;
+  -fx-min-width: 12px;
+  -fx-min-height: 12px;
+  -fx-max-width: 12px;
+  -fx-max-height: 12px;
+  -fx-border-color: rgba(30, 43, 59, 1.0);
+  -fx-border-width: 2px;
+  -fx-border-radius: 50%;
+}
+
+/* ========== FRIEND INFO ========== */
+.friend-name-modern {
+  -fx-text-fill: white;
+  -fx-font-size: 15px;
+  -fx-font-weight: 700;
+}
+
+.friend-status-modern {
+  -fx-text-fill: #94a3b8;
+  -fx-font-size: 12px;
+  -fx-font-weight: 500;
+}
+
+.friend-activity-modern {
+  -fx-text-fill: #60a5fa;
+  -fx-font-size: 12px;
+  -fx-font-weight: 600;
+}
+
+/* ========== ACTION BUTTONS ========== */
+.friend-action-modern {
+  -fx-background-color: rgba(51, 65, 85, 0.6);
+  -fx-background-radius: 8px;
+  -fx-padding: 8px;
+  -fx-cursor: hand;
+  -fx-min-width: 36px;
+  -fx-min-height: 36px;
+  -fx-max-width: 36px;
+  -fx-max-height: 36px;
+  -fx-transition: all 0.2s ease;
+}
+
+.friend-action-modern:hover {
+  -fx-background-color: rgba(59, 130, 246, 0.8);
+
+}
+
+.action-icon-modern {
+  -fx-icon-color: #94a3b8;
+  -fx-icon-size: 16px;
+}
+
+.friend-action-modern:hover .action-icon-modern {
+  -fx-icon-color: white;
+}
+
+/* ========== PENDING REQUEST BUTTONS ========== */
+.pending-accept-btn-modern {
+  -fx-background-color: #0b592d;
+  -fx-background-radius: 8px;
+  -fx-text-fill: white;
+  -fx-font-size: 12px;
+  -fx-font-weight: 700;
+  -fx-padding: 8px 16px;
+  -fx-cursor: hand;
+  -fx-min-height: 36px;
+  -fx-transition: all 0.2s ease;
+}
+
+.pending-accept-btn-modern:hover {
+  -fx-background-color: #0f7835;
+  -fx-scale-x: 1.05;
+  -fx-scale-y: 1.05;
+}
+
+.pending-reject-btn-modern {
+  -fx-background-color: rgba(119, 9, 9, 0.9);
+  -fx-background-radius: 8px;
+  -fx-text-fill: white;
+  -fx-font-size: 12px;
+  -fx-font-weight: 700;
+  -fx-padding: 8px 16px;
+  -fx-cursor: hand;
+  -fx-min-height: 36px;
+  -fx-transition: all 0.2s ease;
+}
+
+.pending-reject-btn-modern:hover {
+  -fx-background-color: #9f1313;
+  -fx-scale-x: 1.05;
+  -fx-scale-y: 1.05;
+}
+
+/* ========== SECTION HEADER (for list grouping) ========== */
+.friends-section-header-modern {
+  -fx-text-fill: #64748b;
+  -fx-font-size: 12px;
+  -fx-font-weight: 700;
+  -fx-letter-spacing: 1px;
+  -fx-padding: 12 8 8 8;
+}
+
+/* ========== SEARCH RESULTS DROPDOWN ========== */
+.friends-search-results {
+  -fx-background-color: rgba(30, 43, 59, 0.98);
+  -fx-border-color: rgba(59, 130, 246, 0.4);
   -fx-border-width: 1px;
   -fx-border-radius: 12px;
+  -fx-background-radius: 12px;
+  -fx-padding: 8px;
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.4), 16, 0, 0, 4);
+}
+
+.friends-search-results .list-cell {
+  -fx-background-color: transparent;
+  -fx-padding: 10px 12px;
+  -fx-background-radius: 8px;
+  -fx-border-color: transparent;
+}
+
+.friends-search-results .list-cell:hover {
+  -fx-background-color: rgba(59, 130, 246, 0.2);
+}
+
+.friends-search-results .list-cell:empty {
+  -fx-background-color: transparent;
+  -fx-pref-height: 0;
+  -fx-min-height: 0;
+  -fx-max-height: 0;
+}
+
+/* ========== EMPTY STATE ========== */
+.friends-empty-state {
+  -fx-alignment: CENTER;
+  -fx-spacing: 16px;
+  -fx-padding: 60px 40px;
+}
+
+.empty-icon-modern {
+  -fx-icon-color: #475569;
+  -fx-icon-size: 64px;
+  -fx-opacity: 0.5;
+}
+
+.empty-icon-background {
+  -fx-focus-color: transparent;
+  -fx-border-color: transparent;
+  -fx-icon-size: 80px;
+  -fx-icon-color: linear-gradient(to bottom right, #7F5AF0, #2CB67D);
+  -fx-opacity: 0.25;
+  -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.7), 20, 0.4, 0, 0);
+}
+
+
+.empty-icon-foreground {
+  -fx-focus-color: transparent;
+  -fx-border-color: transparent;
+  -fx-icon-size: 65px;
+  -fx-icon-color: #E2E8F0; /* Kırık beyaz */
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 5, 0.0, 0, 1); /* Hafif gölge ile öne çıkar */
+}
+
+.empty-title-modern {
+  -fx-text-fill: #ffffff;
+  -fx-font-size: 18px;
+  -fx-font-weight: 600;
+}
+
+.empty-subtitle-modern {
+  -fx-text-fill: #64748b;
+  -fx-font-size: 14px;
+  -fx-text-alignment: CENTER;
+}
+
+/* ========== LIST HEADER (Friend count) ========== */
+.friends-list-header-modern {
+  -fx-text-fill: #e2e8f0;
+  -fx-font-size: 13px;
+  -fx-font-weight: 700;
+  -fx-padding: 8 8 12 8;
+  -fx-letter-spacing: 0.5px;
+}
+
+/* ========== ANIMATIONS ========== */
+@keyframes fadeIn {
+  from { -fx-opacity: 0; -fx-translate-y: -10px; }
+  to { -fx-opacity: 1; -fx-translate-y: 0; }
+}
+
+@keyframes slideIn {
+  from { -fx-translate-x: -20px; -fx-opacity: 0; }
+  to { -fx-translate-x: 0; -fx-opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% { -fx-scale-x: 1; -fx-scale-y: 1; }
+  50% { -fx-scale-x: 1.05; -fx-scale-y: 1.05; }
 }
 
 /* =================================================================
@@ -1483,6 +1684,27 @@
 }
 #fileGrid {
   -fx-padding: 10px;
+}
+
+.file-filter-bar {
+  -fx-padding: 8px;
+  -fx-background-color: #0f172a;
+  -fx-background-radius: 12px;
+}
+.file-filter-button {
+  -fx-background-color: transparent;
+  -fx-text-fill: #94a3b8;
+  -fx-font-size: 14px;
+  -fx-font-weight: bold;
+  -fx-padding: 8px 16px;
+  -fx-background-radius: 8px;
+
+  -fx-cursor: hand;
+}
+.file-filter-button:hover,
+.file-filter-button.active {
+  -fx-background-color: linear-gradient(from 0% 0% to 100% 0%, rgba(59, 130, 246, 0.4) 0%, rgba(168, 85, 247, 0.4) 100%);
+  -fx-text-fill: white;
 }
 
 /* =================================================================
@@ -3971,17 +4193,17 @@
 
 /* Action Buttons */
 .friend-action-button, .add-friend-button {
-  -fx-background-color: #3b82f6;
+  -fx-background-color: linear-gradient(to right, #29486f, #244e57);
   -fx-text-fill: white;
   -fx-background-radius: 8;
-  -fx-padding: 12 24;
+  -fx-padding: 6 12;
   -fx-font-size: 14px;
   -fx-font-weight: 600;
   -fx-cursor: hand;
 }
 
 .friend-action-button:hover, .add-friend-button:hover {
-  -fx-background-color: #2563eb;
+  -fx-background-color: linear-gradient(to bottom, #1f717e, #1d6787);
 }
 
 .pending-button {
@@ -4195,7 +4417,7 @@
 
 /* Friend Request Accept/Reject Buttons */
 .accept-button {
-  -fx-background-color: #22c55e;
+  -fx-background-color: #104e21;
   -fx-background-radius: 8px;
   -fx-text-fill: white;
   -fx-font-size: 13px;
@@ -4208,7 +4430,7 @@
 }
 
 .accept-button:hover {
-  -fx-background-color: #16a34a;
+  -fx-background-color: #0c8537;
   -fx-effect: dropshadow(gaussian, rgba(34, 197, 94, 0.5), 12, 0.7, 0, 3);
 }
 
@@ -4225,7 +4447,7 @@
 }
 
 .reject-button {
-  -fx-background-color: #ef4444;
+  -fx-background-color: #971d1d;
   -fx-background-radius: 8px;
   -fx-text-fill: white;
   -fx-font-size: 13px;
@@ -4238,7 +4460,7 @@
 }
 
 .reject-button:hover {
-  -fx-background-color: #dc2626;
+  -fx-background-color: #b81d1d;
   -fx-effect: dropshadow(gaussian, rgba(239, 68, 68, 0.5), 12, 0.7, 0, 3);
 }
 
