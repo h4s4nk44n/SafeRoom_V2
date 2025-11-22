@@ -5,6 +5,8 @@ import dev.onvoid.webrtc.RTCDataChannel;
 import dev.onvoid.webrtc.RTCDataChannelBuffer;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Optional;
 import java.util.concurrent.*;
 
 /**
@@ -26,6 +28,9 @@ public class DataChannelFileTransfer {
     private final FileTransferReceiver receiver;
     
     private final ExecutorService executor;
+    
+    private final ConcurrentMap<Long, Path> pendingDownloadPaths = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Long, CompletableFuture<Void>> receiverReadySignals = new ConcurrentHashMap<>();
     
     private FileTransferCallback transferCallback;
     private volatile boolean receiverStarted = false;  // Track if receiver is running
@@ -65,13 +70,12 @@ public class DataChannelFileTransfer {
         this.transferCallback = callback;
     }
     
-    public CompletableFuture<Boolean> sendFile(String receiver, Path filePath) {
+    public CompletableFuture<Boolean> sendFile(Path filePath, long fileId) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         
         executor.execute(() -> {
             try {
-                long fileId = System.currentTimeMillis();
-                System.out.printf("[DCFileTransfer]Sending: %s to %s%n", filePath.getFileName(), receiver);
+                System.out.printf("[DCFileTransfer]Sending: %s (fileId=%d)%n", filePath.getFileName(), fileId);
                 
                 sender.sendFile(filePath, fileId);
                 
@@ -115,36 +119,25 @@ public class DataChannelFileTransfer {
         });
     }
     
-    /**
-     * Handle incoming file transfer signal - start receiver on first SYN
-     */
     public void handleIncomingMessage(RTCDataChannelBuffer buffer) {
-        // Check if this is a SYN packet (0x01)
         java.nio.ByteBuffer data = buffer.data.duplicate();
         if (data.remaining() > 0) {
             byte signal = data.get(0);
-            
-            // If SYN and receiver not started, start it now (LAZY)
             if (signal == 0x01 && !receiverStarted) {
-                System.out.printf("[DCFileTransfer] 🔔 First SYN received - starting receiver for %s%n", username);
-                
-                // Generate download path
-                java.nio.file.Path downloadPath = java.nio.file.Path.of(
-                    "downloads", 
-                    "received_from_" + username + "_" + System.currentTimeMillis() + ".bin"
-                );
-                
-                // Start receiver thread (will wait for NEXT SYN)
-                startReceiver(downloadPath);
-                
-                // DON'T queue this first SYN - let receiver catch the next one!
-                // Sender is looping SYN anyway, next one will come soon
-                System.out.printf("[DCFileTransfer] 🚫 Ignoring first SYN (receiver thread starting...)%n");
-                return;  // ✅ Exit without queuing!
+                long fileId = System.currentTimeMillis();
+                if (data.remaining() >= HandShake_Packet.HEADER_SIZE) {
+                    java.nio.ByteBuffer dup = data.duplicate();
+                    dup.position(1); // skip signal byte
+                    if (dup.remaining() >= Long.BYTES) {
+                        fileId = dup.getLong();
+                    }
+                }
+                System.out.printf("[DCFileTransfer] 🔔 SYN received without prepared receiver - starting fallback receiver (fileId=%d)%n",
+                    fileId);
+                startPreparedReceiver(fileId);
             }
         }
         
-        // Feed to wrapper queue (for receiver thread or sender's ACK reading)
         channelWrapper.onDataChannelMessage(buffer);
     }
     
@@ -154,5 +147,42 @@ public class DataChannelFileTransfer {
     
     public void shutdown() {
         executor.shutdownNow();
+    }
+    
+    public Path prepareIncomingFile(long fileId, String originalName) {
+        Path downloadsDir = Paths.get("downloads");
+        downloadsDir.toFile().mkdirs();
+        String sanitized = sanitizeFileName(Optional.ofNullable(originalName).orElse("file.bin"));
+        Path target = downloadsDir.resolve(fileId + "_" + sanitized);
+        pendingDownloadPaths.put(fileId, target);
+        System.out.printf("[DCFileTransfer] 📦 Incoming file registered: %s%n", target);
+        return target;
+    }
+    
+    public void startPreparedReceiver(long fileId) {
+        Path target = pendingDownloadPaths.remove(fileId);
+        if (target == null) {
+            target = createDefaultDownloadPath(fileId);
+        }
+        System.out.printf("[DCFileTransfer] 📥 Prepared receiver for fileId=%d -> %s%n", fileId, target);
+        startReceiver(target);
+    }
+    
+    public CompletableFuture<Void> awaitReceiverReady(long fileId) {
+        return receiverReadySignals.computeIfAbsent(fileId, id -> new CompletableFuture<>());
+    }
+    
+    public void markReceiverReady(long fileId) {
+        CompletableFuture<Void> future = receiverReadySignals.computeIfAbsent(fileId, id -> new CompletableFuture<>());
+        future.complete(null);
+        receiverReadySignals.remove(fileId);
+    }
+    
+    private Path createDefaultDownloadPath(long fileId) {
+        return Paths.get("downloads", "received_" + fileId + ".bin");
+    }
+    
+    private static String sanitizeFileName(String name) {
+        return name.replaceAll("[\\\\/:]", "_");
     }
 }

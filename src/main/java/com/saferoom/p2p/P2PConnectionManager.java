@@ -7,11 +7,15 @@ import com.saferoom.grpc.SafeRoomProto.WebRTCSignal.SignalType;
 import dev.onvoid.webrtc.*;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 /**
  * P2P Connection Manager for WebRTC-based messaging/file transfer
@@ -29,6 +33,13 @@ import java.util.ArrayList;
 public class P2PConnectionManager {
     
     private static P2PConnectionManager instance;
+    
+    private static final String FILE_CTRL_PREFIX = "__FT_CTRL__";
+    private static final String CTRL_UR_RECEIVER = "UR_RECEIVER";
+    private static final String CTRL_OK_SNDFILE = "OK_SNDFILE";
+    private static final Base64.Encoder BASE64_ENCODER = Base64.getUrlEncoder().withoutPadding();
+    private static final Base64.Decoder BASE64_DECODER = Base64.getUrlDecoder();
+    private static final long RECEIVER_READY_TIMEOUT_SEC = 30;
     
     private String myUsername;
     private WebRTCSignalingClient signalingClient;
@@ -425,12 +436,31 @@ public class P2PConnectionManager {
         }
         
         if (connection.fileTransfer == null) {
+            connection.initializeFileTransfer();
+        }
+        if (connection.fileTransfer == null) {
             System.err.printf("[P2P] File transfer not initialized for %s%n", targetUsername);
             return CompletableFuture.completedFuture(false);
         }
         
-        // Use DataChannelFileTransfer (which uses ORIGINAL EnhancedFileTransferSender!)
-        return connection.fileTransfer.sendFile(targetUsername, filePath);
+        try {
+            long fileSize = Files.size(filePath);
+            long fileId = System.currentTimeMillis();
+            
+            CompletableFuture<Void> readyFuture = connection.fileTransfer.awaitReceiverReady(fileId);
+            connection.sendControlMessage(connection.buildUrReceiverControl(
+                fileId, fileSize, filePath.getFileName().toString()));
+            
+            return readyFuture.orTimeout(RECEIVER_READY_TIMEOUT_SEC, TimeUnit.SECONDS)
+                .thenCompose(v -> connection.fileTransfer.sendFile(filePath, fileId))
+                .exceptionally(ex -> {
+                    System.err.printf("[P2P] File transfer failed: %s%n", ex.getMessage());
+                    return false;
+                });
+        } catch (Exception e) {
+            System.err.printf("[P2P] Error preparing file transfer: %s%n", e.getMessage());
+            return CompletableFuture.completedFuture(false);
+        }
     }
     
     /**
@@ -443,6 +473,7 @@ public class P2PConnectionManager {
         
         RTCPeerConnection peerConnection;
         RTCDataChannel dataChannel;
+        RTCDataChannel fileDataChannel;
         DataChannelReliableMessaging reliableMessaging;  // Reliable messaging protocol
         
         // File transfer: DataChannelFileTransfer coordinates roles, uses original file_transfer/
@@ -535,35 +566,13 @@ public class P2PConnectionManager {
                 
                 @Override
                 public void onDataChannel(RTCDataChannel channel) {
-                    // Incoming DataChannel (answer side)
-                    System.out.printf("[P2P] DataChannel received from %s%n", remoteUsername);
-                    P2PConnection.this.dataChannel = channel;
-                    
-                    // Set up data channel observer
-                    channel.registerObserver(new RTCDataChannelObserver() {
-                        @Override
-                        public void onBufferedAmountChange(long previousAmount) {}
-                        
-                        @Override
-                        public void onStateChange() {
-                            RTCDataChannelState state = channel.getState();
-                            System.out.printf("[P2P] DataChannel state: %s (from %s)%n", state, remoteUsername);
-                            
-                            if (state == RTCDataChannelState.OPEN) {
-                                System.out.printf("[P2P] DataChannel OPEN with %s (incoming)%n", remoteUsername);
-                                active = true;
-                                activeConnections.put(remoteUsername, P2PConnection.this);
-                                
-                                // Initialize reliable messaging (which also initializes file transfer)
-                                P2PConnection.this.initializeReliableMessaging();
-                            }
-                        }
-                        
-                        @Override
-                        public void onMessage(RTCDataChannelBuffer buffer) {
-                            handleDataChannelMessage(buffer);
-                        }
-                    });
+                    String label = channel.getLabel();
+                    System.out.printf("[P2P] DataChannel received (%s) from %s%n", label, remoteUsername);
+                    if ("file-transfer".equals(label)) {
+                        attachFileChannel(channel);
+                    } else {
+                        attachMessagingChannel(channel);
+                    }
                 }
             });
             
@@ -576,36 +585,43 @@ public class P2PConnectionManager {
                 return;
             }
             
-            // Create DataChannel (offer side only)
+            // Create messaging channel (offer side)
             RTCDataChannelInit init = new RTCDataChannelInit();
             init.ordered = true; // LLS protocol needs ordered delivery
+            RTCDataChannel messagingChannel = peerConnection.createDataChannel("messaging", init);
+            attachMessagingChannel(messagingChannel);
             
-            dataChannel = peerConnection.createDataChannel("messaging", init);
+            // Create dedicated file-transfer channel
+            RTCDataChannelInit ftInit = new RTCDataChannelInit();
+            ftInit.ordered = true;
+            RTCDataChannel ftChannel = peerConnection.createDataChannel("file-transfer", ftInit);
+            attachFileChannel(ftChannel);
             
-            // Set up observer
-            dataChannel.registerObserver(new RTCDataChannelObserver() {
+            System.out.printf("[P2P] DataChannels created for %s%n", remoteUsername);
+        }
+        
+        private void attachMessagingChannel(RTCDataChannel channel) {
+            this.dataChannel = channel;
+            channel.registerObserver(new RTCDataChannelObserver() {
                 @Override
                 public void onBufferedAmountChange(long previousAmount) {}
                 
                 @Override
                 public void onStateChange() {
-                    RTCDataChannelState state = dataChannel.getState();
-                    System.out.printf("[P2P] DataChannel state: %s (to %s)%n", state, remoteUsername);
+                    RTCDataChannelState state = channel.getState();
+                    System.out.printf("[P2P] DataChannel state (messaging): %s (with %s)%n",
+                        state, remoteUsername);
                     
                     if (state == RTCDataChannelState.OPEN) {
-                        System.out.printf("[P2P] DataChannel OPEN with %s%n", remoteUsername);
                         active = true;
                         activeConnections.put(remoteUsername, P2PConnection.this);
-                        
-                        // Initialize reliable messaging
-                        P2PConnection.this.initializeReliableMessaging();
+                        initializeReliableMessaging();
                         
                         CompletableFuture<Boolean> future = pendingConnections.remove(remoteUsername);
                         if (future != null) {
                             future.complete(true);
                         }
                     } else if (state == RTCDataChannelState.CLOSED) {
-                        System.out.printf("[P2P] DataChannel CLOSED with %s%n", remoteUsername);
                         active = false;
                         activeConnections.remove(remoteUsername);
                     }
@@ -613,11 +629,37 @@ public class P2PConnectionManager {
                 
                 @Override
                 public void onMessage(RTCDataChannelBuffer buffer) {
-                    handleDataChannelMessage(buffer);
+                    handleMessagingChannelMessage(buffer);
                 }
             });
-            
-            System.out.printf("[P2P] DataChannel created for %s%n", remoteUsername);
+        }
+        
+        private void attachFileChannel(RTCDataChannel channel) {
+            this.fileDataChannel = channel;
+            channel.registerObserver(new RTCDataChannelObserver() {
+                @Override
+                public void onBufferedAmountChange(long previousAmount) {}
+                
+                @Override
+                public void onStateChange() {
+                    RTCDataChannelState state = channel.getState();
+                    System.out.printf("[P2P] DataChannel state (file-transfer): %s (with %s)%n",
+                        state, remoteUsername);
+                    
+                    if (state == RTCDataChannelState.OPEN) {
+                        initializeFileTransfer();
+                    }
+                }
+                
+                @Override
+                public void onMessage(RTCDataChannelBuffer buffer) {
+                    if (fileTransfer != null) {
+                        fileTransfer.handleIncomingMessage(buffer);
+                    } else {
+                        System.err.printf("[P2P] File transfer handler not ready for %s%n", remoteUsername);
+                    }
+                }
+            });
         }
         
         /**
@@ -634,9 +676,13 @@ public class P2PConnectionManager {
             // Set callback for completed messages
             reliableMessaging.setCompletionCallback((sender, messageId, messageBytes) -> {
                 try {
-                    String messageText = new String(messageBytes, "UTF-8");
+                    String messageText = new String(messageBytes, StandardCharsets.UTF_8);
                     System.out.printf("[P2P] Reliable message complete from %s: %s%n", 
                         remoteUsername, messageText);
+                    
+                    if (handleFileTransferControl(messageText)) {
+                        return;
+                    }
                     
                     // Forward to ChatService
                     javafx.application.Platform.runLater(() -> {
@@ -680,14 +726,14 @@ public class P2PConnectionManager {
          * Uses DataChannelFileTransfer which coordinates roles and uses original file_transfer/
          */
         void initializeFileTransfer() {
-            if (dataChannel == null || dataChannel.getState() != RTCDataChannelState.OPEN) {
-                System.err.println("[P2P] Cannot initialize file transfer - DataChannel not open");
+            if (fileDataChannel == null || fileDataChannel.getState() != RTCDataChannelState.OPEN) {
+                System.err.println("[P2P] Cannot initialize file transfer - file DataChannel not open");
                 return;
             }
             
             try {
                 // Create DataChannelFileTransfer (handles wrapper + original classes)
-                fileTransfer = new DataChannelFileTransfer(myUsername, dataChannel, remoteUsername);
+                fileTransfer = new DataChannelFileTransfer(myUsername, fileDataChannel, remoteUsername);
                 
                 // DON'T start receiver here! It will start LAZY on first SYN
                 System.out.printf("[P2P] File transfer initialized for %s (receiver will start on SYN)%n", 
@@ -699,37 +745,97 @@ public class P2PConnectionManager {
             }
         }
         
-        void handleDataChannelMessage(RTCDataChannelBuffer buffer) {
+        void handleMessagingChannelMessage(RTCDataChannelBuffer buffer) {
             try {
                 ByteBuffer data = buffer.data.duplicate();
                 if (data.remaining() < 1) return;
                 
                 byte signal = data.get(0);
                 
-                // Route based on signal type
-                // File transfer signals: 0x00-0x03, 0x10-0x11 (DATA, SYN, NACK, FIN, ACK, SYN_ACK)
-                // Messaging signals: 0x20-0x23 (SIG_RMSG_DATA, ACK, NACK, FIN)
-                
-                if ((signal >= 0x00 && signal <= 0x03) || (signal >= 0x10 && signal <= 0x11)) {
-                    // File transfer protocol - feed to DataChannelFileTransfer
-                    if (fileTransfer != null) {
-                        fileTransfer.handleIncomingMessage(buffer);
-                    } else {
-                        System.err.println("[P2P]  Received file transfer message but fileTransfer not initialized");
-                    }
-                } else if (signal >= 0x20 && signal <= 0x23) {
-                    // Reliable messaging protocol
+                // Messaging signals only (0x20-0x23)
+                if (signal >= 0x20 && signal <= 0x23) {
                     if (reliableMessaging != null) {
                         reliableMessaging.handleIncomingMessage(buffer);
                     } else {
-                        System.err.println("[P2P]  Received message but reliable messaging not initialized");
+                        System.err.println("[P2P] Received message but reliable messaging not initialized");
                     }
                 } else {
-                    System.err.printf("[P2P] Unknown protocol signal: 0x%02X%n", signal);
+                    System.err.printf("[P2P] Unexpected signal on messaging channel: 0x%02X%n", signal);
                 }
                 
             } catch (Exception e) {
                 System.err.println("[P2P] Error handling DataChannel message: " + e.getMessage());
+            }
+        }
+        
+        private boolean handleFileTransferControl(String messageText) {
+            if (!messageText.startsWith(FILE_CTRL_PREFIX)) {
+                return false;
+            }
+            
+            String[] parts = messageText.split("\\|");
+            if (parts.length < 3) {
+                return true;
+            }
+            
+            String type = parts[1];
+            if (CTRL_UR_RECEIVER.equals(type)) {
+                if (parts.length < 5) {
+                    return true;
+                }
+                
+                long fileId = parseLongSafe(parts[2]);
+                String fileName = decodeFileName(parts[4]);
+                
+                if (fileTransfer == null) {
+                    initializeFileTransfer();
+                }
+                
+                if (fileTransfer != null) {
+                    fileTransfer.prepareIncomingFile(fileId, fileName);
+                    fileTransfer.startPreparedReceiver(fileId);
+                    sendControlMessage(buildOkControl(fileId));
+                }
+            } else if (CTRL_OK_SNDFILE.equals(type)) {
+                long fileId = parseLongSafe(parts[2]);
+                if (fileTransfer != null) {
+                    fileTransfer.markReceiverReady(fileId);
+                }
+            }
+            
+            return true;
+        }
+        
+        private void sendControlMessage(String payload) {
+            if (reliableMessaging == null) {
+                System.err.println("[P2P] Reliable messaging not ready for control message");
+                return;
+            }
+            reliableMessaging.sendMessage(remoteUsername, payload);
+        }
+        
+        private String buildUrReceiverControl(long fileId, long fileSize, String fileName) {
+            String encodedName = BASE64_ENCODER.encodeToString(fileName.getBytes(StandardCharsets.UTF_8));
+            return FILE_CTRL_PREFIX + "|" + CTRL_UR_RECEIVER + "|" + fileId + "|" + fileSize + "|" + encodedName;
+        }
+        
+        private String buildOkControl(long fileId) {
+            return FILE_CTRL_PREFIX + "|" + CTRL_OK_SNDFILE + "|" + fileId;
+        }
+        
+        private long parseLongSafe(String value) {
+            try {
+                return Long.parseLong(value);
+            } catch (NumberFormatException ex) {
+                return 0L;
+            }
+        }
+        
+        private String decodeFileName(String encoded) {
+            try {
+                return new String(BASE64_DECODER.decode(encoded), StandardCharsets.UTF_8);
+            } catch (IllegalArgumentException ex) {
+                return "file.bin";
             }
         }
         
