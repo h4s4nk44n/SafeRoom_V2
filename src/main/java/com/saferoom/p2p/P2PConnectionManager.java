@@ -760,6 +760,21 @@ public class P2PConnectionManager {
                 System.out.printf("[MSG-CH-RECV] Received signal 0x%02X (%d bytes) from %s%n",
                     signal, data.remaining(), remoteUsername);
                 
+                // 🔥 NEW: File transfer control signal (0xF0) - direct handling
+                if (signal == (byte) 0xF0) {
+                    System.out.println("[MSG-CH-RECV] ✅ File transfer control signal detected (0xF0)");
+                    data.position(1); // Skip signal byte
+                    byte[] payloadBytes = new byte[data.remaining()];
+                    data.get(payloadBytes);
+                    String messageText = new String(payloadBytes, StandardCharsets.UTF_8);
+                    
+                    System.out.printf("[MSG-CH-RECV] Control payload: %s%n", 
+                        messageText.length() > 100 ? messageText.substring(0, 100) + "..." : messageText);
+                    
+                    handleFileTransferControl(messageText);
+                    return;
+                }
+                
                 // Messaging signals only (0x20-0x23)
                 if (signal >= 0x20 && signal <= 0x23) {
                     if (reliableMessaging != null) {
@@ -854,12 +869,28 @@ public class P2PConnectionManager {
                 dataChannel != null ? dataChannel.getState() : "NULL",
                 reliableMessaging != null ? "YES" : "NO");
             
-            if (reliableMessaging == null) {
-                System.err.println("[FT-CTRL-SEND] ERROR: Reliable messaging not ready!");
+            // 🔥 CRITICAL FIX: Use DIRECT DataChannel for file transfer control (bypass reliable messaging)
+            // Reason: Reliable messaging may not complete in time, causing deadlock
+            if (dataChannel == null || dataChannel.getState() != RTCDataChannelState.OPEN) {
+                System.err.println("[FT-CTRL-SEND] ERROR: DataChannel not ready!");
                 return;
             }
-            reliableMessaging.sendMessage(remoteUsername, payload);
-            System.out.println("[FT-CTRL-SEND] Control message dispatched successfully");
+            
+            try {
+                byte[] payloadBytes = payload.getBytes(StandardCharsets.UTF_8);
+                // Use signal 0xF0 for file transfer control (different from messaging 0x20-0x23)
+                java.nio.ByteBuffer buffer = java.nio.ByteBuffer.allocate(1 + payloadBytes.length);
+                buffer.put((byte) 0xF0); // File transfer control signal
+                buffer.put(payloadBytes);
+                buffer.flip();
+                
+                RTCDataChannelBuffer dcBuffer = new RTCDataChannelBuffer(buffer, true);
+                dataChannel.send(dcBuffer);
+                System.out.println("[FT-CTRL-SEND] ✅ Control message sent DIRECTLY via DataChannel (signal 0xF0)");
+            } catch (Exception e) {
+                System.err.printf("[FT-CTRL-SEND] ❌ Failed to send control message: %s%n", e.getMessage());
+                e.printStackTrace();
+            }
         }
         
         private String buildUrReceiverControl(long fileId, long fileSize, String fileName) {

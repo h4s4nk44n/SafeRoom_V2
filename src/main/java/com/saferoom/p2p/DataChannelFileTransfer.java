@@ -73,16 +73,30 @@ public class DataChannelFileTransfer {
     public CompletableFuture<Boolean> sendFile(Path filePath, long fileId) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         
+        System.out.println("[DCFileTransfer] ╔════════════════════════════════════════════════");
+        System.out.printf("[DCFileTransfer] ║ sendFile() CALLED%n");
+        System.out.printf("[DCFileTransfer] ║ filePath: %s%n", filePath);
+        System.out.printf("[DCFileTransfer] ║ fileId: %d%n", fileId);
+        System.out.printf("[DCFileTransfer] ║ sender: %s%n", sender != null ? "INITIALIZED" : "NULL");
+        System.out.printf("[DCFileTransfer] ║ thread: %s%n", Thread.currentThread().getName());
+        System.out.println("[DCFileTransfer] ╚════════════════════════════════════════════════");
+        
         executor.execute(() -> {
             try {
-                System.out.printf("[DCFileTransfer]Sending: %s (fileId=%d)%n", filePath.getFileName(), fileId);
+                System.out.printf("[DCFileTransfer] 📤 Executor thread started: %s%n", Thread.currentThread().getName());
+                System.out.printf("[DCFileTransfer] 🚀 Calling sender.sendFile()...%n");
                 
                 sender.sendFile(filePath, fileId);
                 
-                System.out.printf("[DCFileTransfer]Sent: %s%n", filePath.getFileName());
+                System.out.printf("[DCFileTransfer] ✅ sender.sendFile() returned successfully%n");
+                System.out.printf("[DCFileTransfer] Sent: %s%n", filePath.getFileName());
                 future.complete(true);
             } catch (Exception e) {
-                System.err.printf("[DCFileTransfer]Send error: %s%n", e.getMessage());
+                System.err.println("[DCFileTransfer] ❌❌❌ EXCEPTION CAUGHT ❌❌❌");
+                System.err.printf("[DCFileTransfer] Exception type: %s%n", e.getClass().getName());
+                System.err.printf("[DCFileTransfer] Exception message: %s%n", e.getMessage());
+                System.err.println("[DCFileTransfer] Stack trace:");
+                e.printStackTrace();
                 future.complete(false);
             }
         });
