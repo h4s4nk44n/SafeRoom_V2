@@ -135,18 +135,53 @@ public class FileTransferReceiver {
 
 			int t;
 			
+			System.out.println("[RECEIVER-HANDSHAKE] 🔄 Waiting for SYN_ACK (0x11)...");
+			long synAckDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+			int synAckAttempts = 0;
+			
 			try{
 				do{
 					// CRITICAL: Clear buffer before each read attempt!
 					rcv_syn.clear();
 					t = channel.read(rcv_syn);
-					if(t == 0 || t < 9 || t > 13) 
-						LockSupport.parkNanos(200_000);
-				}while(t == 0 || t < 9 || t > 13);
+					
+					if(t > 0) {
+						byte signal = rcv_syn.get(0);
+						System.out.printf("[RECEIVER-HANDSHAKE] Read %d bytes, signal: 0x%02X%n", t, signal);
+						
+						// Check if it's SYN_ACK (0x11) with correct fileId
+						if(signal == 0x11) {
+							long receivedFileId = HandShake_Packet.get_file_Id(rcv_syn);
+							System.out.printf("[RECEIVER-HANDSHAKE] ✅ SYN_ACK received! fileId=%d (expected=%d)%n", 
+								receivedFileId, fileId);
+							
+							if(receivedFileId == fileId) {
+								System.out.println("[RECEIVER-HANDSHAKE] ✅ Handshake COMPLETE! Returning true...");
+								return true;
+							} else {
+								System.err.printf("[RECEIVER-HANDSHAKE] ❌ FileId mismatch: got=%d, expected=%d%n",
+									receivedFileId, fileId);
+							}
+						}
+					}
+					
+					synAckAttempts++;
+					if(synAckAttempts % 100 == 0) {
+						System.out.printf("[RECEIVER-HANDSHAKE] Still waiting for SYN_ACK... (attempt %d)%n", synAckAttempts);
+					}
+					
+					if(System.nanoTime() > synAckDeadline) {
+						System.err.println("[RECEIVER-HANDSHAKE] ❌ SYN_ACK timeout after 30 seconds");
+						return false;
+					}
+					
+					LockSupport.parkNanos(1_000_000); // 1ms
+				}while(true);
 			}catch(IOException e){
-				System.err.println("SYN + ACK Packet State Error: " + e);
+				System.err.println("[RECEIVER-HANDSHAKE] SYN_ACK read error: " + e);
+				e.printStackTrace();
+				return false;
 			}
-			if(HandShake_Packet.get_signal(rcv_syn) == 0x11 && HandShake_Packet.get_file_Id(rcv_syn) == fileId) return true;
 
 		 }
 
