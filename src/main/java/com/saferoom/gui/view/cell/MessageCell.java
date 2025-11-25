@@ -3,12 +3,14 @@ package com.saferoom.gui.view.cell;
 import com.saferoom.gui.model.FileAttachment;
 import com.saferoom.gui.model.Message;
 import com.saferoom.gui.model.MessageType;
+import java.awt.Desktop;
+import java.nio.file.Path;
 import javafx.animation.FadeTransition;
+import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.value.ChangeListener;
-import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -28,6 +30,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.scene.web.WebView;
 import javafx.util.Duration;
 
 public class MessageCell extends ListCell<Message> {
@@ -162,6 +165,9 @@ public class MessageCell extends ListCell<Message> {
         placeholder.getChildren().add(symbol);
         if (message.getType() == MessageType.FILE_PLACEHOLDER) {
             placeholder.getChildren().add(createProgressOverlay(message));
+        } else {
+            placeholder.getStyleClass().add("interactive-thumb");
+            placeholder.setOnMouseClicked(e -> openGenericFile(attachment));
         }
         return placeholder;
     }
@@ -178,18 +184,6 @@ public class MessageCell extends ListCell<Message> {
         StackPane overlay = new StackPane(dim, percent);
         overlay.getStyleClass().add("image-overlay");
         return overlay;
-    }
-
-    private void applyCenterCrop(ImageView view, Image image) {
-        double w = image.getWidth();
-        double h = image.getHeight();
-        if (w <= 0 || h <= 0) {
-            return;
-        }
-        double size = Math.min(w, h);
-        double x = (w - size) / 2;
-        double y = (h - size) / 2;
-        view.setViewport(new Rectangle2D(x, y, size, size));
     }
 
     private void animateFadeIn(Node node) {
@@ -263,5 +257,44 @@ public class MessageCell extends ListCell<Message> {
         });
         root.setOnMouseClicked(e -> stage.close());
         stage.show();
+    }
+
+    private void openGenericFile(FileAttachment attachment) {
+        if (attachment == null || attachment.getLocalPath() == null) {
+            return;
+        }
+        Path path = attachment.getLocalPath();
+        if ("pdf".equalsIgnoreCase(getExtension(path.getFileName().toString()))
+                && Platform.isSupported(ConditionalFeature.WEB)) {
+            showPdfPreview(path);
+            return;
+        }
+        try {
+            Desktop.getDesktop().open(path.toFile());
+        } catch (Exception e) {
+            System.err.println("[MessageCell] Failed to open file: " + e.getMessage());
+        }
+    }
+
+    private void showPdfPreview(Path path) {
+        Stage stage = new Stage();
+        stage.initModality(Modality.APPLICATION_MODAL);
+        stage.setTitle(path.getFileName().toString());
+        WebView webView = new WebView();
+        webView.getEngine().load(path.toUri().toString());
+        BorderPane root = new BorderPane(webView);
+        Scene scene = new Scene(root, 800, 600);
+        stage.setScene(scene);
+        scene.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                stage.close();
+            }
+        });
+        stage.show();
+    }
+
+    private String getExtension(String name) {
+        int idx = name.lastIndexOf('.');
+        return idx > 0 ? name.substring(idx + 1) : "";
     }
 }
