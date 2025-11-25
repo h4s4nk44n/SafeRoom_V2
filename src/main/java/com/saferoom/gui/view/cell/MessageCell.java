@@ -6,7 +6,6 @@ import com.saferoom.gui.model.MessageType;
 import java.awt.Desktop;
 import java.nio.file.Path;
 import javafx.animation.FadeTransition;
-import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
@@ -30,7 +29,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.scene.web.WebView;
 import javafx.util.Duration;
 
 public class MessageCell extends ListCell<Message> {
@@ -264,11 +262,6 @@ public class MessageCell extends ListCell<Message> {
             return;
         }
         Path path = attachment.getLocalPath();
-        if ("pdf".equalsIgnoreCase(getExtension(path.getFileName().toString()))
-                && Platform.isSupported(ConditionalFeature.WEB)) {
-            showPdfPreview(path);
-            return;
-        }
         try {
             Desktop.getDesktop().open(path.toFile());
         } catch (Exception e) {
@@ -276,25 +269,4 @@ public class MessageCell extends ListCell<Message> {
         }
     }
 
-    private void showPdfPreview(Path path) {
-        Stage stage = new Stage();
-        stage.initModality(Modality.APPLICATION_MODAL);
-        stage.setTitle(path.getFileName().toString());
-        WebView webView = new WebView();
-        webView.getEngine().load(path.toUri().toString());
-        BorderPane root = new BorderPane(webView);
-        Scene scene = new Scene(root, 800, 600);
-        stage.setScene(scene);
-        scene.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ESCAPE) {
-                stage.close();
-            }
-        });
-        stage.show();
-    }
-
-    private String getExtension(String name) {
-        int idx = name.lastIndexOf('.');
-        return idx > 0 ? name.substring(idx + 1) : "";
-    }
 }
