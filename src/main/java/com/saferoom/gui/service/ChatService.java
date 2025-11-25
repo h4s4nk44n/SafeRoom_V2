@@ -7,12 +7,16 @@ import com.saferoom.gui.model.MessageType;
 import com.saferoom.gui.model.User;
 import com.saferoom.client.ClientMenu;
 import com.saferoom.p2p.FileTransferObserver;
+import java.awt.image.BufferedImage;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.application.Platform;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.PDFRenderer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -220,7 +224,7 @@ public class ChatService {
         
         // Build UI placeholder before sending
         MessageType fileType = detectFileType(filePath);
-        Image thumbnail = MessageType.IMAGE.equals(fileType) ? generateThumbnail(filePath) : null;
+        Image thumbnail = generateThumbnail(fileType, filePath);
         FileAttachment attachment = new FileAttachment(
             fileType,
             filePath.getFileName().toString(),
@@ -339,7 +343,7 @@ public class ChatService {
     public void handleIncomingFile(String senderId, java.nio.file.Path filePath, long fileSize) {
         Runnable task = () -> {
             MessageType type = detectFileType(filePath);
-            Image thumbnail = type == MessageType.IMAGE ? generateThumbnail(filePath) : null;
+            Image thumbnail = generateThumbnail(type, filePath);
             FileAttachment attachment = new FileAttachment(
                 type,
                 filePath.getFileName().toString(),
@@ -385,11 +389,32 @@ public class ChatService {
         return MessageType.FILE;
     }
 
-    private Image generateThumbnail(Path path) {
+    private Image generateThumbnail(MessageType type, Path path) {
         try {
-            return new Image(path.toUri().toString(), 160, 160, true, true, true);
+            if (type == MessageType.IMAGE) {
+                return new Image(path.toUri().toString(), 160, 160, true, true, true);
+            }
+            if (type == MessageType.DOCUMENT && isPdf(path)) {
+                return generatePdfThumbnail(path);
+            }
         } catch (Exception e) {
             System.err.println("[Chat] Thumbnail generation failed: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private boolean isPdf(Path path) {
+        String name = path.getFileName().toString().toLowerCase();
+        return name.endsWith(".pdf");
+    }
+
+    private Image generatePdfThumbnail(Path pdfPath) {
+        try (PDDocument doc = PDDocument.load(pdfPath.toFile())) {
+            PDFRenderer renderer = new PDFRenderer(doc);
+            BufferedImage page = renderer.renderImageWithDPI(0, 96);
+            return SwingFXUtils.toFXImage(page, null);
+        } catch (Exception e) {
+            System.err.println("[Chat] PDF thumbnail failed: " + e.getMessage());
             return null;
         }
     }

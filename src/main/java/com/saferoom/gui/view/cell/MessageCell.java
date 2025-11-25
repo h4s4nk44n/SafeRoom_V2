@@ -4,17 +4,20 @@ import com.saferoom.gui.model.FileAttachment;
 import com.saferoom.gui.model.Message;
 import com.saferoom.gui.model.MessageType;
 import java.awt.Desktop;
+import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.value.ChangeListener;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.effect.GaussianBlur;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -30,8 +33,11 @@ import javafx.scene.shape.Rectangle;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.PDFRenderer;
 
 public class MessageCell extends ListCell<Message> {
+    private static final double THUMB_SIZE = 140;
     private final HBox hbox = new HBox(10);
     private final Label avatar = new Label();
     private final Pane spacer = new Pane();
@@ -137,23 +143,12 @@ public class MessageCell extends ListCell<Message> {
             return null;
         }
         if (attachment.getTargetType() == MessageType.IMAGE && attachment.getThumbnail() != null) {
-            Image image = attachment.getThumbnail();
-            ImageView preview = new ImageView(image);
-            preview.setPreserveRatio(true);
-            preview.setFitWidth(140);
-            preview.setFitHeight(140);
-            preview.setEffect(message.getType() == MessageType.FILE_PLACEHOLDER ? new GaussianBlur(8) : null);
-            if (message.getType() != MessageType.FILE_PLACEHOLDER) {
-                preview.getStyleClass().add("interactive-thumb");
-                preview.setOnMouseClicked(e -> openPreviewModal(attachment));
-            }
-            StackPane thumbWrapper = new StackPane(preview);
-            thumbWrapper.getStyleClass().add("file-thumbnail");
-            if (message.getType() == MessageType.FILE_PLACEHOLDER) {
-                StackPane overlay = createProgressOverlay(message);
-                thumbWrapper.getChildren().add(overlay);
-            }
-            return thumbWrapper;
+            return buildImagePreview(message, attachment);
+        }
+        if (attachment.getTargetType() == MessageType.DOCUMENT
+            && attachment.getThumbnail() != null
+            && isPdfAttachment(attachment)) {
+            return buildPdfPreview(message, attachment);
         }
 
         StackPane placeholder = new StackPane();
@@ -165,13 +160,17 @@ public class MessageCell extends ListCell<Message> {
             placeholder.getChildren().add(createProgressOverlay(message));
         } else {
             placeholder.getStyleClass().add("interactive-thumb");
-            placeholder.setOnMouseClicked(e -> openGenericFile(attachment));
+            if (attachment.getTargetType() == MessageType.DOCUMENT && isPdfAttachment(attachment)) {
+                placeholder.setOnMouseClicked(e -> openPdfModal(attachment));
+            } else {
+                placeholder.setOnMouseClicked(e -> openGenericFile(attachment));
+            }
         }
         return placeholder;
     }
 
     private StackPane createProgressOverlay(Message message) {
-        Rectangle dim = new Rectangle(120, 120, Color.color(0, 0, 0, 0.45));
+        Rectangle dim = new Rectangle(THUMB_SIZE, THUMB_SIZE, Color.color(0, 0, 0, 0.45));
         Label percent = new Label();
         StringBinding percentText = Bindings.createStringBinding(
             () -> String.format("%.0f%%", message.getProgress() * 100),
@@ -182,6 +181,46 @@ public class MessageCell extends ListCell<Message> {
         StackPane overlay = new StackPane(dim, percent);
         overlay.getStyleClass().add("image-overlay");
         return overlay;
+    }
+
+    private Node buildImagePreview(Message message, FileAttachment attachment) {
+        Image image = attachment.getThumbnail();
+        ImageView preview = new ImageView(image);
+        preview.setPreserveRatio(true);
+        preview.setFitWidth(THUMB_SIZE);
+        preview.setFitHeight(THUMB_SIZE);
+        preview.setEffect(message.getType() == MessageType.FILE_PLACEHOLDER ? new GaussianBlur(8) : null);
+        StackPane thumbWrapper = new StackPane(preview);
+        thumbWrapper.getStyleClass().add("file-thumbnail");
+        if (message.getType() == MessageType.FILE_PLACEHOLDER) {
+            thumbWrapper.getChildren().add(createProgressOverlay(message));
+        } else {
+            thumbWrapper.getStyleClass().add("interactive-thumb");
+            thumbWrapper.setOnMouseClicked(e -> openPreviewModal(attachment));
+        }
+        return thumbWrapper;
+    }
+
+    private Node buildPdfPreview(Message message, FileAttachment attachment) {
+        ImageView preview = new ImageView(attachment.getThumbnail());
+        preview.setPreserveRatio(true);
+        preview.setFitWidth(THUMB_SIZE);
+        preview.setFitHeight(THUMB_SIZE);
+        StackPane thumbWrapper = new StackPane(preview);
+        thumbWrapper.getStyleClass().add("file-thumbnail");
+        if (message.getType() == MessageType.FILE_PLACEHOLDER) {
+            thumbWrapper.getChildren().add(createProgressOverlay(message));
+        } else {
+            thumbWrapper.getStyleClass().add("interactive-thumb");
+            thumbWrapper.setOnMouseClicked(e -> openPdfModal(attachment));
+        }
+        return thumbWrapper;
+    }
+
+    private boolean isPdfAttachment(FileAttachment attachment) {
+        return attachment != null
+            && attachment.getFileName() != null
+            && attachment.getFileName().toLowerCase().endsWith(".pdf");
     }
 
     private void animateFadeIn(Node node) {
@@ -254,6 +293,70 @@ public class MessageCell extends ListCell<Message> {
             }
         });
         root.setOnMouseClicked(e -> stage.close());
+        stage.show();
+    }
+
+    private void openPdfModal(FileAttachment attachment) {
+        if (attachment == null || attachment.getLocalPath() == null) {
+            return;
+        }
+        Path path = attachment.getLocalPath();
+        Stage stage = new Stage();
+        stage.initModality(Modality.APPLICATION_MODAL);
+        stage.setTitle(attachment.getFileName());
+
+        VBox pages = new VBox(12);
+        pages.setStyle("-fx-padding: 16; -fx-background-color: #0f111a;");
+
+        ScrollPane scrollPane = new ScrollPane(pages);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background: transparent; -fx-border-color: transparent;");
+
+        BorderPane root = new BorderPane(scrollPane);
+        Scene scene = new Scene(root, 900, 960);
+        stage.setScene(scene);
+
+        Label loading = new Label("Loading PDF…");
+        loading.getStyleClass().add("file-status");
+        pages.getChildren().add(loading);
+
+        Thread loader = new Thread(() -> {
+            try (PDDocument doc = PDDocument.load(path.toFile())) {
+                PDFRenderer renderer = new PDFRenderer(doc);
+                int pageCount = doc.getNumberOfPages();
+                for (int i = 0; i < pageCount; i++) {
+                    BufferedImage page = renderer.renderImageWithDPI(i, 150);
+                    Image fxImage = SwingFXUtils.toFXImage(page, null);
+                    final int idx = i;
+                    Platform.runLater(() -> {
+                        pages.getChildren().remove(loading);
+                        ImageView view = new ImageView(fxImage);
+                        view.setPreserveRatio(true);
+                        view.setFitWidth(860);
+                        view.setSmooth(true);
+                        Label pageLabel = new Label("Page " + (idx + 1));
+                        pageLabel.getStyleClass().add("file-status");
+                        pages.getChildren().add(pageLabel);
+                        pages.getChildren().add(view);
+                    });
+                }
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    pages.getChildren().clear();
+                    Label error = new Label("Failed to load PDF: " + e.getMessage());
+                    error.getStyleClass().add("file-status");
+                    pages.getChildren().add(error);
+                });
+            }
+        }, "pdf-render-" + System.nanoTime());
+        loader.setDaemon(true);
+        loader.start();
+
+        scene.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                stage.close();
+            }
+        });
         stage.show();
     }
 
