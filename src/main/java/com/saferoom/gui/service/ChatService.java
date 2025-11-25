@@ -1,16 +1,24 @@
 package com.saferoom.gui.service;
 
 
+import com.saferoom.gui.model.FileAttachment;
 import com.saferoom.gui.model.Message;
+import com.saferoom.gui.model.MessageType;
 import com.saferoom.gui.model.User;
 import com.saferoom.client.ClientMenu;
+import com.saferoom.p2p.FileTransferObserver;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.application.Platform;
+import javafx.scene.image.Image;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
+import java.nio.file.Path;
 
 /**
  * Mesajları yöneten, gönderen ve alan servis.
@@ -31,7 +39,8 @@ public class ChatService {
     // DİKKAT: Bu, yeni bir mesaj geldiğinde bunu dinleyenleri haberdar eden sihirli kısımdır.
     private final ObjectProperty<Message> newMessageProperty = new SimpleObjectProperty<>();
 
-    // Constructor'ı private yaparak dışarıdan yeni nesne oluşturulmasını engelliyoruz.
+    private final Map<Long, Message> activeFileTransfers = new ConcurrentHashMap<>();
+
     private ChatService() {
         // Başlangıç için sahte verileri yükle
         setupDummyMessages();
@@ -70,10 +79,12 @@ public class ChatService {
         if (text == null || text.trim().isEmpty()) return;
 
         Message newMessage = new Message(
-                text,
-                sender.getId(),
-                sender.getName().isEmpty() ? "" : sender.getName().substring(0, 1)
+            text,
+            sender.getId(),
+            sender.getName().isEmpty() ? "" : sender.getName().substring(0, 1)
         );
+        newMessage.setType(MessageType.TEXT);
+        newMessage.setOutgoing(true);
 
         // Mesajı ilgili kanalın listesine ekle
         ObservableList<Message> messages = getMessagesForChannel(channelId);
@@ -159,6 +170,7 @@ public class ChatService {
             sender,
             sender.isEmpty() ? "?" : sender.substring(0, 1).toUpperCase()
         );
+        incomingMessage.setType(MessageType.TEXT);
         
         // Mesajı doğru channel'a ekle
         ObservableList<Message> messages = getMessagesForChannel(sender);
@@ -197,7 +209,7 @@ public class ChatService {
      * @param targetUser Dosya gönderilecek kullanıcı
      * @param filePath Gönderilecek dosyanın yolu
      */
-    public void sendFile(String targetUser, java.nio.file.Path filePath) {
+    public void sendFileMessage(String targetUser, java.nio.file.Path filePath, User sender) {
         if (targetUser == null || filePath == null) {
             System.err.println("[Chat] ❌ Invalid sendFile parameters");
             return;
@@ -206,50 +218,92 @@ public class ChatService {
         System.out.printf("[Chat] 📁 Starting file transfer: %s -> %s%n", 
             filePath.getFileName(), targetUser);
         
+        // Build UI placeholder before sending
+        MessageType fileType = detectFileType(filePath);
+        Image thumbnail = MessageType.IMAGE.equals(fileType) ? generateThumbnail(filePath) : null;
+        FileAttachment attachment = new FileAttachment(
+            fileType,
+            filePath.getFileName().toString(),
+            filePath.toFile().length(),
+            filePath,
+            thumbnail
+        );
+        Message placeholder = Message.createFilePlaceholder(
+            sender.getId(),
+            sender.getName().isEmpty() ? "" : sender.getName().substring(0, 1),
+            attachment
+        );
+        placeholder.setOutgoing(true);
+
+        ObservableList<Message> messages = getMessagesForChannel(targetUser);
+        messages.add(placeholder);
+        try {
+            com.saferoom.gui.service.ContactService.getInstance()
+                .updateLastMessage(targetUser, "📎 " + attachment.getFileName(), true);
+        } catch (Exception e) {
+            System.err.println("[Chat] Error updating contact for file placeholder: " + e.getMessage());
+        }
+
         // Check P2P connection (WebRTC DataChannel)
         if (!ClientMenu.isP2PMessagingAvailable(targetUser)) {
             System.err.printf("[Chat] ❌ No P2P connection with %s%n", targetUser);
-            javafx.application.Platform.runLater(() -> {
+            Platform.runLater(() -> {
                 javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
                     javafx.scene.control.Alert.AlertType.ERROR);
                 alert.setTitle("P2P Error");
                 alert.setHeaderText("No P2P Connection");
                 alert.setContentText("Cannot send file - no active P2P connection with " + targetUser);
                 alert.showAndWait();
+                placeholder.setStatusText("Failed (no connection)");
             });
             return;
         }
         
         try {
-            // Use WebRTC DataChannel file transfer (P2PConnectionManager)
-            System.out.printf("[Chat] 📤 Sending file via DataChannel to %s: %s%n",
-                targetUser, filePath.getFileName());
-            
+            AtomicReference<Long> transferIdRef = new AtomicReference<>(-1L);
+
+            FileTransferObserver observer = new FileTransferObserver() {
+                @Override
+                public void onTransferStarted(long fileId, Path path, long totalBytes) {
+                    transferIdRef.set(fileId);
+                    activeFileTransfers.put(fileId, placeholder);
+                    Platform.runLater(() -> {
+                        placeholder.setTransferId(fileId);
+                        placeholder.setStatusText("Sending…");
+                        placeholder.setProgress(0);
+                    });
+                }
+
+                @Override
+                public void onTransferProgress(long fileId, long bytesSent, long totalBytes) {
+                    double fraction = totalBytes == 0 ? 0 : (double) bytesSent / totalBytes;
+                    Platform.runLater(() -> placeholder.setProgress(fraction));
+                }
+
+                @Override
+                public void onTransferCompleted(long fileId) {
+                    activeFileTransfers.remove(fileId);
+                    Platform.runLater(() -> {
+                        placeholder.setProgress(1.0);
+                        placeholder.setType(attachment.getTargetType());
+                        placeholder.setStatusText("Sent");
+                    });
+                }
+
+                @Override
+                public void onTransferFailed(long fileId, Throwable error) {
+                    activeFileTransfers.remove(fileId);
+                    Platform.runLater(() -> {
+                        placeholder.setStatusText("Failed");
+                    });
+                }
+            };
+
             com.saferoom.p2p.P2PConnectionManager.getInstance()
-                .sendFile(targetUser, filePath)
+                .sendFile(targetUser, filePath, observer)
                 .thenAccept(success -> {
-                    if (success) {
-                        System.out.printf("[Chat] ✅ File transfer completed: %s%n", filePath.getFileName());
-                        
-                        javafx.application.Platform.runLater(() -> {
-                            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
-                                javafx.scene.control.Alert.AlertType.INFORMATION);
-                            alert.setTitle("File Transfer");
-                            alert.setHeaderText("File Sent Successfully");
-                            alert.setContentText("File " + filePath.getFileName() + " sent to " + targetUser);
-                            alert.show();
-                        });
-                    } else {
-                        System.err.printf("[Chat] ❌ File transfer failed: %s%n", filePath.getFileName());
-                        
-                        javafx.application.Platform.runLater(() -> {
-                            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
-                                javafx.scene.control.Alert.AlertType.ERROR);
-                            alert.setTitle("File Transfer Error");
-                            alert.setHeaderText("Failed to Send File");
-                            alert.setContentText("Could not send " + filePath.getFileName());
-                            alert.showAndWait();
-                        });
+                    if (!success) {
+                        observer.onTransferFailed(transferIdRef.get(), null);
                     }
                 });
             
@@ -257,14 +311,38 @@ public class ChatService {
             System.err.printf("[Chat] ❌ File transfer error: %s%n", e.getMessage());
             e.printStackTrace();
             
-            javafx.application.Platform.runLater(() -> {
+            Platform.runLater(() -> {
                 javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
                     javafx.scene.control.Alert.AlertType.ERROR);
                 alert.setTitle("File Transfer Error");
                 alert.setHeaderText("Failed to Send File");
                 alert.setContentText(e.getMessage());
                 alert.showAndWait();
+                placeholder.setStatusText("Failed");
             });
+        }
+    }
+
+    private MessageType detectFileType(Path path) {
+        String name = path.getFileName().toString().toLowerCase();
+        if (name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".bmp") || name.endsWith(".gif")) {
+            return MessageType.IMAGE;
+        }
+        if (name.endsWith(".mp4") || name.endsWith(".mov") || name.endsWith(".mkv")) {
+            return MessageType.VIDEO;
+        }
+        if (name.endsWith(".pdf") || name.endsWith(".doc") || name.endsWith(".docx") || name.endsWith(".txt")) {
+            return MessageType.DOCUMENT;
+        }
+        return MessageType.FILE;
+    }
+
+    private Image generateThumbnail(Path path) {
+        try {
+            return new Image(path.toUri().toString(), 120, 120, true, true, false);
+        } catch (Exception e) {
+            System.err.println("[Chat] Thumbnail generation failed: " + e.getMessage());
+            return null;
         }
     }
 

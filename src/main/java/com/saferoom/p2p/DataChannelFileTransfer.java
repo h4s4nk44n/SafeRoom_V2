@@ -71,6 +71,10 @@ public class DataChannelFileTransfer {
     }
     
     public CompletableFuture<Boolean> sendFile(Path filePath, long fileId) {
+        return sendFile(filePath, fileId, null);
+    }
+
+    public CompletableFuture<Boolean> sendFile(Path filePath, long fileId, FileTransferObserver observer) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         
         System.out.println("[DCFileTransfer] ╔════════════════════════════════════════════════");
@@ -85,8 +89,28 @@ public class DataChannelFileTransfer {
             try {
                 System.out.printf("[DCFileTransfer] 📤 Executor thread started: %s%n", Thread.currentThread().getName());
                 System.out.printf("[DCFileTransfer] 🚀 Calling sender.sendFile()...%n");
-                
-                sender.sendFile(filePath, fileId);
+
+                sender.setTransferListener(new EnhancedFileTransferSender.TransferListener() {
+                    @Override
+                    public void onPacketProgress(long transferId, long bytesSent, long totalBytes) {
+                        if (observer != null) observer.onTransferProgress(transferId, bytesSent, totalBytes);
+                    }
+
+                    @Override
+                    public void onTransferComplete(long transferId) {
+                        if (observer != null) observer.onTransferCompleted(transferId);
+                    }
+
+                    @Override
+                    public void onTransferFailed(long transferId, Throwable error) {
+                        if (observer != null) observer.onTransferFailed(transferId, error);
+                    }
+                });
+                try {
+                    sender.sendFile(filePath, fileId);
+                } finally {
+                    sender.setTransferListener(null);
+                }
                 
                 System.out.printf("[DCFileTransfer] ✅ sender.sendFile() returned successfully%n");
                 System.out.printf("[DCFileTransfer] Sent: %s%n", filePath.getFileName());

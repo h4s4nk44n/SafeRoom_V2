@@ -1653,6 +1653,70 @@
   -fx-background-radius: 10px 10px 10px 2px;
 }
 
+.message-bubble-sent,
+.file-message-bubble.file-bubble-sent {
+  -fx-background-color: linear-gradient(to bottom right, #4b3a63 0%, #342943 100%);
+}
+
+.message-bubble-received,
+.file-message-bubble.file-bubble-received {
+  -fx-background-color: linear-gradient(to bottom right, #1f1b28 0%, #16131c 100%);
+}
+
+.file-message-bubble {
+  -fx-padding: 12px;
+  -fx-background-radius: 14px;
+  -fx-spacing: 6px;
+  -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.35), 6, 0, 0, 2);
+}
+
+.file-thumbnail,
+.file-generic-thumb {
+  -fx-background-color: #201d29;
+  -fx-background-radius: 12px;
+  -fx-padding: 4px;
+  -fx-alignment: center;
+}
+
+.file-generic-thumb {
+  -fx-pref-width: 120px;
+  -fx-pref-height: 120px;
+}
+
+.file-card-icon {
+  -fx-font-size: 20px;
+  -fx-text-fill: #f8fafc;
+}
+
+.file-name {
+  -fx-text-fill: white;
+  -fx-font-weight: 600;
+}
+
+.file-size {
+  -fx-text-fill: #94a3b8;
+  -fx-font-size: 12px;
+}
+
+.file-status {
+  -fx-text-fill: #94a3b8;
+  -fx-font-size: 12px;
+}
+
+.image-overlay {
+  -fx-alignment: center;
+}
+
+.image-overlay-text {
+  -fx-text-fill: white;
+  -fx-font-weight: bold;
+  -fx-font-size: 16px;
+}
+
+.interactive-thumb {
+  -fx-cursor: hand;
+}
+
 /* --- KİŞİ AVATARI (LİSTE İÇİN) --- */
 /* Üst kısımdaki avatara dokunmuyoruz, burası listedeki küçükler için kalabilir */
 .message-avatar {

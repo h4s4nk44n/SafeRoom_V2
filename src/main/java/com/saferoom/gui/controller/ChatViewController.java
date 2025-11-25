@@ -29,6 +29,7 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollBar;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
@@ -97,6 +98,7 @@ public class ChatViewController {
     private String currentChannelId;
     private ChatService chatService;
     private ObservableList<Message> messages;
+    private boolean autoScrollAtBottom = true;
 
     // WebRTC variables
     private OutgoingCallDialog currentOutgoingDialog;
@@ -118,10 +120,8 @@ public class ChatViewController {
 
         // Global mesaj listener
         chatService.newMessageProperty().addListener((obs, oldMsg, newMsg) -> {
-            if (newMsg != null && messages != null && messages.contains(newMsg)) {
-                if (newMsg.getSenderId().equals(currentUser.getId())) {
-                    messageListView.scrollTo(messages.size() - 1);
-                }
+            if (newMsg != null && messages != null && messages.contains(newMsg) && autoScrollAtBottom) {
+                messageListView.scrollTo(messages.size() - 1);
             }
         });
 
@@ -152,6 +152,7 @@ public class ChatViewController {
 
         // Başlangıçta Welcome Screen göster
         showWelcomeScreen();
+        setupAutoScrollBehavior();
     }
 
     // --- YARDIMCI METOT: Özel stilli menü elemanları oluşturur ---
@@ -279,7 +280,7 @@ public class ChatViewController {
         messages.addListener((ListChangeListener<Message>) c -> {
             while (c.next()) {
                 updateViewVisibility();
-                if (c.wasAdded()) {
+                if (c.wasAdded() && autoScrollAtBottom) {
                     messageListView.scrollTo(messages.size() - 1);
                 }
             }
@@ -410,9 +411,7 @@ public class ChatViewController {
     }
 
     private void sendFile(Path filePath) {
-        String fileMsg = String.format("📎 Sending file: %s (%s)", filePath.getFileName(), formatFileSize(filePath.toFile().length()));
-        chatService.sendMessage(currentChannelId, fileMsg, currentUser);
-        chatService.sendFile(currentChannelId, filePath);
+        chatService.sendFileMessage(currentChannelId, filePath, currentUser);
     }
 
     private String formatFileSize(long bytes) {
@@ -423,6 +422,26 @@ public class ChatViewController {
         }else {
             return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
         }
+    }
+
+    private void setupAutoScrollBehavior() {
+        messageListView.skinProperty().addListener((obs, oldSkin, newSkin) -> attachScrollListener());
+        Platform.runLater(this::attachScrollListener);
+    }
+
+    private void attachScrollListener() {
+        ScrollBar bar = (ScrollBar) messageListView.lookup(".scroll-bar:vertical");
+        if (bar == null) {
+            return;
+        }
+        bar.valueProperty().addListener((obs, oldVal, newVal) -> {
+            double max = bar.getMax();
+            if (Double.compare(max, 0) == 0) {
+                autoScrollAtBottom = true;
+                return;
+            }
+            autoScrollAtBottom = (max - newVal.doubleValue()) < 0.05;
+        });
     }
 
     private void handleKeyPressed(KeyEvent event) {

@@ -29,6 +29,7 @@ public class EnhancedFileTransferSender {
 	    private Thread nackThread;
 	    private Thread retransmissionThread;
 	    private ChunkManager chunkManager;
+	    private TransferListener transferListener;
 	    
 	    private static final ExecutorService threadPool = 
 	        Executors.newCachedThreadPool(r -> {
@@ -46,6 +47,16 @@ public class EnhancedFileTransferSender {
 	    public EnhancedFileTransferSender(DatagramChannel ch){
 		this.channel = ch;
 	    }
+	    public interface TransferListener {
+	    	void onPacketProgress(long fileId, long bytesSent, long totalBytes);
+	    	void onTransferComplete(long fileId);
+	    	void onTransferFailed(long fileId, Throwable error);
+	    }
+
+	    public void setTransferListener(TransferListener listener) {
+	    	this.transferListener = listener;
+	    }
+
 	    
 	    public void requestStop() {
 	        this.stopRequested = true;
@@ -207,7 +218,7 @@ public class EnhancedFileTransferSender {
     	if(channel == null) throw new IllegalStateException("Datagram Channel is null you must bind and connect first");
     	if(stopRequested) throw new IllegalStateException("Transfer was stopped");
     	
-    	try(FileChannel fc = FileChannel.open(filePath, StandardOpenOption.READ)){
+	    	try(FileChannel fc = FileChannel.open(filePath, StandardOpenOption.READ)){
     		long fileSize = fc.size();
     		
     		System.out.printf("[SEND-INTERNAL] File opened: size=%d bytes%n", fileSize);
@@ -366,7 +377,9 @@ public class EnhancedFileTransferSender {
 		this.retransmissionThread.setDaemon(true);
 		this.retransmissionThread.start();	
 		
-		// ENHANCED WINDOWED TRANSMISSION - QUIC-style with Chunk Support
+	    	long bytesSent = 0;
+
+	    	// ENHANCED WINDOWED TRANSMISSION - QUIC-style with Chunk Support
 		System.out.println("Starting QUIC-inspired windowed transmission with chunked I/O...");
 		int seqNo = 0;
 		long startTime = System.currentTimeMillis();
@@ -375,24 +388,25 @@ public class EnhancedFileTransferSender {
 		// Chunk-based sequential transmission
 		int chunkCount = chunkManager.getChunkCount();
 		for(int chunkIdx = 0; chunkIdx < chunkCount; chunkIdx++) {
-			ChunkMetadata chunkMeta = chunkManager.getChunkMetadata(chunkIdx);
 			MappedByteBuffer chunkBuffer = chunkManager.getChunk(chunkIdx);
 			
 			// Send all sequences in this chunk
-			int localSeq = 0;
 			for(int off = 0; off < chunkBuffer.capacity(); ) {
 				int remaining = chunkBuffer.capacity() - off;
 				int take = Math.min(SLICE_SIZE, remaining);
 				
 				// DYNAMIC RTT-BASED PACING - Controller'ın hesapladığı değeri kullan
 				sendOne(initialCrc, initialPkt, chunkBuffer, fileId, seqNo, totalSeq, take, off);
+				bytesSent += take;
+				if (transferListener != null) {
+					transferListener.onPacketProgress(fileId, bytesSent, fileSize);
+				}
 				
 				// Controller'dan dynamic pacing al - RTT'ye göre adaptive
 				// rateLimitSend() zaten internal pacing yapıyor, ekstra sabit pacing yok!
 				
 				off += take;
 				seqNo++;
-				localSeq++;
 				
 				// Enhanced progress display
 				if (System.currentTimeMillis() - lastProgressTime > 1000) {
@@ -410,18 +424,29 @@ public class EnhancedFileTransferSender {
 		initialTransmissionDone[0] = true;
 	    	System.out.println("Initial transmission completed, waiting for retransmissions...");
 	    	
+	    	boolean completedSuccessfully = false;
 	    	// Transfer completion bekle
 	    	try {
 	    		boolean completed = transferCompleteLatch.await(300, TimeUnit.SECONDS);
 	    		if(completed) {
 	    			System.out.println(" File transfer completed successfully!");
 	    			System.out.println(" Final stats: " + hybridControl.getStats());
+	    			completedSuccessfully = true;
 	    		} else {
 	    			System.err.println(" Transfer timeout - network issue or very large file");
+	    			if (transferListener != null) {
+	    				transferListener.onTransferFailed(fileId, new IllegalStateException("Transfer timeout"));
+	    			}
 	    		}
 	    	} catch(InterruptedException e) {
 	    		System.err.println("Transfer interrupted");
 	    		Thread.currentThread().interrupt();
+	    		if (transferListener != null) {
+	    			transferListener.onTransferFailed(fileId, e);
+	    		}
+	    	}
+	    	if (completedSuccessfully && transferListener != null) {
+	    		transferListener.onTransferComplete(fileId);
 	    	}
 	    	}finally {
 	    		// Enhanced cleanup

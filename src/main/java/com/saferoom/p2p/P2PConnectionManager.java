@@ -429,6 +429,15 @@ public class P2PConnectionManager {
      * Send file via WebRTC DataChannel with file transfer protocol
      */
     public CompletableFuture<Boolean> sendFile(String targetUsername, java.nio.file.Path filePath) {
+        return sendFile(targetUsername, filePath, null);
+    }
+
+    /**
+     * Send file via WebRTC DataChannel with file transfer protocol and observer callbacks
+     */
+    public CompletableFuture<Boolean> sendFile(String targetUsername,
+                                               java.nio.file.Path filePath,
+                                               FileTransferObserver observer) {
         P2PConnection connection = activeConnections.get(targetUsername);
         if (connection == null || !connection.isActive()) {
             System.err.printf("[P2P] No active connection to %s%n", targetUsername);
@@ -446,7 +455,9 @@ public class P2PConnectionManager {
         try {
             long fileSize = Files.size(filePath);
             long fileId = System.currentTimeMillis();
-            
+            if (observer != null) {
+                observer.onTransferStarted(fileId, filePath, fileSize);
+            }
             System.out.println("[FT-SENDER] ═══════════════════════════════════════════════");
             System.out.printf("[FT-SENDER] sendFile() called: fileId=%d, file=%s, size=%d bytes%n", 
                 fileId, filePath.getFileName(), fileSize);
@@ -457,9 +468,10 @@ public class P2PConnectionManager {
                 fileId, fileSize, filePath.getFileName().toString()));
             
             return readyFuture.orTimeout(RECEIVER_READY_TIMEOUT_SEC, TimeUnit.SECONDS)
-                .thenCompose(v -> connection.fileTransfer.sendFile(filePath, fileId))
+                .thenCompose(v -> connection.fileTransfer.sendFile(filePath, fileId, observer))
                 .exceptionally(ex -> {
                     System.err.printf("[P2P] File transfer failed: %s%n", ex.getMessage());
+                    if (observer != null) observer.onTransferFailed(fileId, ex);
                     return false;
                 });
         } catch (Exception e) {
