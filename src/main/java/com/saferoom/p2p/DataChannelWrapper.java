@@ -15,6 +15,9 @@ import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+
+import com.saferoom.transport.FlowControlledEndpoint;
 
 /**
  * Wraps WebRTC RTCDataChannel as a DatagramChannel
@@ -27,13 +30,15 @@ import java.util.concurrent.TimeUnit;
  * - receive() → polls from inbound queue (filled by onMessage callback)
  * - No real socket address needed (P2P is already established)
  */
-public class DataChannelWrapper extends DatagramChannel {
+public class DataChannelWrapper extends DatagramChannel implements FlowControlledEndpoint {
     
     private final RTCDataChannel dataChannel;
     private final String remoteUsername;
     
     // Inbound message deque (handshake packets go to front, data packets to back)
-    private final BlockingDeque<ByteBuffer> inboundQueue = new LinkedBlockingDeque<>();
+    private static final int MAX_QUEUE_SIZE = 50_000;
+    private final BlockingDeque<ByteBuffer> inboundQueue = new LinkedBlockingDeque<>(MAX_QUEUE_SIZE);
+    private final AtomicLong droppedPackets = new AtomicLong();
     
     // Fake addresses for compatibility
     private final FakeSocketAddress localAddress;
@@ -65,14 +70,14 @@ public class DataChannelWrapper extends DatagramChannel {
             if (signal == 0x01 || signal == 0x10 || signal == 0x11) {
                 System.out.printf("[Wrapper] 📥 PRIORITY signal 0x%02X (%d bytes) from %s → FRONT of queue%n",
                     signal, copy.remaining(), remoteUsername);
-                inboundQueue.offerFirst(copy);  // Add to front
+                enqueuePriority(copy);
             } else {
                 System.out.printf("[Wrapper] 📥 Received signal 0x%02X (%d bytes) from %s → queue (size: %d)%n",
                     signal, copy.remaining(), remoteUsername, inboundQueue.size());
-                inboundQueue.offerLast(copy);   // Add to back
+                enqueueData(copy);
             }
         } else {
-            inboundQueue.offerLast(copy);
+            enqueueData(copy);
         }
     }
     
@@ -282,6 +287,42 @@ public class DataChannelWrapper extends DatagramChannel {
             return dataChannel.getBufferedAmount();
         } catch (Throwable t) {
             return 0;
+        }
+    }
+
+    public long getDroppedPacketCount() {
+        return droppedPackets.get();
+    }
+
+    @Override
+    public DatagramChannel channel() {
+        return this;
+    }
+
+    @Override
+    public long bufferedAmount() {
+        return getBufferedAmountSafe();
+    }
+
+    @Override
+    public long droppedPackets() {
+        return droppedPackets.get();
+    }
+
+    private void enqueuePriority(ByteBuffer packet) {
+        while (!inboundQueue.offerFirst(packet)) {
+            ByteBuffer dropped = inboundQueue.pollLast();
+            if (dropped == null) {
+                droppedPackets.incrementAndGet();
+                break;
+            }
+            droppedPackets.incrementAndGet();
+        }
+    }
+
+    private void enqueueData(ByteBuffer packet) {
+        if (!inboundQueue.offerLast(packet)) {
+            droppedPackets.incrementAndGet();
         }
     }
 }

@@ -282,7 +282,6 @@ public class ChatService {
 
                 @Override
                 public void onTransferCompleted(long fileId) {
-                    activeFileTransfers.remove(fileId);
                     Platform.runLater(() -> {
                         placeholder.setProgress(1.0);
                         placeholder.setType(attachment.getTargetType());
@@ -292,9 +291,23 @@ public class ChatService {
 
                 @Override
                 public void onTransferFailed(long fileId, Throwable error) {
-                    activeFileTransfers.remove(fileId);
                     Platform.runLater(() -> {
                         placeholder.setStatusText("Failed");
+                    });
+                }
+
+                @Override
+                public void onTransportStats(long fileId, long droppedPackets) {
+                    Message msg = activeFileTransfers.remove(fileId);
+                    if (msg == null) {
+                        return;
+                    }
+                    Platform.runLater(() -> {
+                        if (droppedPackets > 0 && !"Failed".equalsIgnoreCase(msg.getStatusText())) {
+                            msg.setStatusText(String.format("Sent (drops %d)", droppedPackets));
+                        } else if (droppedPackets == 0 && "Sent".equalsIgnoreCase(msg.getStatusText())) {
+                            msg.setStatusText("Sent");
+                        }
                     });
                 }
             };

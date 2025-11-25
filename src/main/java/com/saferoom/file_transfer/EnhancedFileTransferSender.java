@@ -16,18 +16,19 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.CRC32C;
 
-import com.saferoom.p2p.DataChannelWrapper;
+import com.saferoom.transport.FlowControlledEndpoint;
 
 public class EnhancedFileTransferSender {
 	    private final DatagramChannel channel;
 	    private volatile boolean stopRequested = false;
+	    private final FlowControlledEndpoint flowController;
+	    private final boolean zeroCopyEnabled;
+	    private final BufferPool bufferPool;
+	    private FileTransferRuntime runtime;
 	    
 	    // QUIC-inspired congestion control
 	    private HybridCongestionController hybridControl;
 	    private EnhancedNackListener enhancedNackListener;
-	    private Thread statsThread;
-	    private Thread nackThread;
-	    private Thread retransmissionThread;
 	    private ChunkManager chunkManager;
 	    private TransferListener transferListener;
 	    
@@ -35,7 +36,7 @@ public class EnhancedFileTransferSender {
 	        Executors.newCachedThreadPool(r -> {
 	            Thread t = new Thread(r);
 	            t.setDaemon(true);
-	            t.setName("enhanced-transfer-" + t.getId());
+	            t.setName("enhanced-transfer-" + t.threadId());
 	            return t;
 	        });
 
@@ -45,7 +46,20 @@ public class EnhancedFileTransferSender {
 	    public static final int  BACKOFF_NS = 0; // HİÇ BEKLEME YOK!
 	
 	    public EnhancedFileTransferSender(DatagramChannel ch){
+		this(ch, null);
+	    }
+
+	    public EnhancedFileTransferSender(DatagramChannel ch, FlowControlledEndpoint flowController){
 		this.channel = ch;
+		this.flowController = flowController;
+		this.zeroCopyEnabled = Boolean.parseBoolean(
+			System.getProperty("saferoom.transfer.zeroCopy.enabled", "true"));
+		if (zeroCopyEnabled) {
+			this.bufferPool = null;
+		} else {
+			int poolSize = Integer.getInteger("saferoom.transfer.pool.size", 8);
+			this.bufferPool = new BufferPool(poolSize, SLICE_SIZE);
+		}
 	    }
 	    public interface TransferListener {
 	    	void onPacketProgress(long fileId, long bytesSent, long totalBytes);
@@ -159,40 +173,43 @@ public class EnhancedFileTransferSender {
 	    public void sendOne(CRC32C crc, CRC32C_Packet pkt,
                 MappedByteBuffer mem, long fileId,
                 int seqNo, int totalSeq, int take, int off) throws IOException{
-	    	
-	    	ByteBuffer payload = mem.duplicate();
-	    	payload.position(off).limit(off + take);
-	    	payload = payload.slice();
+	    	ByteBuffer payload = preparePayload(mem, off, take);
+	    	ByteBuffer headerBuffer = pkt.headerBuffer();
+
 	    	crc.reset();
-	    	crc.update(payload.duplicate());
+	    	ByteBuffer crcView = payload.duplicate();
+	    	crc.update(crcView);
 	    	int crc32c = (int) crc.getValue();
 	    	
 	    	pkt.fillHeader(fileId, seqNo, totalSeq, take, crc32c);
 	    	
-	        ByteBuffer[] frame = new ByteBuffer[]{ pkt.headerBuffer(), payload.position(0).limit(take) };
+	        ByteBuffer payloadForSend = payload.duplicate();
+	        payloadForSend.position(0).limit(take);
+	        ByteBuffer[] frame = new ByteBuffer[]{ headerBuffer, payloadForSend };
 		
-	        // Enhanced: RTT measurement için timestamp kaydet (retransmission için)
 	        if (enhancedNackListener != null) {
 	        	enhancedNackListener.recordPacketSendTime(seqNo);
 	        }
 	        
-	        // QUIC-style congestion control
 	        if (hybridControl != null) {
 	        	hybridControl.rateLimitSend(); // Rate pacing
 	        }
 	        
-	        // Send packet
-			try{
+	        try{
 				final int packetBytes = CRC32C_Packet.HEADER_SIZE + take;
-				waitForDataChannelDrain(packetBytes);
+				waitForBackpressure(packetBytes);
 	        	channel.write(frame);
 	        	
-	        	// Notify congestion controller
 	        	if (hybridControl != null) {
 	        		hybridControl.onPacketSent(packetBytes);
 	        	}
 			}catch(IOException e){
 				System.err.println("Frame sending error: " + e);
+				throw e;
+			} finally {
+				if (!zeroCopyEnabled) {
+					bufferPool.release(payload);
+				}
 			}
 	    }
 	    
@@ -271,14 +288,6 @@ public class EnhancedFileTransferSender {
 	    		transferCompleteLatch.countDown();
 	    	};
 	    	
-	    	 this.nackThread = new Thread(enhancedNackListener, "enhanced-nack-listener");
-	    	 if (this.nackThread == null) {
-	    	 	System.err.println("Enhanced NackThread creation failed!");
-	    	 	return;
-	    	 }
-	    	 this.nackThread.setDaemon(true);
-	    	 this.nackThread.start();
-	    	
 	    	// QUIC-inspired hybrid congestion control
 	    	this.hybridControl = new HybridCongestionController();
 	    	
@@ -298,84 +307,11 @@ public class EnhancedFileTransferSender {
 	    		System.out.println(" WAN detected - packet-by-packet conservative mode");
 	    	}
 	    	
-	    	// Enhanced statistics display thread
-	    	this.statsThread = new Thread(() -> {
-	    		while (!Thread.currentThread().isInterrupted()) {
-	    			try {
-	    				Thread.sleep(2000); // Her 2 saniyede bir stats göster
-	    				System.out.println(" " + hybridControl.getStats());
-	    				System.out.println(" " + enhancedNackListener.getRttStats());
-	    			} catch (InterruptedException e) {
-	    				break;
-	    			}
-	    		}
-	    	}, "enhanced-stats");
-	    	if (this.statsThread == null) {
-	    		System.err.println("Enhanced StatsThread creation failed!");
-	    		return;
-	    	}
-	    	this.statsThread.setDaemon(true);
-	    	this.statsThread.start();
-	    	
-	    	// Enhanced retransmission thread with congestion awareness
 	    	final boolean[] initialTransmissionDone = {false};
-	    	
-			this.retransmissionThread = new Thread( () -> {
-				CRC32C retxCrc = new CRC32C();
-				CRC32C_Packet retxPkt = new CRC32C_Packet();
-				
-				while(!Thread.currentThread().isInterrupted() && !stopRequested){
-	    			Integer miss = retxQueue.poll();
-	    			if(miss == null) {
-	    				if(initialTransmissionDone[0]) {
-	    					LockSupport.parkNanos(1_000_000); // 1ms bekle
-	    					continue;
-	    				}
-	    				LockSupport.parkNanos(50_000); // 50μs hızlı polling
-	    				continue;
-	    			}
-    			
-    			if(miss < 0 || miss >= totalSeq) {
-    				System.err.println("Invalid sequence number: " + miss);
-    				continue;
-    			}
-    			
-    			// Congestion control check before retransmission
-    			if (hybridControl != null && !hybridControl.canSendPacket()) {
-    				// Window full, put back and wait
-    				retxQueue.offer(miss);
-    				LockSupport.parkNanos(100_000); // 100μs bekle
-    				continue;
-    			}
-    			
-    			// Chunk-aware retransmission: find which chunk contains this sequence
-    			try {
-    				int chunkIdx = chunkManager.findChunkForSequence(miss);
-    				if (chunkIdx < 0) {
-    					System.err.println("No chunk found for sequence: " + miss);
-    					continue;
-    				}
-    				
-    				ChunkMetadata chunkMeta = chunkManager.getChunkMetadata(chunkIdx);
-    				MappedByteBuffer chunkBuffer = chunkManager.getChunk(chunkIdx);
-    				int localSeq = chunkMeta.toLocalSequence(miss);
-    				int localOff = chunkMeta.getLocalOffset(localSeq, SLICE_SIZE);
-    				int take = chunkMeta.getPayloadSize(localSeq, SLICE_SIZE);
-    				
-    				if(take > 0) {
-    					sendOne(retxCrc, retxPkt, chunkBuffer, fileId, miss, totalSeq, take, localOff);
-    				}
-    			} catch(IOException e) {
-    				System.err.println("Retransmission error for seq " + miss + ": " + e);
-    			}
-    		}
-	}, "enhanced-retransmission");
-		if (this.retransmissionThread == null) {
-			System.err.println(" Enhanced RetransmissionThread creation failed!");
-			return;
-		}
-		this.retransmissionThread.setDaemon(true);
-		this.retransmissionThread.start();	
+	    	this.runtime = new FileTransferRuntime();
+	    	runtime.start(enhancedNackListener);
+	    	runtime.start(createStatsTask());
+	    	runtime.start(createRetransmissionTask(retxQueue, fileId, totalSeq, initialTransmissionDone));
 		
 	    	long bytesSent = 0;
 
@@ -449,38 +385,80 @@ public class EnhancedFileTransferSender {
 	    		transferListener.onTransferComplete(fileId);
 	    	}
 	    	}finally {
-	    		// Enhanced cleanup
 	    		System.out.println(" Cleaning up enhanced transfer threads...");
-	    		
-	    		if(nackThread != null && nackThread.isAlive()) {
-	    			nackThread.interrupt();
+	    		if (runtime != null) {
 	    			try {
-	    				nackThread.join(2000); 
-	    			} catch (InterruptedException e) {
-	    				Thread.currentThread().interrupt();
+	    				runtime.close();
+	    			} catch (RuntimeException ex) {
+	    				System.err.println(" Runtime shutdown error: " + ex.getMessage());
+	    			} finally {
+	    				runtime = null;
 	    			}
 	    		}
-	    		
-	    		if(retransmissionThread != null && retransmissionThread.isAlive()) {
-	    			retransmissionThread.interrupt();
-	    			try {
-	    				retransmissionThread.join(2000); 
-	    			} catch (InterruptedException e) {
-	    				Thread.currentThread().interrupt();
-	    			}
-	    		}
-	    		
-	    		if(statsThread != null && statsThread.isAlive()) {
-	    			statsThread.interrupt();
-	    		}
-	    		
-	    		// Reset controller
 	    		if (hybridControl != null) {
 	    			System.out.println(" Transfer summary: " + hybridControl.getStats());
 	    		}
 	    	}
 	    }
 	    
+	    private Runnable createStatsTask() {
+	    	return () -> {
+	    		while (!Thread.currentThread().isInterrupted() && !stopRequested) {
+	    			try {
+	    				Thread.sleep(2000);
+	    				if (hybridControl != null) {
+	    					System.out.println(" " + hybridControl.getStats());
+	    				}
+	    				if (enhancedNackListener != null) {
+	    					System.out.println(" " + enhancedNackListener.getRttStats());
+	    				}
+	    			} catch (InterruptedException e) {
+	    				Thread.currentThread().interrupt();
+	    				break;
+	    			}
+	    		}
+	    	};
+	    }
+
+	    private Runnable createRetransmissionTask(ConcurrentLinkedQueue<Integer> retxQueue,
+	    		long fileId, int totalSeq, boolean[] initialTransmissionDone) {
+	    	return () -> {
+	    		CRC32C retxCrc = new CRC32C();
+	    		CRC32C_Packet retxPkt = new CRC32C_Packet();
+	    		while (!Thread.currentThread().isInterrupted() && !stopRequested) {
+	    			Integer miss = retxQueue.poll();
+	    			if (miss == null) {
+	    				LockSupport.parkNanos(initialTransmissionDone[0] ? 1_000_000 : 50_000);
+	    				continue;
+	    			}
+	    			if (miss < 0 || miss >= totalSeq) {
+	    				continue;
+	    			}
+	    			if (hybridControl != null && !hybridControl.canSendPacket()) {
+	    				retxQueue.offer(miss);
+	    				LockSupport.parkNanos(100_000);
+	    				continue;
+	    			}
+	    			try {
+	    				int chunkIdx = chunkManager.findChunkForSequence(miss);
+	    				if (chunkIdx < 0) {
+	    					continue;
+	    				}
+	    				ChunkMetadata chunkMeta = chunkManager.getChunkMetadata(chunkIdx);
+	    				MappedByteBuffer chunkBuffer = chunkManager.getChunk(chunkIdx);
+	    				int localSeq = chunkMeta.toLocalSequence(miss);
+	    				int localOff = chunkMeta.getLocalOffset(localSeq, SLICE_SIZE);
+	    				int take = chunkMeta.getPayloadSize(localSeq, SLICE_SIZE);
+	    				if (take > 0) {
+	    					sendOne(retxCrc, retxPkt, chunkBuffer, fileId, miss, totalSeq, take, localOff);
+	    				}
+	    			} catch (IOException e) {
+	    				System.err.println("Retransmission error for seq " + miss + ": " + e);
+	    			}
+	    		}
+	    	};
+	    }
+
 	    public static void shutdownThreadPool() {
 	        threadPool.shutdown();
 	        try {
@@ -493,16 +471,29 @@ public class EnhancedFileTransferSender {
 	        }
 	    }
 	    
-	    private void waitForDataChannelDrain(int bytesToSend) throws IOException {
-	    	if (!(channel instanceof DataChannelWrapper wrapper)) {
+	    private void waitForBackpressure(int bytesToSend) throws IOException {
+	    	if (flowController == null) {
 	    		return;
 	    	}
 	    	final long maxBuffered = Long.getLong("saferoom.transfer.buffer.maxBytes", 8L << 20);
-	    	while (wrapper.getBufferedAmountSafe() + bytesToSend > maxBuffered) {
-	    		if (!wrapper.isConnected()) {
-	    			throw new IOException("DataChannel closed");
+	    	while (flowController.bufferedAmount() + bytesToSend > maxBuffered) {
+	    		if (!flowController.isOpen()) {
+	    			throw new IOException("Transport closed");
 	    		}
 	    		LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(2));
 	    	}
+	    }
+
+	    private ByteBuffer preparePayload(MappedByteBuffer mem, int off, int take) {
+	    	ByteBuffer slice = mem.duplicate();
+	    	slice.position(off).limit(off + take);
+	    	if (zeroCopyEnabled) {
+	    		return slice.slice();
+	    	}
+	    	ByteBuffer buffer = bufferPool.acquire();
+	    	buffer.clear();
+	    	buffer.put(slice);
+	    	buffer.flip();
+	    	return buffer;
 	    }
 	}

@@ -7,5 +7,6 @@ public interface FileTransferObserver {
     default void onTransferProgress(long fileId, long bytesSent, long totalBytes) {}
     default void onTransferCompleted(long fileId) {}
     default void onTransferFailed(long fileId, Throwable error) {}
+    default void onTransportStats(long fileId, long droppedPackets) {}
 }
 

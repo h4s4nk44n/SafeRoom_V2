@@ -1,6 +1,10 @@
 package com.saferoom.p2p;
 
 import com.saferoom.file_transfer.*;
+import com.saferoom.transport.FlowControlledEndpoint;
+import com.saferoom.transport.TransportContext;
+import com.saferoom.transport.TransportEndpoint;
+import com.saferoom.transport.TransportRegistry;
 import dev.onvoid.webrtc.RTCDataChannel;
 import dev.onvoid.webrtc.RTCDataChannelBuffer;
 
@@ -23,6 +27,8 @@ public class DataChannelFileTransfer {
     
     private final String username;
     private final DataChannelWrapper channelWrapper;
+    private final TransportEndpoint transportEndpoint;
+    private final FlowControlledEndpoint flowControlledEndpoint;
     
     private final EnhancedFileTransferSender sender;
     private final FileTransferReceiver receiver;
@@ -43,9 +49,14 @@ public class DataChannelFileTransfer {
     public DataChannelFileTransfer(String username, RTCDataChannel dataChannel, String remoteUsername) {
         this.username = username;
         
-        // CRITICAL: Use SINGLE wrapper for BOTH sender and receiver!
-        // This ensures ACK packets reach the sender's queue
-        this.channelWrapper = new DataChannelWrapper(dataChannel, username, remoteUsername);
+        // Resolve transport via registry (currently WebRTC only)
+        TransportContext context = new TransportContext(username, remoteUsername);
+        this.transportEndpoint = TransportRegistry.create("webrtc", dataChannel, context);
+        if (!(transportEndpoint instanceof DataChannelWrapper wrapper)) {
+            throw new IllegalStateException("WebRTC transport must provide DataChannelWrapper");
+        }
+        this.channelWrapper = wrapper;
+        this.flowControlledEndpoint = transportEndpoint instanceof FlowControlledEndpoint fc ? fc : null;
         
         this.executor = Executors.newCachedThreadPool(r -> {
             Thread t = new Thread(r, "FileTransfer-" + username);
@@ -55,7 +66,7 @@ public class DataChannelFileTransfer {
         
         try {
             // Both sender and receiver use THE SAME wrapper!
-            this.sender = new EnhancedFileTransferSender(channelWrapper);
+            this.sender = new EnhancedFileTransferSender(channelWrapper, flowControlledEndpoint);
             this.receiver = new FileTransferReceiver();
             this.receiver.channel = channelWrapper;  // SAME wrapper as sender!
             
@@ -85,6 +96,8 @@ public class DataChannelFileTransfer {
         System.out.printf("[DCFileTransfer] ║ thread: %s%n", Thread.currentThread().getName());
         System.out.println("[DCFileTransfer] ╚════════════════════════════════════════════════");
         
+        final long dropBaseline = flowControlledEndpoint != null ? flowControlledEndpoint.droppedPackets() : -1;
+
         executor.execute(() -> {
             try {
                 System.out.printf("[DCFileTransfer] 📤 Executor thread started: %s%n", Thread.currentThread().getName());
@@ -99,11 +112,13 @@ public class DataChannelFileTransfer {
                     @Override
                     public void onTransferComplete(long transferId) {
                         if (observer != null) observer.onTransferCompleted(transferId);
+                        emitTransportStats(transferId, dropBaseline, observer);
                     }
 
                     @Override
                     public void onTransferFailed(long transferId, Throwable error) {
                         if (observer != null) observer.onTransferFailed(transferId, error);
+                        emitTransportStats(transferId, dropBaseline, observer);
                     }
                 });
                 try {
@@ -121,6 +136,7 @@ public class DataChannelFileTransfer {
                 System.err.printf("[DCFileTransfer] Exception message: %s%n", e.getMessage());
                 System.err.println("[DCFileTransfer] Stack trace:");
                 e.printStackTrace();
+                emitTransportStats(fileId, dropBaseline, observer);
                 future.complete(false);
             }
         });
@@ -192,6 +208,11 @@ public class DataChannelFileTransfer {
     
     public void shutdown() {
         executor.shutdownNow();
+        try {
+            transportEndpoint.close();
+        } catch (Exception e) {
+            System.err.println("[DCFileTransfer] Transport close error: " + e.getMessage());
+        }
     }
     
     public Path prepareIncomingFile(long fileId, String originalName) {
@@ -237,5 +258,17 @@ public class DataChannelFileTransfer {
     
     private static String sanitizeFileName(String name) {
         return name.replaceAll("[\\\\/:]", "_");
+    }
+
+    private void emitTransportStats(long fileId, long dropBaseline, FileTransferObserver observer) {
+        if (observer == null) {
+            return;
+        }
+        long dropped = -1;
+        if (flowControlledEndpoint != null && dropBaseline >= 0) {
+            long current = flowControlledEndpoint.droppedPackets();
+            dropped = Math.max(0, current - dropBaseline);
+        }
+        observer.onTransportStats(fileId, dropped);
     }
 }
