@@ -18,6 +18,7 @@ public class WebRTCClient {
     
     private static boolean initialized = false;
     private static PeerConnectionFactory factory;
+    private static WebRTCPlatformConfig platformConfig = WebRTCPlatformConfig.empty();
     
     private String currentCallId;
     private String remoteUsername;
@@ -72,6 +73,7 @@ public class WebRTCClient {
             
             // Initialize factory with audio device module
             factory = new PeerConnectionFactory(audioModule);
+            platformConfig = WebRTCPlatformConfig.detect(factory);
             
             initialized = true;
             System.out.println("[WebRTC] WebRTC initialized successfully with native library");
@@ -83,6 +85,25 @@ public class WebRTCClient {
             factory = null;
             initialized = true;
         }
+    }
+
+    /**
+     * Dump outbound video RTP stats to the console (for diagnostics).
+     */
+    public void logVideoSenderStats() {
+        if (peerConnection == null || videoSender == null) {
+            System.out.println("[WebRTC] Stats unavailable: connection or sender not ready");
+            return;
+        }
+        peerConnection.getStats(videoSender, report -> {
+            report.getStats().values().stream()
+                .filter(stat -> stat.getType() == RTCStatsType.OUTBOUND_RTP)
+                .findFirst()
+                .ifPresentOrElse(stat -> {
+                    System.out.printf("[WebRTC][%s] OUTBOUND_RTP stats: %s%n",
+                        currentCallId, stat);
+                }, () -> System.out.printf("[WebRTC][%s] No OUTBOUND_RTP stats%n", currentCallId));
+        });
     }
     
     /**
@@ -112,6 +133,10 @@ public class WebRTCClient {
      */
     public static PeerConnectionFactory getFactory() {
         return factory;
+    }
+
+    static WebRTCPlatformConfig getPlatformConfig() {
+        return platformConfig;
     }
     
     /**
@@ -566,6 +591,7 @@ public class WebRTCClient {
             
             // Add track to peer connection with stream ID ve sender referansı
             videoSender = peerConnection.addTrack(videoTrack, List.of("stream1"));
+            applyVideoCodecPreferences();
             
             System.out.println("[WebRTC] ✅ Video track added with optimized settings:");
             System.out.println("  ├─ Resolution: 640x480 (CameraCaptureService)");
@@ -608,6 +634,7 @@ public class WebRTCClient {
             
             // Add track to peer connection with stream ID
             videoSender = peerConnection.addTrack(sharedTrack, List.of("stream1"));
+            applyVideoCodecPreferences();
             
             // Store reference (but DON'T dispose it in close() - GroupCallManager owns it)
             this.localVideoTrack = sharedTrack;
@@ -617,6 +644,12 @@ public class WebRTCClient {
         } catch (Exception e) {
             System.err.println("[WebRTC] Failed to add shared video track: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    private void applyVideoCodecPreferences() {
+        if (platformConfig != null) {
+            platformConfig.applyVideoCodecPreferences(peerConnection);
         }
     }
     

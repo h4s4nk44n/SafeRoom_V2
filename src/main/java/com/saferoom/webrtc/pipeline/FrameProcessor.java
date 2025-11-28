@@ -21,12 +21,15 @@ public final class FrameProcessor implements AutoCloseable {
     private static final int DEFAULT_QUEUE_CAPACITY =
         Integer.getInteger(QUEUE_CAPACITY_PROPERTY, 12);
     private static final Duration POLL_TIMEOUT = Duration.ofMillis(50);
+    private static final long STALL_THRESHOLD_NANOS = Duration.ofSeconds(2).toNanos();
+    private static final long STALL_LOG_INTERVAL_NANOS = Duration.ofSeconds(5).toNanos();
 
     private final BlockingQueue<VideoFrame> queue;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final AtomicBoolean paused = new AtomicBoolean(false);
     private final Consumer<FrameRenderResult> consumer;
     private final Thread workerThread;
+    private final VideoPipelineStats stats = new VideoPipelineStats();
 
     public FrameProcessor(Consumer<FrameRenderResult> consumer) {
         this(consumer, DEFAULT_QUEUE_CAPACITY);
@@ -51,6 +54,7 @@ public final class FrameProcessor implements AutoCloseable {
         }
         frame.retain();
         while (!queue.offer(frame)) {
+            stats.recordDrop();
             VideoFrame dropped = queue.poll();
             if (dropped == null) {
                 break;
@@ -64,6 +68,7 @@ public final class FrameProcessor implements AutoCloseable {
             try {
                 VideoFrame frame = queue.poll(POLL_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
                 if (frame == null) {
+                    logIfStalled();
                     continue;
                 }
                 if (paused.get()) {
@@ -71,7 +76,9 @@ public final class FrameProcessor implements AutoCloseable {
                     continue;
                 }
                 try {
+                    long start = System.nanoTime();
                     FrameRenderResult result = convertFrame(frame);
+                    stats.recordProcessed(System.nanoTime() - start, queue.size());
                     consumer.accept(result);
                 } finally {
                     frame.release();
@@ -84,6 +91,17 @@ public final class FrameProcessor implements AutoCloseable {
             }
         }
         drainQueue();
+    }
+
+    public VideoPipelineStats getStats() {
+        return stats;
+    }
+
+    private void logIfStalled() {
+        long now = System.nanoTime();
+        if (stats.shouldLogStall(now, STALL_THRESHOLD_NANOS, STALL_LOG_INTERVAL_NANOS)) {
+            System.err.printf("[FrameProcessor] ⚠️ Pipeline stalled: %s%n", stats);
+        }
     }
 
     private FrameRenderResult convertFrame(VideoFrame frame) {

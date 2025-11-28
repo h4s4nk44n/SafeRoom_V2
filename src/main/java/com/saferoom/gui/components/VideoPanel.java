@@ -247,7 +247,7 @@ public class VideoPanel extends Canvas {
         lastFrameTimestamp = System.nanoTime();
     }
 
-    private static final long FREEZE_DETECTION_NANOS = java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(2000);
+    private static final long FREEZE_DETECTION_NANOS = TimeUnit.MILLISECONDS.toNanos(2000);
     private volatile long lastFrameTimestamp = System.nanoTime();
 
     private void startAnimation() {

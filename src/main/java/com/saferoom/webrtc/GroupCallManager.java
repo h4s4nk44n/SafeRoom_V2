@@ -1,6 +1,8 @@
 package com.saferoom.webrtc;
 
 import com.saferoom.grpc.SafeRoomProto.WebRTCSignal;
+import dev.onvoid.webrtc.RTCRtpEncodingParameters;
+import dev.onvoid.webrtc.RTCRtpSendParameters;
 import dev.onvoid.webrtc.media.MediaStreamTrack;
 import dev.onvoid.webrtc.media.video.VideoTrack;
 
@@ -38,6 +40,8 @@ public class GroupCallManager {
     // Local video track for preview (created immediately, shared by all peer connections)
     private VideoTrack localVideoTrack;
     private dev.onvoid.webrtc.media.video.VideoDeviceSource localVideoSource;
+    private CameraCaptureService.CaptureProfile currentCaptureProfile;
+    private final AdaptiveCapturePolicy adaptiveCapturePolicy = new AdaptiveCapturePolicy();
     
     // Signaling client
     private WebRTCSignalingClient signalingClient;
@@ -232,6 +236,8 @@ public class GroupCallManager {
                 }
             }
         }
+
+        maybeReconfigureLocalVideoTrack();
         
         // Notify UI
         if (onRoomJoinedCallback != null) {
@@ -258,6 +264,8 @@ public class GroupCallManager {
         if (onPeerJoinedCallback != null) {
             onPeerJoinedCallback.onPeerJoined(newPeerUsername);
         }
+
+        maybeReconfigureLocalVideoTrack();
     }
     
     /**
@@ -278,6 +286,8 @@ public class GroupCallManager {
         if (onPeerLeftCallback != null) {
             onPeerLeftCallback.onPeerLeft(peerUsername);
         }
+
+        maybeReconfigureLocalVideoTrack();
     }
     
     /**
@@ -414,6 +424,7 @@ public class GroupCallManager {
             // Use SHARED video track from GroupCallManager (don't create new camera source)
             if (localVideoTrack != null) {
                 client.addSharedVideoTrack(localVideoTrack);
+                applyVideoBitrateCap(client);
             } else {
                 System.err.println("[GroupCallManager] Local video track not ready!");
             }
@@ -521,6 +532,7 @@ public class GroupCallManager {
             }
             localVideoTrack = null;
         }
+        currentCaptureProfile = null;
         
         inRoom = false;
         currentRoomId = null;
@@ -584,18 +596,75 @@ public class GroupCallManager {
     private void createLocalVideoTrack() {
         try {
             System.out.println("[GroupCallManager] Creating local video track for preview...");
-            
+            CameraCaptureService.CaptureProfile profile =
+                adaptiveCapturePolicy.selectProfile(getExpectedParticipantCount());
             CameraCaptureService.CameraCaptureResource resource =
-                CameraCaptureService.createCameraTrack("group_local_video");
-            
+                CameraCaptureService.createCameraTrack("group_local_video", profile);
+
             localVideoSource = resource.getSource();
             localVideoTrack = resource.getTrack();
+            currentCaptureProfile = profile;
             
             System.out.println("[GroupCallManager] ✅ Local video track created, enabled, and started");
             
         } catch (Exception e) {
             System.err.printf("[GroupCallManager] Failed to create local video track: %s%n", e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    private void maybeReconfigureLocalVideoTrack() {
+        if (!videoEnabled || localVideoTrack == null) {
+            return;
+        }
+        CameraCaptureService.CaptureProfile desired =
+            adaptiveCapturePolicy.selectProfile(getExpectedParticipantCount());
+        if (desired.equals(currentCaptureProfile)) {
+            return;
+        }
+        System.out.printf("[GroupCallManager] Adjusting capture profile to %dx%d@%dfps%n",
+            desired.width(), desired.height(), desired.fps());
+        try {
+            if (localVideoSource == null) {
+                createLocalVideoTrack();
+                return;
+            }
+            localVideoSource.stop();
+            dev.onvoid.webrtc.media.video.VideoCaptureCapability capability =
+                new dev.onvoid.webrtc.media.video.VideoCaptureCapability(
+                    desired.width(), desired.height(), desired.fps());
+            localVideoSource.setVideoCaptureCapability(capability);
+            localVideoSource.start();
+            currentCaptureProfile = desired;
+        } catch (Exception ex) {
+            System.err.printf("[GroupCallManager] Failed to reconfigure camera: %s%n", ex.getMessage());
+        }
+    }
+
+    private void applyVideoBitrateCap(WebRTCClient client) {
+        if (client == null || client.getVideoSender() == null) {
+            return;
+        }
+        try {
+            int participantCount = getExpectedParticipantCount();
+            int targetBitrate = adaptiveCapturePolicy.targetBitrateKbps(participantCount) * 1000;
+            double maxFps = adaptiveCapturePolicy.selectProfile(participantCount).fps();
+            RTCRtpSendParameters params = client.getVideoSender().getParameters();
+            if (params == null || params.encodings == null) {
+                return;
+            }
+            for (RTCRtpEncodingParameters encoding : params.encodings) {
+                if (encoding == null) {
+                    continue;
+                }
+                encoding.maxBitrate = targetBitrate;
+                encoding.maxFramerate = (double) maxFps;
+            }
+            client.getVideoSender().setParameters(params);
+            System.out.printf("[GroupCallManager] Applied video cap %dkbps @ %.0ffps%n",
+                targetBitrate / 1000, maxFps);
+        } catch (Exception ex) {
+            System.err.printf("[GroupCallManager] Failed to apply bitrate cap: %s%n", ex.getMessage());
         }
     }
     
@@ -679,5 +748,10 @@ public class GroupCallManager {
     
     public int getPeerCount() {
         return peerConnections.size();
+    }
+
+    private int getExpectedParticipantCount() {
+        // include self
+        return peerConnections.size() + 1;
     }
 }

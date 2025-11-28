@@ -22,6 +22,10 @@ public final class CameraCaptureService {
     private CameraCaptureService() {}
 
     public static CameraCaptureResource createCameraTrack(String trackId) {
+        return createCameraTrack(trackId, new CaptureProfile(DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_FPS));
+    }
+
+    public static CameraCaptureResource createCameraTrack(String trackId, CaptureProfile profile) {
         PeerConnectionFactory factory = WebRTCClient.getFactory();
         if (factory == null) {
             throw new IllegalStateException("[CameraCaptureService] PeerConnectionFactory bulunamadı");
@@ -39,7 +43,10 @@ public final class CameraCaptureService {
         source.setVideoCaptureDevice(camera);
 
         VideoCaptureCapability capability =
-            new VideoCaptureCapability(DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_FPS);
+            new VideoCaptureCapability(
+                profile.width(),
+                profile.height(),
+                profile.fps());
         source.setVideoCaptureCapability(capability);
 
         VideoTrack track = factory.createVideoTrack(trackId, source);
@@ -47,7 +54,7 @@ public final class CameraCaptureService {
 
         source.start();
         System.out.printf("[CameraCaptureService] Kamera capture başlatıldı (%dx%d@%dfps)%n",
-            DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_FPS);
+            profile.width(), profile.height(), profile.fps());
 
         return new CameraCaptureResource(source, track);
     }
@@ -69,5 +76,7 @@ public final class CameraCaptureService {
             return track;
         }
     }
+
+    public record CaptureProfile(int width, int height, int fps) {}
 }
 
