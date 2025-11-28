@@ -7,8 +7,6 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -19,7 +17,9 @@ import java.util.function.Consumer;
  */
 public final class FrameProcessor implements AutoCloseable {
 
-    private static final int DEFAULT_QUEUE_CAPACITY = 3;
+    private static final String QUEUE_CAPACITY_PROPERTY = "saferoom.video.queue.capacity";
+    private static final int DEFAULT_QUEUE_CAPACITY =
+        Integer.getInteger(QUEUE_CAPACITY_PROPERTY, 12);
     private static final Duration POLL_TIMEOUT = Duration.ofMillis(50);
 
     private final BlockingQueue<VideoFrame> queue;
@@ -34,7 +34,8 @@ public final class FrameProcessor implements AutoCloseable {
 
     public FrameProcessor(Consumer<FrameRenderResult> consumer, int capacity) {
         this.consumer = Objects.requireNonNull(consumer, "consumer");
-        this.queue = new ArrayBlockingQueue<>(Math.max(1, capacity));
+        int resolvedCapacity = capacity > 0 ? capacity : DEFAULT_QUEUE_CAPACITY;
+        this.queue = new ArrayBlockingQueue<>(Math.max(1, resolvedCapacity));
         this.workerThread = Thread.ofVirtual()
             .name("frame-processor-" + System.identityHashCode(this))
             .unstarted(this::processLoop);
@@ -49,12 +50,12 @@ public final class FrameProcessor implements AutoCloseable {
             return;
         }
         frame.retain();
-        if (!queue.offer(frame)) {
+        while (!queue.offer(frame)) {
             VideoFrame dropped = queue.poll();
-            if (dropped != null) {
-                dropped.release();
+            if (dropped == null) {
+                break;
             }
-            queue.offer(frame);
+            dropped.release();
         }
     }
 
@@ -85,23 +86,12 @@ public final class FrameProcessor implements AutoCloseable {
         drainQueue();
     }
 
-    private FrameRenderResult convertFrame(VideoFrame frame) throws InterruptedException {
-        try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
-            StructuredTaskScope.Subtask<FrameRenderResult> conversionTask = scope.fork(() -> {
-                I420Buffer buffer = frame.buffer.toI420();
-                try {
-                    return FrameRenderResult.fromI420(buffer, frame.timestampNs);
-                } finally {
-                    buffer.release();
-                }
-            });
-            try {
-                scope.join();
-                scope.throwIfFailed();
-                return conversionTask.get();
-            } catch (ExecutionException e) {
-                throw new RuntimeException(e.getCause());
-            }
+    private FrameRenderResult convertFrame(VideoFrame frame) {
+        I420Buffer buffer = frame.buffer.toI420();
+        try {
+            return FrameRenderResult.fromI420(buffer, frame.timestampNs);
+        } finally {
+            buffer.release();
         }
     }
 

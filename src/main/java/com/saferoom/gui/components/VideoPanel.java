@@ -14,6 +14,7 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 
 import java.nio.IntBuffer;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -52,7 +53,14 @@ public class VideoPanel extends Canvas {
                 }
                 FrameRenderResult frame = latestFrame.getAndSet(null);
                 if (frame != null) {
-                    paintFrame(frame);
+                    try {
+                        paintFrame(frame);
+                        lastFrameTimestamp = System.nanoTime();
+                    } finally {
+                        frame.release();
+                    }
+                } else if (System.nanoTime() - lastFrameTimestamp > FREEZE_DETECTION_NANOS) {
+                    handleStall();
                 }
             }
         };
@@ -77,7 +85,7 @@ public class VideoPanel extends Canvas {
         this.videoTrack = track;
         this.isActive = true;
 
-        frameProcessor = new FrameProcessor(result -> latestFrame.set(result));
+        frameProcessor = buildFrameProcessor();
         videoSink = frame -> {
             FrameProcessor processor = frameProcessor;
             if (processor != null) {
@@ -106,12 +114,9 @@ public class VideoPanel extends Canvas {
             }
         }
         
-        if (frameProcessor != null) {
-            frameProcessor.close();
-            frameProcessor = null;
-        }
+        closeFrameProcessor();
         
-        latestFrame.set(null);
+        clearLatestFrame();
         videoTrack = null;
         videoSink = null;
         isActive = false;
@@ -198,7 +203,7 @@ public class VideoPanel extends Canvas {
 
     public void pauseRendering() {
         renderingPaused = true;
-        latestFrame.set(null);
+        clearLatestFrame();
         if (frameProcessor != null) {
             frameProcessor.pause();
         }
@@ -210,6 +215,40 @@ public class VideoPanel extends Canvas {
             frameProcessor.resume();
         }
     }
+
+    private void clearLatestFrame() {
+        FrameRenderResult pending = latestFrame.getAndSet(null);
+        if (pending != null) {
+            pending.release();
+        }
+    }
+
+    private FrameProcessor buildFrameProcessor() {
+        lastFrameTimestamp = System.nanoTime();
+        return new FrameProcessor(result -> latestFrame.set(result));
+    }
+
+    private void closeFrameProcessor() {
+        if (frameProcessor != null) {
+            frameProcessor.close();
+            frameProcessor = null;
+        }
+    }
+
+    private void handleStall() {
+        System.err.println("[VideoPanel] ⚠️ No frame rendered for 2s, restarting processor");
+        clearLatestFrame();
+        closeFrameProcessor();
+        frameProcessor = buildFrameProcessor();
+        if (videoTrack != null && videoSink != null) {
+            videoTrack.removeSink(videoSink);
+            videoTrack.addSink(videoSink);
+        }
+        lastFrameTimestamp = System.nanoTime();
+    }
+
+    private static final long FREEZE_DETECTION_NANOS = java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(2000);
+    private volatile long lastFrameTimestamp = System.nanoTime();
 
     private void startAnimation() {
         if (!animationRunning) {

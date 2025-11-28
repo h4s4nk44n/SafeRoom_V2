@@ -3,16 +3,20 @@ package com.saferoom.webrtc.pipeline;
 import dev.onvoid.webrtc.media.video.I420Buffer;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Immutable container for a single video frame ready for painting on the FX thread.
  */
 public final class FrameRenderResult {
 
+    private static final ArgbBufferPool BUFFER_POOL = new ArgbBufferPool();
+
     private final int width;
     private final int height;
     private final int[] argbPixels;
     private final long timestampNs;
+    private final AtomicBoolean released = new AtomicBoolean(false);
 
     private FrameRenderResult(int width, int height, int[] argbPixels, long timestampNs) {
         this.width = width;
@@ -40,7 +44,7 @@ public final class FrameRenderResult {
     public static FrameRenderResult fromI420(I420Buffer buffer, long timestampNs) {
         int width = buffer.getWidth();
         int height = buffer.getHeight();
-        int[] argb = new int[width * height];
+        int[] argb = BUFFER_POOL.acquire(width, height);
 
         ByteBuffer yPlane = buffer.getDataY();
         ByteBuffer uPlane = buffer.getDataU();
@@ -79,6 +83,15 @@ public final class FrameRenderResult {
         if (value < 0) return 0;
         if (value > 255) return 255;
         return value;
+    }
+
+    /**
+     * Return the underlying pixel buffer to the pool once the frame has been painted.
+     */
+    public void release() {
+        if (released.compareAndSet(false, true)) {
+            BUFFER_POOL.release(width, height, argbPixels);
+        }
     }
 }
 
