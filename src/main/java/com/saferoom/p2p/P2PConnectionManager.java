@@ -115,31 +115,54 @@ public class P2PConnectionManager {
     
     /**
      * Register P2P signal handler with CallManager
+     * 
+     * IMPORTANT: Now using MESH_* signal types for consistency with GroupCallManager
+     * This ensures proper signal routing through the server and client handlers.
      */
     private void registerP2PSignalHandler() {
-        // Store reference to this P2PConnectionManager in CallManager
-        // so CallManager can forward P2P signals to us
         try {
-            com.saferoom.webrtc.CallManager callManager = 
-                com.saferoom.webrtc.CallManager.getInstance();
-            
-            if (callManager != null) {
-                // Add P2P signal handler to the shared signaling client
-                // P2P signals have types: P2P_OFFER, P2P_ANSWER
-                if (signalingClient != null) {
-                    // Add handlers for P2P signal types
-                    signalingClient.addSignalHandler(SignalType.P2P_OFFER, this::handleP2POffer);
-                    signalingClient.addSignalHandler(SignalType.P2P_ANSWER, this::handleP2PAnswer);
-                    // Note: ICE candidates use MESH_ICE_CANDIDATE type
-                    signalingClient.addSignalHandler(SignalType.MESH_ICE_CANDIDATE, this::handleIceCandidate);
-                    
-                    System.out.println("[P2P] ✅ P2P signal handlers registered successfully");
-                }
+            if (signalingClient != null) {
+                // Use MESH_* signal types (same as GroupCallManager) for reliable routing
+                // The server has optimized handlers for MESH_* signals
+                signalingClient.addSignalHandler(SignalType.MESH_OFFER, this::handleMeshOffer);
+                signalingClient.addSignalHandler(SignalType.MESH_ANSWER, this::handleMeshAnswer);
+                signalingClient.addSignalHandler(SignalType.MESH_ICE_CANDIDATE, this::handleMeshIceCandidate);
+                
+                System.out.println("[P2P] ✅ P2P signal handlers registered (using MESH_* types for reliability)");
             }
         } catch (Exception e) {
             System.err.println("[P2P] Could not register P2P handler: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    
+    // Wrapper methods to handle MESH signals for P2P messaging
+    private void handleMeshOffer(WebRTCSignal signal) {
+        // Only handle if it's a P2P messaging signal (no roomId or roomId is empty)
+        if (signal.getRoomId() == null || signal.getRoomId().isEmpty() || 
+            signal.getRoomId().startsWith("p2p-")) {
+            handleP2POffer(signal);
+        }
+        // Otherwise, let GroupCallManager handle it
+    }
+    
+    private void handleMeshAnswer(WebRTCSignal signal) {
+        if (signal.getRoomId() == null || signal.getRoomId().isEmpty() || 
+            signal.getRoomId().startsWith("p2p-")) {
+            handleP2PAnswer(signal);
+        }
+    }
+    
+    private void handleMeshIceCandidate(WebRTCSignal signal) {
+        // Check if this ICE candidate is for a P2P connection
+        String from = signal.getFrom();
+        if (activeConnections.containsKey(from) || pendingConnections.containsKey(from)) {
+            handleIceCandidate(signal);
+        } else if (signal.getRoomId() == null || signal.getRoomId().isEmpty() || 
+                   signal.getRoomId().startsWith("p2p-")) {
+            handleIceCandidate(signal);
+        }
+        // Otherwise, let GroupCallManager handle it
     }
     
     /**
@@ -183,21 +206,21 @@ public class P2PConnectionManager {
                         public void onSuccess() {
                             System.out.printf("[P2P] Local description set for %s%n", targetUsername);
                             
-                            // Send P2P_OFFER via signaling with "p2p-" callId prefix
-                            String p2pCallId = "p2p-" + targetUsername + "-" + System.currentTimeMillis();
-                            connection.callId = p2pCallId;  // Store callId for ICE candidates
+                            // Use MESH_OFFER for reliable signal routing (same as GroupCallManager)
+                            String p2pRoomId = "p2p-" + myUsername + "-" + targetUsername;
+                            connection.callId = p2pRoomId;  // Store for ICE candidates
                             
                             WebRTCSignal signal = WebRTCSignal.newBuilder()
-                                .setType(SignalType.P2P_OFFER)
+                                .setType(SignalType.MESH_OFFER)  // Changed from P2P_OFFER
                                 .setFrom(myUsername)
                                 .setTo(targetUsername)
-                                .setCallId(p2pCallId)  // P2P-specific callId
+                                .setRoomId(p2pRoomId)  // Use roomId like GroupCallManager
                                 .setSdp(description.sdp)
                                 .setTimestamp(System.currentTimeMillis())
                                 .build();
                             
-                            signalingClient.sendSignalViaStream(signal);
-                            System.out.printf("[P2P] P2P_OFFER sent to %s (callId: %s)%n", targetUsername, p2pCallId);
+                            signalingClient.sendSignal(signal);  // Use sendSignal like GroupCallManager
+                            System.out.printf("[P2P] MESH_OFFER sent to %s (roomId: %s)%n", targetUsername, p2pRoomId);
                         }
                         
                         @Override
@@ -226,21 +249,33 @@ public class P2PConnectionManager {
     }
     
     /**
-     * Handle incoming WebRTC signals (P2P_OFFER, P2P_ANSWER, ICE_CANDIDATE)
+     * Handle incoming WebRTC signals (now using MESH_* types for reliability)
+     * This method is kept for backward compatibility but signals now come through
+     * the registered handlers (handleMeshOffer, handleMeshAnswer, handleMeshIceCandidate)
      */
     private void handleIncomingSignal(WebRTCSignal signal) {
-        // ONLY handle P2P messaging signals (NOT call signals)
-        if (signal.getType() != SignalType.P2P_OFFER && 
-            signal.getType() != SignalType.P2P_ANSWER && 
-            signal.getType() != SignalType.ICE_CANDIDATE) {
-            return; // Ignore call signals (handled by CallManager)
-        }
-        
+        // Handle both old P2P_* and new MESH_* signal types
+        SignalType type = signal.getType();
         String remoteUsername = signal.getFrom();
-        System.out.printf("[P2P] Received %s from %s%n", signal.getType(), remoteUsername);
+        
+        System.out.printf("[P2P] Received %s from %s%n", type, remoteUsername);
         
         try {
-            switch (signal.getType()) {
+            switch (type) {
+                // New MESH_* types (preferred)
+                case MESH_OFFER:
+                    handleP2POffer(signal);
+                    break;
+                    
+                case MESH_ANSWER:
+                    handleP2PAnswer(signal);
+                    break;
+                    
+                case MESH_ICE_CANDIDATE:
+                    handleIceCandidate(signal);
+                    break;
+                    
+                // Legacy P2P_* types (backward compatibility)
                 case P2P_OFFER:
                     handleP2POffer(signal);
                     break;
@@ -263,17 +298,27 @@ public class P2PConnectionManager {
     }
     
     /**
-     * Handle incoming P2P_OFFER (create answer)
+     * Handle incoming MESH_OFFER for P2P messaging (create answer)
+     * Now uses MESH_* signal types for reliable routing
      */
     private void handleP2POffer(WebRTCSignal signal) {
         String remoteUsername = signal.getFrom();
-        String incomingCallId = signal.getCallId();  // Extract callId from offer
-        System.out.printf("[P2P] Handling P2P_OFFER from %s (callId: %s)%n", remoteUsername, incomingCallId);
+        String incomingRoomId = signal.getRoomId();  // Use roomId like GroupCallManager
+        System.out.printf("[P2P] Handling MESH_OFFER from %s (roomId: %s)%n", remoteUsername, incomingRoomId);
+        
+        // Skip if already have active connection
+        if (activeConnections.containsKey(remoteUsername)) {
+            P2PConnection existing = activeConnections.get(remoteUsername);
+            if (existing.isActive()) {
+                System.out.printf("[P2P] Already connected to %s, ignoring offer%n", remoteUsername);
+                return;
+            }
+        }
         
         try {
             // Create P2P connection (answer side)
             P2PConnection connection = new P2PConnection(remoteUsername, false);
-            connection.callId = incomingCallId;  // Store callId for ICE candidates
+            connection.callId = incomingRoomId;  // Store roomId for ICE candidates
             connection.createPeerConnection();
             
             // Store in activeConnections for ICE candidate handling
@@ -295,18 +340,18 @@ public class P2PConnectionManager {
                                 public void onSuccess() {
                                     System.out.printf("[P2P] Answer created for %s%n", remoteUsername);
                                     
-                                    // Send P2P_ANSWER via signaling with matching callId from offer
+                                    // Send MESH_ANSWER (changed from P2P_ANSWER)
                                     WebRTCSignal answerSignal = WebRTCSignal.newBuilder()
-                                        .setType(SignalType.P2P_ANSWER)
+                                        .setType(SignalType.MESH_ANSWER)  // Use MESH_ANSWER
                                         .setFrom(myUsername)
                                         .setTo(remoteUsername)
-                                        .setCallId(incomingCallId)  // Use same callId from P2P_OFFER
+                                        .setRoomId(incomingRoomId)  // Use roomId
                                         .setSdp(description.sdp)
                                         .setTimestamp(System.currentTimeMillis())
                                         .build();
                                     
-                                    signalingClient.sendSignalViaStream(answerSignal);
-                                    System.out.printf("[P2P] P2P_ANSWER sent to %s (callId: %s)%n", remoteUsername, incomingCallId);
+                                    signalingClient.sendSignal(answerSignal);  // Use sendSignal
+                                    System.out.printf("[P2P] MESH_ANSWER sent to %s (roomId: %s)%n", remoteUsername, incomingRoomId);
                                 }
                                 
                                 @Override
@@ -330,7 +375,7 @@ public class P2PConnectionManager {
             });
             
         } catch (Exception e) {
-            System.err.printf("[P2P] Error handling P2P_OFFER: %s%n", e.getMessage());
+            System.err.printf("[P2P] Error handling MESH_OFFER: %s%n", e.getMessage());
             e.printStackTrace();
         }
     }
@@ -538,20 +583,20 @@ public class P2PConnectionManager {
                 public void onIceCandidate(RTCIceCandidate candidate) {
                     System.out.printf("[P2P] ICE candidate generated for %s%n", remoteUsername);
                     
-                    // Send ICE candidate via signaling with "p2p-" callId
+                    // Use MESH_ICE_CANDIDATE for reliable routing (same as GroupCallManager)
                     WebRTCSignal signal = WebRTCSignal.newBuilder()
-                        .setType(SignalType.ICE_CANDIDATE)
+                        .setType(SignalType.MESH_ICE_CANDIDATE)  // Changed from ICE_CANDIDATE
                         .setFrom(myUsername)
                         .setTo(remoteUsername)
-                        .setCallId(callId)  // Use stored P2P callId for routing
+                        .setRoomId(callId)  // Use roomId instead of callId
                         .setCandidate(candidate.sdp)
                         .setSdpMid(candidate.sdpMid)
                         .setSdpMLineIndex(candidate.sdpMLineIndex)
                         .setTimestamp(System.currentTimeMillis())
                         .build();
                     
-                    signalingClient.sendSignalViaStream(signal);
-                    System.out.printf("[P2P] ICE candidate sent to %s (callId: %s)%n", remoteUsername, callId);
+                    signalingClient.sendSignal(signal);  // Use sendSignal like GroupCallManager
+                    System.out.printf("[P2P] MESH_ICE_CANDIDATE sent to %s (roomId: %s)%n", remoteUsername, callId);
                 }
                 
                 @Override
