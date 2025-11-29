@@ -472,6 +472,14 @@ public class ClientMenu{
 			// Set current username in ChatService for message rendering
 			com.saferoom.gui.service.ChatService.getInstance().setCurrentUsername(username);
 			
+			// NEW: Initialize Persistent Storage (if password available)
+			try {
+				initializePersistentStorage(username, null); // Password will be stored after login
+			} catch (Exception e) {
+				System.err.println("[Storage] Persistent storage initialization skipped: " + e.getMessage());
+				System.err.println("[Storage] Messages will be stored in RAM only");
+			}
+			
 			// WEBRTC P2P: Initialize P2PConnectionManager for messaging
 			System.out.println("[P2P] Initializing WebRTC P2P messaging for: " + username);
 			
@@ -489,6 +497,61 @@ public class ClientMenu{
 			System.err.println("[P2P] Error during user registration: " + e.getMessage());
 			e.printStackTrace();
 			return false;
+		}
+	}
+	
+	/**
+	 * Initialize Persistent Storage for encrypted message history
+	 * This should be called after successful login when password is available
+	 * 
+	 * @param username User's username
+	 * @param password User's password (for encryption key derivation)
+	 */
+	public static void initializePersistentStorage(String username, String password) {
+		try {
+			System.out.println("[Storage] Initializing persistent storage...");
+			
+			// If password not provided, try to use username as fallback
+			// (Not secure, but allows testing without password)
+			if (password == null || password.isEmpty()) {
+				System.err.println("[Storage] WARNING: No password provided for encryption!");
+				System.err.println("[Storage] Using username as password (INSECURE - for testing only)");
+				password = username; // Fallback
+			}
+			
+			// Data directory
+			String userHome = System.getProperty("user.home");
+			String dataDir = userHome + "/.saferoom/data";
+			
+			// Initialize database
+			com.saferoom.storage.LocalDatabase database = 
+				com.saferoom.storage.LocalDatabase.initialize(username, password, dataDir);
+			
+			System.out.println("[Storage] Database initialized at: " + database.getDbPath());
+			
+			// Initialize repository
+			com.saferoom.storage.LocalMessageRepository repository = 
+				com.saferoom.storage.LocalMessageRepository.initialize(database);
+			
+			// Initialize persister and loader
+			com.saferoom.chat.MessagePersister persister = 
+				com.saferoom.chat.MessagePersister.initialize(repository);
+			
+			com.saferoom.chat.PersistentChatLoader loader = 
+				new com.saferoom.chat.PersistentChatLoader(repository);
+			
+			// Connect to ChatService
+			com.saferoom.gui.service.ChatService chatService = 
+				com.saferoom.gui.service.ChatService.getInstance();
+			chatService.initializePersistence(persister, loader);
+			
+			System.out.println("[Storage] ✅ Persistent storage enabled!");
+			System.out.println("[Storage] Messages will be encrypted and saved to disk");
+			
+		} catch (Exception e) {
+			System.err.println("[Storage] Failed to initialize persistent storage: " + e.getMessage());
+			e.printStackTrace();
+			throw e;
 		}
 	}
 	

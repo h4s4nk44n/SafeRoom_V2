@@ -137,18 +137,32 @@ public class LoginController {
                 UserInfo traditionalUser = new UserInfo();
 
                 // Kullanıcının hangi şekilde giriş yaptığını ve eksik bilgiyi belirle
+                String actualUsername;
                 if (username.contains("@")) {
                     // Email ile giriş yapmış, loginResult username içeriyor
                     traditionalUser.setName(loginResult); // Server'dan gelen username
                     traditionalUser.setEmail(username); // Kullanıcının girdiği email
+                    actualUsername = loginResult; // Actual username
                 } else {
                     // Username ile giriş yapmış, loginResult email içeriyor
                     traditionalUser.setName(username); // Kullanıcının girdiği username
                     traditionalUser.setEmail(loginResult); // Server'dan gelen email
+                    actualUsername = username; // Already username
                 }
 
                 traditionalUser.setProvider("Traditional");
                 UserSession.getInstance().setCurrentUser(traditionalUser, "traditional");
+                
+                // NEW: Initialize Persistent Storage with password
+                try {
+                    System.out.println("[Login] Initializing persistent storage...");
+                    ClientMenu.initializePersistentStorage(actualUsername, password);
+                    System.out.println("[Login] ✅ Persistent storage ready!");
+                } catch (Exception e) {
+                    System.err.println("[Login] ⚠️ Persistent storage initialization failed: " + e.getMessage());
+                    System.err.println("[Login] Messages will be stored in RAM only");
+                    e.printStackTrace();
+                }
 
                 // Stop any existing heartbeat service before starting a new one
                 com.saferoom.gui.utils.HeartbeatService heartbeatService = com.saferoom.gui.utils.HeartbeatService.getInstance();
