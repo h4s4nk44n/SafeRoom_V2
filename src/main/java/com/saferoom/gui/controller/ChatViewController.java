@@ -301,9 +301,42 @@ public class ChatViewController {
             }
         });
 
+        // NEW: Load conversation history from disk
+        loadConversationHistoryAsync(channelId);
+        
         if (!messages.isEmpty()) {
             messageListView.scrollTo(messages.size() - 1);
         }
+    }
+    
+    /**
+     * Load conversation history from persistent storage (NEW)
+     * Loads messages from disk and populates the ObservableList
+     * 
+     * @param channelId Remote username / channel ID
+     */
+    private void loadConversationHistoryAsync(String channelId) {
+        // Load history in background
+        chatService.loadConversationHistory(channelId)
+            .thenAccept(count -> {
+                Platform.runLater(() -> {
+                    if (count > 0) {
+                        System.out.println("[ChatView] Loaded " + count + " messages from history for: " + channelId);
+                        // Scroll to bottom after loading
+                        if (!messages.isEmpty()) {
+                            messageListView.scrollTo(messages.size() - 1);
+                        }
+                    } else {
+                        System.out.println("[ChatView] No history found for: " + channelId);
+                    }
+                });
+            })
+            .exceptionally(error -> {
+                Platform.runLater(() -> {
+                    System.err.println("[ChatView] Failed to load history: " + error.getMessage());
+                });
+                return null;
+            });
     }
 
     private void updateViewVisibility() {
