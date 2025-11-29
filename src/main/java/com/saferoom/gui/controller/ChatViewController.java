@@ -81,6 +81,12 @@ public class ChatViewController {
     private Label infoName;
     @FXML
     private Label infoStatus;
+    @FXML
+    private Button infoAudioButton;
+    @FXML
+    private Button infoVideoButton;
+    @FXML
+    private Button infoSearchButton;
 
     // UI Areas
     @FXML
@@ -470,6 +476,17 @@ public class ChatViewController {
             return;
         }
         showCallConfirmation("Video Call", "Start video call?", true);
+    }
+    
+    // Contact Info panel'deki butonlar için handler'lar
+    @FXML
+    private void handleInfoAudioCall() {
+        handlePhoneCall(); // Aynı mantığı kullan
+    }
+    
+    @FXML
+    private void handleInfoVideoCall() {
+        handleVideoCall(); // Aynı mantığı kullan
     }
 
     private void showCallConfirmation(String title, String header, boolean isVideo) {
