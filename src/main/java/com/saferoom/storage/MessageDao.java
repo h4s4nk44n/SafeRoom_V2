@@ -44,6 +44,14 @@ public class MessageDao {
      * Insert a new message into database
      */
     public void insertMessage(Message message, String conversationId) throws SQLException {
+        System.out.printf("[MessageDao] 📝 Inserting message into database:%n");
+        System.out.printf("   Message ID: %s%n", message.getId());
+        System.out.printf("   Conversation ID: %s%n", conversationId);
+        System.out.printf("   Sender: %s%n", message.getSenderId());
+        System.out.printf("   Type: %s%n", message.getType());
+        System.out.printf("   Outgoing: %s%n", message.isOutgoing());
+        System.out.printf("   Text: %s%n", message.getText());
+        
         String sql = """
             INSERT INTO messages (
                 id, conversation_id, timestamp, type, content,
@@ -77,9 +85,14 @@ public class MessageDao {
             stmt.setString(9, message.getSenderId());
             stmt.setString(10, message.getSenderAvatarChar());
             
-            stmt.executeUpdate();
+            int rowsAffected = stmt.executeUpdate();
             
+            System.out.printf("[MessageDao] ✅ INSERT successful! Rows affected: %d%n", rowsAffected);
             LOGGER.fine("Inserted message: " + message.getId() + " to conversation: " + conversationId);
+        } catch (SQLException e) {
+            System.err.printf("[MessageDao] ❌ INSERT failed: %s%n", e.getMessage());
+            e.printStackTrace();
+            throw e;
         }
     }
     
