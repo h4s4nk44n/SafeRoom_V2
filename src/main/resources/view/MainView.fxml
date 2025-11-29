@@ -24,6 +24,36 @@
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.saferoom.gui.controller.MainController">
 
+    <!-- ÜST BAR - Tüm pencereyi kaplasın -->
+    <top>
+        <BorderPane fx:id="headerBar" prefHeight="32.0" styleClass="header-bar">
+            <right>
+                <HBox fx:id="windowControls" alignment="CENTER" spacing="0" styleClass="window-controls">
+                    <children>
+                        <JFXButton fx:id="minimizeButton" styleClass="window-control-button, minimize-button" text="">
+                            <graphic>
+                                <FontIcon iconLiteral="fas-minus" styleClass="window-control-icon" />
+                            </graphic>
+                        </JFXButton>
+                        <JFXButton fx:id="maximizeButton" styleClass="window-control-button, maximize-button" text="">
+                            <graphic>
+                                <FontIcon iconLiteral="far-square" styleClass="window-control-icon" />
+                            </graphic>
+                        </JFXButton>
+                        <JFXButton fx:id="closeButton" styleClass="window-control-button, close-button" text="">
+                            <graphic>
+                                <FontIcon iconLiteral="fas-times" styleClass="window-control-icon" />
+                            </graphic>
+                        </JFXButton>
+                    </children>
+                </HBox>
+            </right>
+            <padding>
+                <Insets left="32.0" right="4.0" />
+            </padding>
+        </BorderPane>
+    </top>
+
     <left>
         <VBox styleClass="sidebar, sidebar-minimal">
             <children>
@@ -80,46 +110,13 @@
     </left>
 
     <center>
-        <BorderPane styleClass="content-pane" maxWidth="Infinity" maxHeight="Infinity">
-            <top>
-                <BorderPane fx:id="headerBar" prefHeight="32.0" styleClass="header-bar">
-                    <right>
-                        <HBox fx:id="windowControls" alignment="CENTER" spacing="0" styleClass="window-controls">
-                            <children>
-                                <JFXButton fx:id="minimizeButton" styleClass="window-control-button, minimize-button" text="">
-                                    <graphic>
-                                        <FontIcon iconLiteral="fas-minus" styleClass="window-control-icon" />
-                                    </graphic>
-                                </JFXButton>
-                                <JFXButton fx:id="maximizeButton" styleClass="window-control-button, maximize-button" text="">
-                                    <graphic>
-                                        <FontIcon iconLiteral="far-square" styleClass="window-control-icon" />
-                                    </graphic>
-                                </JFXButton>
-                                <JFXButton fx:id="closeButton" styleClass="window-control-button, close-button" text="">
-                                    <graphic>
-                                        <FontIcon iconLiteral="fas-times" styleClass="window-control-icon" />
-                                    </graphic>
-                                </JFXButton>
-                            </children>
-                        </HBox>
-                    </right>
-                    <padding>
-                        <Insets left="32.0" right="4.0" />
-                    </padding>
-                </BorderPane>
-            </top>
-            <center>
-                <AnchorPane>
-                    <StackPane fx:id="contentArea"
-                               styleClass="content-scroll-pane"
-                               AnchorPane.bottomAnchor="0.0"
-                               AnchorPane.leftAnchor="0.0"
-                               AnchorPane.rightAnchor="0.0"
-                               AnchorPane.topAnchor="0.0" />
-                </AnchorPane>
-            </center>
-
-        </BorderPane>
+        <AnchorPane styleClass="content-pane" maxWidth="Infinity" maxHeight="Infinity">
+            <StackPane fx:id="contentArea"
+                       styleClass="content-scroll-pane"
+                       AnchorPane.bottomAnchor="0.0"
+                       AnchorPane.leftAnchor="0.0"
+                       AnchorPane.rightAnchor="0.0"
+                       AnchorPane.topAnchor="0.0" />
+        </AnchorPane>
     </center>
 </BorderPane>

@@ -174,7 +174,7 @@
    ================================================================= */
 .sidebar {
   -fx-background-color: #0f172a;
-  -fx-background-radius: 12px 0px 0px 12px; /* Rounded corners on left side only */
+  -fx-background-radius: 0px 0px 0px 0px; /* Rounded corners on left side only */
 }
 .sidebar-header {
   -fx-border-color: #334155;
@@ -294,8 +294,8 @@
 .header-bar {
   -fx-background-color: #0f172a;
   -fx-border-color: #334155;
-  -fx-border-width: 0 0 1px 0;
-  -fx-background-radius: 0px 12px 0px 0px; /* Rounded corner on top-right only */
+  -fx-border-width: 0 0 0px 0;
+  -fx-background-radius: 12px 12px 0px 0px; /* Rounded corner on top-right only */
 }
 .view-title {
   -fx-font-size: 20px;
