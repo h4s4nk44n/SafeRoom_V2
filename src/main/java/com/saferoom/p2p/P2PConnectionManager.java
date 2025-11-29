@@ -707,21 +707,19 @@ public class P2PConnectionManager {
                             com.saferoom.gui.service.ChatService chatService = 
                                 com.saferoom.gui.service.ChatService.getInstance();
                             
-                            chatService.getMessagesForChannel(remoteUsername).add(
-                                new com.saferoom.gui.model.Message(
-                                    messageText,
-                                    remoteUsername,
-                                    remoteUsername.substring(0, 1)
-                                )
-                            );
+                            // FIXED: Call receiveP2PMessage() instead of direct add
+                            // This ensures persistence hooks are triggered!
+                            chatService.receiveP2PMessage(remoteUsername, myUsername, messageText);
                             
+                            // Update contact last message
                             com.saferoom.gui.service.ContactService.getInstance()
                                 .updateLastMessage(remoteUsername, messageText, false);
                                 
-                            System.out.printf("[P2P] Message added to chat for %s%n", remoteUsername);
+                            System.out.printf("[P2P] Message forwarded to ChatService for persistence%n");
                             
                         } catch (Exception e) {
                             System.err.println("[P2P] Error forwarding message: " + e.getMessage());
+                            e.printStackTrace();
                         }
                     });
                     
