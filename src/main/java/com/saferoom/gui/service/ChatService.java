@@ -139,11 +139,23 @@ public class ChatService {
         
         // NEW: Persist to disk asynchronously
         if (persistenceEnabled && messagePersister != null) {
+            System.out.printf("[ChatService] 💾 Persisting OUTGOING message to: %s%n", channelId);
+            System.out.printf("[ChatService]    Message ID: %s%n", newMessage.getId());
+            System.out.printf("[ChatService]    Params: message=%s, remoteUser=%s, currentUser=%s%n", 
+                newMessage.getId(), channelId, currentUsername);
+            
             messagePersister.persistMessageAsync(newMessage, channelId, currentUsername)
+                .thenRun(() -> {
+                    System.out.printf("[ChatService] ✅ OUTGOING message persisted successfully: %s%n", newMessage.getId());
+                })
                 .exceptionally(error -> {
-                    System.err.println("[ChatService] Failed to persist message: " + error.getMessage());
+                    System.err.println("[ChatService] ❌ Failed to persist outgoing message: " + error.getMessage());
+                    error.printStackTrace();
                     return null;
                 });
+        } else {
+            System.err.printf("[ChatService] ⚠️ Persistence NOT enabled! persistenceEnabled=%s, persister=%s%n", 
+                persistenceEnabled, messagePersister);
         }
 
         // Try WebRTC DataChannel P2P messaging first
@@ -236,11 +248,23 @@ public class ChatService {
         
         // NEW: Persist to disk asynchronously
         if (persistenceEnabled && messagePersister != null) {
+            System.out.printf("[ChatService] 💾 Persisting INCOMING message from: %s%n", sender);
+            System.out.printf("[ChatService]    Message ID: %s%n", incomingMessage.getId());
+            System.out.printf("[ChatService]    Params: message=%s, remoteUser=%s, currentUser=%s%n", 
+                incomingMessage.getId(), sender, currentUsername);
+            
             messagePersister.persistMessageAsync(incomingMessage, sender, currentUsername)
+                .thenRun(() -> {
+                    System.out.printf("[ChatService] ✅ INCOMING message persisted successfully: %s%n", incomingMessage.getId());
+                })
                 .exceptionally(error -> {
-                    System.err.println("[ChatService] Failed to persist incoming message: " + error.getMessage());
+                    System.err.println("[ChatService] ❌ Failed to persist incoming message: " + error.getMessage());
+                    error.printStackTrace();
                     return null;
                 });
+        } else {
+            System.err.printf("[ChatService] ⚠️ Persistence NOT enabled! persistenceEnabled=%s, persister=%s%n", 
+                persistenceEnabled, messagePersister);
         }
         
         System.out.printf("[Chat] 📬 Updated contact last message for %s%n", sender);
