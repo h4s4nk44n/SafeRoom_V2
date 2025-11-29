@@ -1,8 +1,16 @@
 package com.saferoom.gui.controller;
 
+import com.saferoom.gui.dialog.ActiveCallDialog;
+import com.saferoom.gui.dialog.IncomingCallDialog;
+import com.saferoom.gui.dialog.OutgoingCallDialog;
 import com.saferoom.gui.model.User;
+import com.saferoom.gui.service.ChatService;
+import com.saferoom.webrtc.CallManager;
+import dev.onvoid.webrtc.media.video.VideoTrack;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
@@ -48,15 +56,35 @@ public class UserInfoPopupController implements Initializable {
 
     private User currentUser;
     private boolean isCurrentUserAdmin = false; // This would be determined by current user's permissions
+    
+    // WebRTC Call Integration
+    private ChatService chatService;
+    private String currentChannelId; // Channel ID for the conversation with this user
+    private OutgoingCallDialog currentOutgoingDialog;
+    private IncomingCallDialog currentIncomingDialog;
+    private ActiveCallDialog currentActiveCallDialog;
+    private boolean callbacksSetup = false;
+    private boolean currentCallVideoEnabled = false;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        this.chatService = ChatService.getInstance();
         setupActionHandlers();
     }
 
     public void setUserInfo(User user) {
         this.currentUser = user;
+        // Set channelId as username (same as ChatViewController does with currentChannelId)
+        this.currentChannelId = user.getUsername();
         populateUserInfo();
+    }
+    
+    /**
+     * Set the channel ID for the conversation with this user
+     * @param channelId The channel/conversation ID
+     */
+    public void setChannelId(String channelId) {
+        this.currentChannelId = channelId;
     }
 
     public void setCurrentUserAdmin(boolean isAdmin) {
@@ -161,16 +189,14 @@ public class UserInfoPopupController implements Initializable {
     private void handleCall() {
         if (currentUser != null && currentUser.isOnline()) {
             System.out.println("Starting voice call with: " + currentUser.getUsername());
-            // Here you would integrate with the voice call system
-            closePopup();
+            startCall(false); // false = audio only
         }
     }
 
     private void handleVideoCall() {
         if (currentUser != null && currentUser.isOnline()) {
             System.out.println("Starting video call with: " + currentUser.getUsername());
-            // Here you would integrate with the video call system
-            closePopup();
+            startCall(true); // true = video enabled
         }
     }
 
@@ -214,5 +240,218 @@ public class UserInfoPopupController implements Initializable {
             banBtn.setVisible(canBan);
             banBtn.setManaged(canBan);
         }
+    }
+    
+    // ===============================
+    // WebRTC Call Integration Methods
+    // ===============================
+    
+    /**
+     * Start a call (audio or video) with the current user
+     * @param videoEnabled true for video call, false for audio only
+     */
+    private void startCall(boolean videoEnabled) {
+        if (currentChannelId == null || currentChannelId.isEmpty()) {
+            showAlert("Error", "Cannot start call: user information not available.", Alert.AlertType.ERROR);
+            return;
+        }
+        
+        try {
+            String targetUsername = currentChannelId;
+            String myUsername = chatService.getCurrentUsername();
+            
+            if (myUsername == null) {
+                showAlert("Error", "Cannot start call: current user not logged in.", Alert.AlertType.ERROR);
+                return;
+            }
+            
+            CallManager callManager = CallManager.getInstance();
+            
+            // Initialize CallManager if needed
+            if (!callManager.isInitialized()) {
+                callManager.initialize(myUsername);
+            }
+            
+            // Setup callbacks
+            setupCallManagerCallbacks(callManager);
+            
+            // Check if already in a call
+            if (callManager.isInCall()) {
+                showAlert("Call In Progress", "You are already in a call.", Alert.AlertType.WARNING);
+                return;
+            }
+            
+            // Start the call
+            callManager.startCall(targetUsername, true, videoEnabled)
+                    .thenAccept(callId -> {
+                        Platform.runLater(() -> {
+                            currentCallVideoEnabled = videoEnabled;
+                            String callMsg = videoEnabled ? "📹 Starting video call..." : "📞 Starting audio call...";
+                            chatService.sendMessage(currentChannelId, callMsg, new com.saferoom.gui.model.User(myUsername, myUsername));
+                            
+                            // Show outgoing call dialog
+                            currentOutgoingDialog = new OutgoingCallDialog(targetUsername, callId, videoEnabled);
+                            currentOutgoingDialog.show();
+                            
+                            // Close the user info popup after starting the call
+                            closePopup();
+                        });
+                    })
+                    .exceptionally(e -> {
+                        Platform.runLater(() -> {
+                            showAlert("Call Failed", "Failed to start call: " + e.getMessage(), Alert.AlertType.ERROR);
+                        });
+                        return null;
+                    });
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert("Error", "Error starting call: " + e.getMessage(), Alert.AlertType.ERROR);
+        }
+    }
+    
+    /**
+     * Setup CallManager callbacks for handling call events
+     */
+    private void setupCallManagerCallbacks(CallManager callManager) {
+        if (callbacksSetup) {
+            return; // Already setup
+        }
+        callbacksSetup = true;
+        
+        String myUsername = chatService.getCurrentUsername();
+        com.saferoom.gui.model.User currentUserModel = new com.saferoom.gui.model.User(myUsername, myUsername);
+        
+        // Incoming call callback
+        callManager.setOnIncomingCallCallback(info -> {
+            Platform.runLater(() -> {
+                currentCallVideoEnabled = info.videoEnabled;
+                IncomingCallDialog incomingDialog = new IncomingCallDialog(
+                    info.callerUsername, 
+                    info.callId, 
+                    info.videoEnabled
+                );
+                
+                this.currentIncomingDialog = incomingDialog;
+                
+                incomingDialog.show().thenAccept(accepted -> {
+                    if (accepted) {
+                        callManager.acceptCall(info.callId);
+                    } else {
+                        callManager.rejectCall(info.callId);
+                    }
+                    this.currentIncomingDialog = null;
+                });
+            });
+        });
+        
+        // Call accepted callback
+        callManager.setOnCallAcceptedCallback(callId -> {
+            Platform.runLater(() -> {
+                if (currentChannelId != null) {
+                    chatService.sendMessage(currentChannelId, "✅ Call accepted - connecting...", currentUserModel);
+                }
+                
+                if (currentOutgoingDialog != null) {
+                    currentOutgoingDialog.close();
+                    currentOutgoingDialog = null;
+                }
+                
+                if (currentActiveCallDialog == null) {
+                    currentActiveCallDialog = new ActiveCallDialog(
+                        currentChannelId, 
+                        callId, 
+                        currentCallVideoEnabled, 
+                        callManager
+                    );
+                    currentActiveCallDialog.show();
+                    
+                    if (currentCallVideoEnabled) {
+                        VideoTrack localVideo = callManager.getLocalVideoTrack();
+                        if (localVideo != null) {
+                            currentActiveCallDialog.attachLocalVideo(localVideo);
+                        }
+                    }
+                }
+            });
+        });
+        
+        // Call rejected callback
+        callManager.setOnCallRejectedCallback(callId -> {
+            Platform.runLater(() -> {
+                if (currentChannelId != null) {
+                    chatService.sendMessage(currentChannelId, "❌ Call was rejected", currentUserModel);
+                }
+            });
+        });
+        
+        // Call connected callback
+        callManager.setOnCallConnectedCallback(() -> {
+            Platform.runLater(() -> {
+                if (currentChannelId != null) {
+                    chatService.sendMessage(currentChannelId, "🔗 Call connected!", currentUserModel);
+                }
+            });
+        });
+        
+        // Call ended callback
+        callManager.setOnCallEndedCallback(callId -> {
+            Platform.runLater(() -> {
+                if (currentChannelId != null) {
+                    chatService.sendMessage(currentChannelId, "📴 Call ended", currentUserModel);
+                }
+                
+                if (currentOutgoingDialog != null) {
+                    currentOutgoingDialog.close();
+                    currentOutgoingDialog = null;
+                }
+                if (currentIncomingDialog != null) {
+                    currentIncomingDialog.close();
+                    currentIncomingDialog = null;
+                }
+                if (currentActiveCallDialog != null) {
+                    currentActiveCallDialog.close();
+                    currentActiveCallDialog = null;
+                }
+                currentCallVideoEnabled = false;
+            });
+        });
+        
+        // Remote video track callback
+        callManager.setOnRemoteTrackCallback(track -> {
+            Platform.runLater(() -> {
+                if (track instanceof VideoTrack && currentActiveCallDialog != null) {
+                    currentActiveCallDialog.attachRemoteVideo((VideoTrack) track);
+                }
+            });
+        });
+        
+        // Remote screen share stopped callback
+        callManager.setOnRemoteScreenShareStoppedCallback(() -> {
+            Platform.runLater(() -> {
+                if (currentActiveCallDialog != null) {
+                    currentActiveCallDialog.onRemoteScreenShareStopped();
+                }
+            });
+        });
+    }
+    
+    /**
+     * Show an alert dialog
+     */
+    private void showAlert(String title, String content, Alert.AlertType type) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        
+        try {
+            alert.getDialogPane().getStylesheets().add(
+                getClass().getResource("/styles/styles.css").toExternalForm()
+            );
+        } catch (Exception e) {
+            // Ignore if stylesheet loading fails
+        }
+        
+        alert.show();
     }
 }
