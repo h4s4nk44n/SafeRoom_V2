@@ -689,7 +689,7 @@ public class ChatViewController {
         scrollPane.setFitToWidth(true);
         scrollPane.setStyle("-fx-background: #0f111a; -fx-background-color: #0f111a;");
         
-        // Header with close button
+        // Header (no close button - use window's X button)
         HBox header = new HBox();
         header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         header.setSpacing(15);
@@ -702,14 +702,7 @@ public class ChatViewController {
         Label countLabel = new Label(mediaMessages.size() + " items");
         countLabel.setStyle("-fx-text-fill: #94a1b2; -fx-font-size: 14px;");
         
-        javafx.scene.layout.Pane spacer = new javafx.scene.layout.Pane();
-        HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
-        
-        Button closeBtn = new Button("✕");
-        closeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #94a1b2; -fx-font-size: 18px; -fx-cursor: hand;");
-        closeBtn.setOnAction(e -> stage.close());
-        
-        header.getChildren().addAll(titleLabel, countLabel, spacer, closeBtn);
+        header.getChildren().addAll(titleLabel, countLabel);
         
         // Main layout
         VBox root = new VBox(header, scrollPane);
