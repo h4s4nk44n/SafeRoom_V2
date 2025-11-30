@@ -536,8 +536,14 @@ public class ChatViewController {
             openImagePreviewModal(attachment);
         }
         // PDF - open in PDF viewer modal
-        else if (type == MessageType.DOCUMENT && fileName.endsWith(".pdf")) {
+        else if (fileName.endsWith(".pdf")) {
             openPdfViewerModal(attachment);
+        }
+        // Text files - open in text viewer modal
+        else if (fileName.endsWith(".txt") || fileName.endsWith(".log") || 
+                 fileName.endsWith(".md") || fileName.endsWith(".json") ||
+                 fileName.endsWith(".xml") || fileName.endsWith(".csv")) {
+            openTextViewerModal(attachment);
         }
         // Video - open with system player (in background thread)
         else if (type == MessageType.VIDEO) {
@@ -546,6 +552,48 @@ public class ChatViewController {
         // Other files - open with system app (in background thread)
         else {
             openWithSystemApp(filePath);
+        }
+    }
+    
+    /**
+     * Open text file in a viewer modal
+     */
+    private void openTextViewerModal(FileAttachment attachment) {
+        try {
+            java.nio.file.Path path = attachment.getLocalPath();
+            String content = java.nio.file.Files.readString(path);
+            
+            javafx.stage.Stage stage = new javafx.stage.Stage();
+            stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+            stage.setTitle(attachment.getFileName());
+            
+            javafx.scene.control.TextArea textArea = new javafx.scene.control.TextArea(content);
+            textArea.setEditable(false);
+            textArea.setWrapText(true);
+            textArea.setStyle(
+                "-fx-control-inner-background: #1a1d21; " +
+                "-fx-text-fill: #e5e5e5; " +
+                "-fx-font-family: 'JetBrains Mono', 'Consolas', monospace; " +
+                "-fx-font-size: 13px;"
+            );
+            
+            VBox root = new VBox(textArea);
+            root.setStyle("-fx-background-color: #0f111a; -fx-padding: 10;");
+            javafx.scene.layout.VBox.setVgrow(textArea, javafx.scene.layout.Priority.ALWAYS);
+            
+            javafx.scene.Scene scene = new javafx.scene.Scene(root, 700, 500);
+            scene.setOnKeyPressed(e -> {
+                if (e.getCode() == KeyCode.ESCAPE) {
+                    stage.close();
+                }
+            });
+            
+            stage.setScene(scene);
+            stage.show();
+        } catch (Exception e) {
+            System.err.println("[ChatView] Failed to open text viewer: " + e.getMessage());
+            // Fallback to system app
+            openWithSystemApp(attachment.getLocalPath());
         }
     }
     
