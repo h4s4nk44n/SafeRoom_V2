@@ -100,7 +100,7 @@ public class SecureRoomController {
         // Scene yüklendiğinde root pane'i bul ve sürükleme ekle
         backButton.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null && newScene.getRoot() instanceof javafx.scene.layout.Pane) {
-                windowStateManager.setupBasicWindowDrag((javafx.scene.layout.Pane) newScene.getRoot());
+                windowStateManager.setupWindowDrag((javafx.scene.layout.Pane) newScene.getRoot());
             }
         });
     }

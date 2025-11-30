@@ -1629,38 +1629,18 @@
   -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 3, 0, 0, 1);
 }
 
-/* --- GÖNDERİLEN MESAJ (BEN - SAĞ) --- */
-.message-bubble.sent {
-  /* İSTEĞİN: "Canlı olmayan, morumsu siyahımsı" bir renk */
-  /* Desaturated Dark Purple (Soluk Koyu Mor) */
-  -fx-background-color: #3E3454;
 
-  /* ŞEKİL: 20px yerine 10px kullanarak daha modern/köşeli yaptık */
-  -fx-background-radius: 10px 10px 2px 10px;
-}
-
-/* --- ALINAN MESAJ (KARŞI TARAF - SOL) --- */
-.message-bubble.received {
-  /* Arka planla uyumlu çok koyu gri-mor karışımı */
-  -fx-background-color: #26242F;
-
-  /* İnce bir çerçeve ile belirginleştirme */
-  -fx-border-color: #363440;
-  -fx-border-width: 1px;
-
-  /* ŞEKİL: Yine 10px ile uyumlu köşe yapısı */
-  -fx-border-radius: 10px 10px 10px 2px;
-  -fx-background-radius: 10px 10px 10px 2px;
-}
 
 .message-bubble-sent,
 .file-message-bubble.file-bubble-sent {
   -fx-background-color: linear-gradient(to bottom right, #4b3a63 0%, #342943 100%);
+  -fx-background-radius: 10px 10px 0px 10px;
 }
 
 .message-bubble-received,
 .file-message-bubble.file-bubble-received {
   -fx-background-color: linear-gradient(to bottom right, #1f1b28 0%, #16131c 100%);
+  -fx-background-radius: 10px 10px 10px 0px;
 }
 
 .file-message-bubble {

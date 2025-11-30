@@ -49,7 +49,7 @@ public class MainApp extends Application {
             primaryStage.setY(event.getScreenY() - yOffset);
         });
 
-        primaryStage.setResizable(false);
+        primaryStage.setResizable(true);
         primaryStage.setScene(scene);
         primaryStage.show();
     }
