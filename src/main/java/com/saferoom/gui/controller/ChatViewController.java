@@ -420,6 +420,10 @@ public class ChatViewController {
         if (viewAllMediaBtn != null) {
             viewAllMediaBtn.setVisible(totalMedia > 3);
             viewAllMediaBtn.setManaged(totalMedia > 3);
+            
+            // Set click handler for View All button
+            final List<Message> allMedia = mediaMessages;
+            viewAllMediaBtn.setOnAction(e -> openAllMediaModal(allMedia));
         }
         
         // Fill placeholders with thumbnails (up to 3)
@@ -591,6 +595,148 @@ public class ChatViewController {
         return fileName.endsWith(".mp4") || fileName.endsWith(".mov") ||
                fileName.endsWith(".mkv") || fileName.endsWith(".avi") ||
                fileName.endsWith(".webm");
+    }
+    
+    /**
+     * Open "View All Media" modal - shows all shared media in a grid
+     */
+    private void openAllMediaModal(List<Message> mediaMessages) {
+        javafx.stage.Stage stage = new javafx.stage.Stage();
+        stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        stage.setTitle("Shared Media - " + currentChannelId + " (" + mediaMessages.size() + " items)");
+        
+        // Create grid for media thumbnails
+        javafx.scene.layout.FlowPane grid = new javafx.scene.layout.FlowPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new javafx.geometry.Insets(15));
+        grid.setStyle("-fx-background-color: #0f111a;");
+        
+        // Add each media item to grid
+        for (Message mediaMsg : mediaMessages) {
+            FileAttachment attachment = mediaMsg.getAttachment();
+            if (attachment == null) continue;
+            
+            StackPane mediaItem = createMediaGridItem(attachment);
+            grid.getChildren().add(mediaItem);
+        }
+        
+        // Wrap in scroll pane
+        javafx.scene.control.ScrollPane scrollPane = new javafx.scene.control.ScrollPane(grid);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background: #0f111a; -fx-background-color: #0f111a;");
+        
+        // Header with close button
+        HBox header = new HBox();
+        header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        header.setSpacing(15);
+        header.setPadding(new javafx.geometry.Insets(15));
+        header.setStyle("-fx-background-color: #1a1d21;");
+        
+        Label titleLabel = new Label("Shared Media");
+        titleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;");
+        
+        Label countLabel = new Label(mediaMessages.size() + " items");
+        countLabel.setStyle("-fx-text-fill: #94a1b2; -fx-font-size: 14px;");
+        
+        javafx.scene.layout.Pane spacer = new javafx.scene.layout.Pane();
+        HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+        
+        Button closeBtn = new Button("✕");
+        closeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #94a1b2; -fx-font-size: 18px; -fx-cursor: hand;");
+        closeBtn.setOnAction(e -> stage.close());
+        
+        header.getChildren().addAll(titleLabel, countLabel, spacer, closeBtn);
+        
+        // Main layout
+        VBox root = new VBox(header, scrollPane);
+        javafx.scene.layout.VBox.setVgrow(scrollPane, javafx.scene.layout.Priority.ALWAYS);
+        root.setStyle("-fx-background-color: #0f111a;");
+        
+        javafx.scene.Scene scene = new javafx.scene.Scene(root, 700, 500);
+        scene.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ESCAPE) {
+                stage.close();
+            }
+        });
+        
+        stage.setScene(scene);
+        stage.show();
+    }
+    
+    /**
+     * Create a single media item for the grid
+     */
+    private StackPane createMediaGridItem(FileAttachment attachment) {
+        StackPane item = new StackPane();
+        item.setPrefSize(120, 120);
+        item.setMinSize(120, 120);
+        item.setMaxSize(120, 120);
+        item.setStyle("-fx-background-color: #1a1d21; -fx-background-radius: 8; -fx-cursor: hand;");
+        
+        // Try to load thumbnail
+        Image thumbnail = attachment.getThumbnail();
+        
+        if (thumbnail == null && attachment.getLocalPath() != null) {
+            try {
+                java.nio.file.Path filePath = attachment.getLocalPath();
+                if (java.nio.file.Files.exists(filePath)) {
+                    String fileName = filePath.getFileName().toString().toLowerCase();
+                    if (isImageFile(fileName)) {
+                        thumbnail = new Image(filePath.toUri().toString(), 120, 120, true, true, true);
+                    }
+                }
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+        
+        if (thumbnail != null) {
+            ImageView imageView = new ImageView(thumbnail);
+            imageView.setFitWidth(120);
+            imageView.setFitHeight(120);
+            imageView.setPreserveRatio(true);
+            item.getChildren().add(imageView);
+        } else {
+            // Show file type icon
+            FontIcon icon = getFileTypeIcon(attachment.getTargetType());
+            icon.setIconSize(36);
+            
+            Label nameLabel = new Label(truncateFileName(attachment.getFileName(), 15));
+            nameLabel.setStyle("-fx-text-fill: #94a1b2; -fx-font-size: 10px;");
+            
+            VBox content = new VBox(5, icon, nameLabel);
+            content.setAlignment(javafx.geometry.Pos.CENTER);
+            item.getChildren().add(content);
+        }
+        
+        // Hover effect
+        item.setOnMouseEntered(e -> item.setStyle("-fx-background-color: #2a2d31; -fx-background-radius: 8; -fx-cursor: hand;"));
+        item.setOnMouseExited(e -> item.setStyle("-fx-background-color: #1a1d21; -fx-background-radius: 8; -fx-cursor: hand;"));
+        
+        // Click to open
+        item.setOnMouseClicked(e -> openSharedMediaFile(attachment));
+        
+        return item;
+    }
+    
+    /**
+     * Truncate filename for display
+     */
+    private String truncateFileName(String fileName, int maxLength) {
+        if (fileName == null) return "File";
+        if (fileName.length() <= maxLength) return fileName;
+        
+        int dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex > 0) {
+            String name = fileName.substring(0, dotIndex);
+            String ext = fileName.substring(dotIndex);
+            int availableLength = maxLength - ext.length() - 3; // 3 for "..."
+            if (availableLength > 0) {
+                return name.substring(0, Math.min(name.length(), availableLength)) + "..." + ext;
+            }
+        }
+        return fileName.substring(0, maxLength - 3) + "...";
     }
     
     /**
