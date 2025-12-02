@@ -112,6 +112,13 @@ public class LoginController {
         try {
             String loginResult = ClientMenu.Login(username, password);
 
+            // CRITICAL: Check for null or error states FIRST
+            if (loginResult == null) {
+                showError("Connection error: No response from server");
+                return;
+            }
+            
+            // Check for all error states
             if (loginResult.equals("N_REGISTER")) {
                 showError("User not registered!");
                 return;
@@ -121,8 +128,22 @@ public class LoginController {
             } else if (loginResult.equals("BLOCKED_USER")) {
                 showError("Account blocked! Please contact support.");
                 return;
-            } else if (loginResult.equals("ERROR")) {
-                showError("Connection error occurred!");
+            } else if (loginResult.startsWith("ERROR")) {
+                // Handle all ERROR_* variants
+                if (loginResult.equals("ERROR_SERVER_UNAVAILABLE")) {
+                    showError("Server is unavailable. Please check your connection.");
+                } else if (loginResult.equals("ERROR_TIMEOUT")) {
+                    showError("Connection timeout. Please try again.");
+                } else if (loginResult.equals("ERROR_CONNECTION_FAILED")) {
+                    showError("Connection failed. Please check if server is running.");
+                } else {
+                    showError("Connection error occurred!");
+                }
+                return;
+            } else if (loginResult.contains("Exception") || loginResult.contains("Error")) {
+                // Catch any exception strings that slipped through
+                System.err.println("Unexpected error response: " + loginResult);
+                showError("An error occurred during login. Please try again.");
                 return;
             } else {
                 // Login başarılı, loginResult eksik bilgiyi içeriyor

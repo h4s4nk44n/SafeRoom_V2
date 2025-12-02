@@ -60,9 +60,24 @@ public class ClientMenu{
 					System.out.println("Message has broken");
 					return "ERROR";					
 				}
-			}catch(Exception e){
-				return e.toString();
+		}catch(io.grpc.StatusRuntimeException e){
+			// gRPC specific errors
+			System.err.println("gRPC Login Error: " + e.getStatus().getCode() + " - " + e.getMessage());
+			if (e.getStatus().getCode() == io.grpc.Status.Code.UNAVAILABLE) {
+				return "ERROR_SERVER_UNAVAILABLE";
+			} else if (e.getStatus().getCode() == io.grpc.Status.Code.DEADLINE_EXCEEDED) {
+				return "ERROR_TIMEOUT";
+			} else if (e.getStatus().getCode() == io.grpc.Status.Code.CANCELLED) {
+				return "ERROR_CONNECTION_FAILED";
+			} else {
+				return "ERROR";
 			}
+		}catch(Exception e){
+			// Generic errors
+			System.err.println("Login Error: " + e.getMessage());
+			e.printStackTrace();
+			return "ERROR";
+		}
 		}
 
 	public static int register_client(String username, String password, String mail)
