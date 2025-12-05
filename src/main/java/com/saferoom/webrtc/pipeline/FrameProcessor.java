@@ -40,20 +40,15 @@ public final class FrameProcessor implements AutoCloseable {
         int resolvedCapacity = capacity > 0 ? capacity : DEFAULT_QUEUE_CAPACITY;
         this.queue = new ArrayBlockingQueue<>(Math.max(1, resolvedCapacity));
         
-        // Use platform thread on Windows for better native interop
-        // Virtual threads can have issues with native code on Windows
-        String os = System.getProperty("os.name", "").toLowerCase();
-        if (os.contains("win")) {
-            this.workerThread = Thread.ofPlatform()
-                .name("frame-processor-" + System.identityHashCode(this))
-                .daemon(true)
-                .unstarted(this::processLoop);
-            System.out.println("[FrameProcessor] Using platform thread (Windows)");
-        } else {
-            this.workerThread = Thread.ofVirtual()
-                .name("frame-processor-" + System.identityHashCode(this))
-                .unstarted(this::processLoop);
-        }
+        // ALWAYS use platform thread for FrameProcessor
+        // Virtual threads can have issues with native code (webrtc I420Buffer operations)
+        // This affects BOTH Windows and Linux
+        this.workerThread = Thread.ofPlatform()
+            .name("frame-processor-" + System.identityHashCode(this))
+            .daemon(true)
+            .unstarted(this::processLoop);
+        System.out.println("[FrameProcessor] Using platform thread for native interop");
+        
         this.workerThread.start();
     }
 
@@ -75,7 +70,13 @@ public final class FrameProcessor implements AutoCloseable {
         }
     }
 
+    // Debug counter
+    private volatile long processedCount = 0;
+    private volatile long lastProcessedLog = 0;
+    
     private void processLoop() {
+        System.out.println("[FrameProcessor] Process loop started on thread: " + Thread.currentThread().getName());
+        
         while (running.get()) {
             try {
                 VideoFrame frame = queue.poll(POLL_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
@@ -90,18 +91,31 @@ public final class FrameProcessor implements AutoCloseable {
                 try {
                     long start = System.nanoTime();
                     FrameRenderResult result = convertFrame(frame);
+                    long processingTimeMs = (System.nanoTime() - start) / 1_000_000;
                     stats.recordProcessed(System.nanoTime() - start, queue.size());
+                    
+                    // Log processing stats every 100 frames
+                    processedCount++;
+                    if (processedCount - lastProcessedLog >= 100) {
+                        System.out.printf("[FrameProcessor] Processed %d frames (last took %dms, queue=%d)%n",
+                            processedCount, processingTimeMs, queue.size());
+                        lastProcessedLog = processedCount;
+                    }
+                    
                     consumer.accept(result);
                 } finally {
                     frame.release();
                 }
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
+                System.out.println("[FrameProcessor] Process loop interrupted");
                 break;
             } catch (Throwable t) {
+                System.err.println("[FrameProcessor] ERROR in processLoop: " + t.getMessage());
                 t.printStackTrace();
             }
         }
+        System.out.println("[FrameProcessor] Process loop ended, processed total: " + processedCount);
         drainQueue();
     }
 

@@ -42,6 +42,10 @@ public class VideoPanel extends Canvas {
      * @param width Canvas width
      * @param height Canvas height
      */
+    // Debug: rendered frame counter
+    private volatile long renderedCount = 0;
+    private volatile long lastRenderedLog = 0;
+    
     public VideoPanel(double width, double height) {
         super(width, height);
         this.gc = getGraphicsContext2D();
@@ -56,6 +60,14 @@ public class VideoPanel extends Canvas {
                     try {
                         paintFrame(frame);
                         lastFrameTimestamp = System.nanoTime();
+                        
+                        // Log rendered frames
+                        renderedCount++;
+                        if (renderedCount - lastRenderedLog >= 100) {
+                            System.out.printf("[VideoPanel] ✅ RENDERED %d frames (%dx%d)%n",
+                                renderedCount, frame.getWidth(), frame.getHeight());
+                            lastRenderedLog = renderedCount;
+                        }
                     } finally {
                         frame.release();
                     }
@@ -238,9 +250,20 @@ public class VideoPanel extends Canvas {
         }
     }
 
+    // Debug counter for frames set to latestFrame
+    private volatile long framesSetToLatest = 0;
+    
     private FrameProcessor buildFrameProcessor() {
         lastFrameTimestamp = System.nanoTime();
-        return new FrameProcessor(result -> latestFrame.set(result));
+        System.out.println("[VideoPanel] Building new FrameProcessor...");
+        return new FrameProcessor(result -> {
+            framesSetToLatest++;
+            // Log every 100 frames set to latestFrame
+            if (framesSetToLatest % 100 == 0) {
+                System.out.printf("[VideoPanel] 📦 Set %d frames to latestFrame%n", framesSetToLatest);
+            }
+            latestFrame.set(result);
+        });
     }
 
     private void closeFrameProcessor() {
@@ -251,11 +274,16 @@ public class VideoPanel extends Canvas {
     }
 
     private void handleStall() {
-        System.err.println("[VideoPanel] ⚠️ No frame rendered for 2s, restarting processor");
+        System.err.printf("[VideoPanel] ⚠️ No frame rendered for 2s (received=%d, setToLatest=%d, rendered=%d)%n",
+            frameCount, framesSetToLatest, renderedCount);
+        System.err.printf("[VideoPanel]   isActive=%b, renderingPaused=%b, animationRunning=%b%n",
+            isActive, renderingPaused, animationRunning);
+        
         clearLatestFrame();
         closeFrameProcessor();
         frameProcessor = buildFrameProcessor();
         if (videoTrack != null && videoSink != null) {
+            System.out.println("[VideoPanel] Re-attaching video sink...");
             videoTrack.removeSink(videoSink);
             videoTrack.addSink(videoSink);
         }
@@ -267,13 +295,17 @@ public class VideoPanel extends Canvas {
 
     private void startAnimation() {
         if (!animationRunning) {
+            System.out.println("[VideoPanel] 🎬 Starting AnimationTimer on FX thread");
             animationTimer.start();
             animationRunning = true;
+        } else {
+            System.out.println("[VideoPanel] AnimationTimer already running");
         }
     }
 
     private void stopAnimation() {
         if (animationRunning) {
+            System.out.println("[VideoPanel] ⏹️ Stopping AnimationTimer");
             animationTimer.stop();
             animationRunning = false;
         }
