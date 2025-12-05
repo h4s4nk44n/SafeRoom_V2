@@ -336,19 +336,50 @@ public class ChatService {
         }
 
         // Check P2P connection (WebRTC DataChannel)
-        if (!ClientMenu.isP2PMessagingAvailable(targetUser)) {
-            System.err.printf("[Chat] ❌ No P2P connection with %s%n", targetUser);
-            Platform.runLater(() -> {
-                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
-                    javafx.scene.control.Alert.AlertType.ERROR);
-                alert.setTitle("P2P Error");
-                alert.setHeaderText("No P2P Connection");
-                alert.setContentText("Cannot send file - no active P2P connection with " + targetUser);
-                alert.showAndWait();
-                placeholder.setStatusText("Failed (no connection)");
-            });
+        com.saferoom.p2p.P2PConnectionManager p2pManager = 
+            com.saferoom.p2p.P2PConnectionManager.getInstance();
+        
+        if (!p2pManager.hasActiveConnection(targetUser)) {
+            System.out.printf("[Chat] 🔄 No P2P connection with %s, attempting to establish...%n", targetUser);
+            placeholder.setStatusText("Connecting...");
+            
+            // Try to establish P2P connection first
+            p2pManager.createConnection(targetUser)
+                .orTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+                .whenComplete((success, error) -> {
+                    if (error != null || !Boolean.TRUE.equals(success)) {
+                        System.err.printf("[Chat] ❌ Failed to establish P2P connection with %s%n", targetUser);
+                        Platform.runLater(() -> {
+                            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                                javafx.scene.control.Alert.AlertType.ERROR);
+                            alert.setTitle("P2P Error");
+                            alert.setHeaderText("Connection Failed");
+                            alert.setContentText("Could not establish P2P connection with " + targetUser + 
+                                ". Please make sure they are online.");
+                            alert.showAndWait();
+                            placeholder.setStatusText("Failed (connection)");
+                        });
+                        return;
+                    }
+                    
+                    // Connection established, now send the file
+                    System.out.printf("[Chat] ✅ P2P connection established with %s, sending file...%n", targetUser);
+                    Platform.runLater(() -> doSendFile(targetUser, filePath, placeholder, attachment));
+                });
             return;
         }
+        
+        // P2P connection exists, send file directly
+        doSendFile(targetUser, filePath, placeholder, attachment);
+    }
+    
+    /**
+     * Actually send the file (after P2P connection is confirmed)
+     */
+    private void doSendFile(String targetUser, java.nio.file.Path filePath, 
+                           Message placeholder, FileAttachment attachment) {
+        com.saferoom.p2p.P2PConnectionManager p2pManager = 
+            com.saferoom.p2p.P2PConnectionManager.getInstance();
         
         try {
             AtomicReference<Long> transferIdRef = new AtomicReference<>(-1L);
