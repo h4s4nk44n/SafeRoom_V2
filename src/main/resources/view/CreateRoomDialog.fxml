@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.RadioButton?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.ToggleGroup?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<VBox spacing="20.0" prefWidth="400.0" styleClass="dialog-container" stylesheets="@../styles/styles.css,@../styles/dialog_styles.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.saferoom.gui.controller.CreateRoomDialogController">
+    <padding>
+        <Insets bottom="25.0" left="25.0" right="25.0" top="25.0" />
+    </padding>
+
+    <Label styleClass="dialog-header-label" text="Create New Room" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;" />
+
+    <!-- Room Icon Selection (First Option) -->
+    <VBox spacing="10.0" alignment="CENTER">
+        <Label styleClass="dialog-section-label" text="Room Icon" />
+        <StackPane fx:id="imageUploadContainer" styleClass="image-upload-container" style="-fx-cursor: hand; -fx-background-color: #2f3136; -fx-background-radius: 50%; -fx-border-color: #40444b; -fx-border-radius: 50%; -fx-border-style: dashed; -fx-border-width: 2;" prefWidth="100" prefHeight="100" maxWidth="100" maxHeight="100">
+            <javafx.scene.shape.Circle fx:id="roomImagePreview" radius="48" fill="#36393f" stroke="TRANSPARENT" />
+            <VBox alignment="CENTER" spacing="5" mouseTransparent="true">
+                <FontIcon iconLiteral="fas-camera" iconSize="24" iconColor="#b9bbbe" />
+                <Label text="Upload" style="-fx-text-fill: #b9bbbe; -fx-font-size: 10px;" />
+            </VBox>
+        </StackPane>
+        <Label text="Drag &amp; Drop or Click to Upload" style="-fx-text-fill: #72767d; -fx-font-size: 11px;" />
+    </VBox>
+
+    <VBox spacing="5.0">
+        <Label styleClass="dialog-section-label" text="Room Name" />
+        <TextField fx:id="roomNameField" promptText="Enter room name..." styleClass="input-field" />
+    </VBox>
+
+    <VBox spacing="10.0">
+        <Label styleClass="dialog-section-label" text="Privacy" />
+        <HBox spacing="20.0">
+            <RadioButton fx:id="publicRadio" selected="true" text="Public">
+                <toggleGroup>
+                    <ToggleGroup fx:id="privacyGroup" />
+                </toggleGroup>
+            </RadioButton>
+            <RadioButton fx:id="privateRadio" text="Private" toggleGroup="$privacyGroup" />
+        </HBox>
+    </VBox>
+
+    <HBox alignment="CENTER_RIGHT" spacing="10.0" style="-fx-padding: 10 0 0 0;">
+        <Button fx:id="cancelBtn" mnemonicParsing="false" styleClass="dialog-button-secondary" text="Cancel" />
+        <Button fx:id="createBtn" defaultButton="true" mnemonicParsing="false" styleClass="dialog-button-primary" text="Create Room" />
+    </HBox>
+</VBox>

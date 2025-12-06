@@ -24,7 +24,7 @@
             <ColumnConstraints />
         </columnConstraints>
         <TextField fx:id="searchTextField" promptText="Search for a room..." styleClass="input-field" GridPane.columnIndex="0" />
-        <Button text="Create New Room" styleClass="action-button" GridPane.columnIndex="2" />
+        <Button fx:id="createRoomBtn" text="Create New Room" styleClass="action-button" GridPane.columnIndex="2" onAction="#handleCreateRoom" />
     </GridPane>
     
     <!-- Scrollable room grid -->

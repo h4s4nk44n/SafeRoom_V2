@@ -16,6 +16,18 @@
     <content>
         <VBox styleClass="page-container" spacing="30.0">
             <children>
+                <!-- Header with Back Button -->
+                <HBox alignment="CENTER_LEFT" spacing="20.0" style="-fx-padding: 10 0 20 0;">
+                    <children>
+                        <Button fx:id="backButton" styleClass="icon-button" style="-fx-background-color: rgba(255,255,255,0.1); -fx-background-radius: 50%; -fx-min-width: 40px; -fx-min-height: 40px; -fx-max-width: 40px; -fx-max-height: 40px; -fx-cursor: hand; -fx-padding: 0;">
+                            <graphic>
+                                <org.kordamp.ikonli.javafx.FontIcon iconLiteral="fas-arrow-left" iconSize="18" iconColor="white"/>
+                            </graphic>
+                        </Button>
+                        <Label text="Ayarlar" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: white; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 10, 0, 0, 2);" />
+                    </children>
+                </HBox>
+
                 <!-- Profil Bölümü -->
                 <VBox spacing="15.0">
                     <children>

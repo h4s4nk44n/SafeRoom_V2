@@ -46,9 +46,9 @@ public class MainController {
     @FXML
     private BorderPane headerBar;
     @FXML
-    private HBox windowControlsLeft;    // macOS için sol taraf
+    private HBox windowControlsLeft; // macOS için sol taraf
     @FXML
-    private HBox windowControlsRight;   // Windows için sağ taraf
+    private HBox windowControlsRight; // Windows için sağ taraf
     @FXML
     private HBox sidebarHeader;
     // ------------------------------------------------------------
@@ -118,6 +118,21 @@ public class MainController {
     private List<MenuItem> mainMenuItems = new ArrayList<>();
     private List<MenuItem> statusMenuItems = new ArrayList<>();
     private boolean showingStatusSheet = false;
+    private List<java.util.function.Consumer<UserStatus>> statusListeners = new ArrayList<>();
+
+    public void addStatusListener(java.util.function.Consumer<UserStatus> listener) {
+        statusListeners.add(listener);
+    }
+
+    public void clearStatusListeners() {
+        statusListeners.clear();
+    }
+
+    private void notifyStatusListeners(UserStatus status) {
+        for (java.util.function.Consumer<UserStatus> listener : statusListeners) {
+            listener.accept(status);
+        }
+    }
 
     private String getCurrentUserName() {
         return UserSession.getInstance().getDisplayName();
@@ -128,6 +143,9 @@ public class MainController {
     }
 
     private WindowStateManager windowStateManager = new WindowStateManager();
+
+    // Track the last view loader to return from settings
+    private Runnable lastActiveViewLoader;
 
     @FXML
     public void initialize() {
@@ -273,10 +291,10 @@ public class MainController {
                     UserStatus.ONLINE.getStyleClass(),
                     UserStatus.IDLE.getStyleClass(),
                     UserStatus.DND.getStyleClass(),
-                    UserStatus.OFFLINE.getStyleClass()
-            );
+                    UserStatus.OFFLINE.getStyleClass());
             statusDot.getStyleClass().add(status.getStyleClass());
             currentStatus = status;
+            notifyStatusListeners(status);
             boolean reopenUser = userMenu != null && userMenu.isShowing();
             if (userMenu != null) {
                 userMenu.hide();
@@ -330,7 +348,7 @@ public class MainController {
             double menuTop = idealCenterY - (estimatedMenuHeight / 2);
             if (menuTop < 10) {
                 menuTop = 10;
-            }else if (menuTop + estimatedMenuHeight > windowHeight - 10) {
+            } else if (menuTop + estimatedMenuHeight > windowHeight - 10) {
                 menuTop = windowHeight - estimatedMenuHeight - 10;
             }
             offsetY = menuTop - profileBounds.getMinY();
@@ -373,7 +391,8 @@ public class MainController {
         });
 
         CustomMenuItem settingsItem = actionRow("Settings", "fas-cog", this::handleSettings);
-        CustomMenuItem helpItem = actionRow("Help", "far-question-circle", () -> AlertUtils.showInfo("Help", "Help is coming soon."));
+        CustomMenuItem helpItem = actionRow("Help", "far-question-circle",
+                () -> AlertUtils.showInfo("Help", "Help is coming soon."));
         CustomMenuItem logoutItem = actionRow("Log out", "fas-sign-out-alt", this::handleLogout);
 
         mainMenuItems.add(headerItem);
@@ -465,8 +484,8 @@ public class MainController {
                 scene.getStylesheets().add(cssUrl.toExternalForm());
             }
 
-            final double[] xOffset = {0};
-            final double[] yOffset = {0};
+            final double[] xOffset = { 0 };
+            final double[] yOffset = { 0 };
             root.setOnMousePressed(event -> {
                 xOffset[0] = event.getSceneX();
                 yOffset[0] = event.getSceneY();
@@ -488,6 +507,14 @@ public class MainController {
     public void returnToMainView() {
         showSidebarFromFullScreen();
         handleDashboard();
+    }
+
+    public void returnFromSettings() {
+        if (lastActiveViewLoader != null) {
+            lastActiveViewLoader.run();
+        } else {
+            handleDashboard();
+        }
     }
 
     public void hideSidebarForFullScreen() {
@@ -556,19 +583,24 @@ public class MainController {
     }
 
     private void handleDashboard() {
+        lastActiveViewLoader = this::handleDashboard;
         setActiveButton(dashboardButton);
         loadView("DashBoardView.fxml");
     }
 
     public void handleRooms() {
+        lastActiveViewLoader = this::handleRooms;
         setActiveButton(roomsButton);
         loadView("RoomsView.fxml");
     }
 
     public void handleMessages() {
+        lastActiveViewLoader = this::handleMessages;
         setActiveButton(messagesButton);
+        clearStatusListeners();
         try {
-            FXMLLoader loader = new FXMLLoader(Objects.requireNonNull(MainApp.class.getResource("/view/MessagesView.fxml")));
+            FXMLLoader loader = new FXMLLoader(
+                    Objects.requireNonNull(MainApp.class.getResource("/view/MessagesView.fxml")));
             Parent root = loader.load();
             MessagesController messagesController = loader.getController();
             messagesController.setOnNavigateToFriendsRequest(this::handleFriends);
@@ -580,13 +612,15 @@ public class MainController {
     }
 
     public void handleFriends() {
+        lastActiveViewLoader = this::handleFriends;
         setActiveButton(friendsButton);
         loadView("FriendsView.fxml");
     }
 
     public void handleFileVault() {
+        lastActiveViewLoader = this::handleFileVault;
         setActiveButton(fileVaultButton);
-        loadView("SecureFilesView.fxml");
+        loadView("FileVaultView.fxml");
     }
 
     public void switchToMessages() {
@@ -595,8 +629,10 @@ public class MainController {
     }
 
     public void handleProfile(String username) {
+        clearStatusListeners();
         try {
-            FXMLLoader loader = new FXMLLoader(Objects.requireNonNull(MainApp.class.getResource("/view/ProfileView.fxml")));
+            FXMLLoader loader = new FXMLLoader(
+                    Objects.requireNonNull(MainApp.class.getResource("/view/ProfileView.fxml")));
             Parent root = loader.load();
             ProfileController profileController = loader.getController();
             profileController.setProfileData(username);
@@ -608,32 +644,20 @@ public class MainController {
         }
     }
 
-    public void loadSecureRoomView() {
-        clearActiveButton();
-        loadFullScreenView("SecureRoomView.fxml", true);
-    }
-
-    public void loadJoinMeetView() {
-        clearActiveButton();
-        loadFullScreenView("JoinMeetView.fxml", false);
-    }
-
-    public void loadServerView(String serverName, String serverIcon) {
-        setActiveButton(roomsButton);
+    private void loadView(String fxmlFile) {
+        clearStatusListeners();
         try {
-            FXMLLoader loader = new FXMLLoader(MainApp.class.getResource("/view/ServerView.fxml"));
+            FXMLLoader loader = new FXMLLoader(MainApp.class.getResource("/view/" + fxmlFile));
             Parent root = loader.load();
-            ServerController controller = loader.getController();
-            controller.enterServer(serverName, serverIcon);
-            controller.setMainController(this);
             contentArea.getChildren().setAll(root);
         } catch (IOException e) {
             e.printStackTrace();
-            showErrorInContentArea("ServerView.fxml yüklenemedi.");
+            showErrorInContentArea(fxmlFile + " yüklenemedi: " + e.getMessage());
         }
     }
 
     private void loadFullScreenView(String fxmlFile, boolean isSecureRoom) {
+        clearStatusListeners();
         try {
             FXMLLoader loader = new FXMLLoader(MainApp.class.getResource("/view/" + fxmlFile));
             Parent root = loader.load();
@@ -647,20 +671,41 @@ public class MainController {
             hideSidebarForFullScreen();
             contentArea.getChildren().setAll(root);
         } catch (IOException e) {
+            System.err.println("[MainController] ❌ Failed to load " + fxmlFile);
             e.printStackTrace();
-            showErrorInContentArea(fxmlFile + " yüklenemedi.");
+            if (e.getCause() != null) {
+                System.err.println("[MainController] Caused by: " + e.getCause());
+                e.getCause().printStackTrace();
+            }
+            showErrorInContentArea(fxmlFile + " yüklenemedi.\nHata: " + e.getMessage());
         }
     }
 
-    private void loadView(String fxmlFile) {
+    public void loadServerView(String serverName, String serverIcon, boolean isPrivate, boolean isCustom) {
+        lastActiveViewLoader = () -> loadServerView(serverName, serverIcon, isPrivate, isCustom);
+        setActiveButton(roomsButton);
+        clearStatusListeners();
         try {
-            FXMLLoader loader = new FXMLLoader(Objects.requireNonNull(MainApp.class.getResource("/view/" + fxmlFile)));
+            FXMLLoader loader = new FXMLLoader(MainApp.class.getResource("/view/ServerView.fxml"));
             Parent root = loader.load();
+            ServerController controller = loader.getController();
+            controller.enterServer(serverName, serverIcon, isPrivate, isCustom);
+            controller.setMainController(this);
             contentArea.getChildren().setAll(root);
-        } catch (IOException | NullPointerException e) {
+        } catch (IOException e) {
             e.printStackTrace();
-            showErrorInContentArea("Görünüm yüklenemedi: " + fxmlFile);
+            showErrorInContentArea("ServerView.fxml yüklenemedi.");
         }
+    }
+
+    public void loadJoinMeetView() {
+        clearActiveButton();
+        loadFullScreenView("JoinMeetView.fxml", false);
+    }
+
+    public void loadSecureRoomView() {
+        clearActiveButton();
+        loadFullScreenView("SecureRoomView.fxml", true);
     }
 
     private void showErrorInContentArea(String message) {
@@ -690,7 +735,7 @@ public class MainController {
                 if (id != null) {
                     if (id.equals("dashboardView")) {
                         handleDashboard();
-                    }else if (id.equals("settingsView")) {
+                    } else if (id.equals("settingsView")) {
                         handleSettings();
                     }
                 }
@@ -706,8 +751,7 @@ public class MainController {
             Platform.runLater(() -> {
                 try {
                     IncomingCallDialog dialog = new IncomingCallDialog(
-                            callInfo.callerUsername, callInfo.callId, callInfo.videoEnabled
-                    );
+                            callInfo.callerUsername, callInfo.callId, callInfo.videoEnabled);
                     CompletableFuture<Boolean> dialogResult = dialog.show();
                     dialogResult.thenAccept(accepted -> {
                         if (accepted) {
@@ -715,11 +759,11 @@ public class MainController {
                             callManager.acceptCall(callInfo.callId);
                             Platform.runLater(() -> {
                                 currentActiveCallDialog = new ActiveCallDialog(
-                                        callInfo.callerUsername, callInfo.callId, callInfo.videoEnabled, callManager
-                                );
+                                        callInfo.callerUsername, callInfo.callId, callInfo.videoEnabled, callManager);
                                 currentActiveCallDialog.show();
                                 if (callInfo.videoEnabled) {
-                                    dev.onvoid.webrtc.media.video.VideoTrack localVideo = callManager.getLocalVideoTrack();
+                                    dev.onvoid.webrtc.media.video.VideoTrack localVideo = callManager
+                                            .getLocalVideoTrack();
                                     if (localVideo != null) {
                                         currentActiveCallDialog.attachLocalVideo(localVideo);
                                     }
