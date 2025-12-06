@@ -673,12 +673,8 @@ public class WebRTCClient {
     public void close() {
         System.out.println("[WebRTC] Closing peer connection...");
         
-        // Clean up all audio sinks first
-        if (!audioSinks.isEmpty()) {
-            System.out.printf("[WebRTC] Cleaning up %d audio sink(s)%n", audioSinks.size());
-            audioSinks.clear();
-            audioStats.clear();
-        }
+        // Clean up all audio sinks first (properly remove from tracks)
+        cleanupAllAudioSinks();
         
         // First, remove tracks from peer connection before disposing
         if (peerConnection != null) {
@@ -936,6 +932,7 @@ public class WebRTCClient {
      */
     // Per-track audio monitoring to support multi-party calls
     private final Map<String, AudioTrackSink> audioSinks = new ConcurrentHashMap<>();
+    private final Map<String, AudioTrack> audioTracks = new ConcurrentHashMap<>(); // Track references for cleanup
     private final Map<String, long[]> audioStats = new ConcurrentHashMap<>(); // [frameCount, lastLogTime]
     
     private void handleRemoteAudioTrack(AudioTrack audioTrack) {
@@ -977,6 +974,8 @@ public class WebRTCClient {
             }
         };
         
+        // Store track reference for proper cleanup
+        audioTracks.put(trackId, audioTrack);
         audioSinks.put(trackId, sink);
         audioTrack.addSink(sink);
         System.out.println("[WebRTC] ✅ Remote audio track ready (playback via AudioDeviceModule)");
@@ -984,21 +983,31 @@ public class WebRTCClient {
     }
     
     /**
-     * Remove audio sink for a specific track (called during cleanup)
+     * Remove all audio sinks from their tracks (called during cleanup)
      */
-    private void removeAudioSink(AudioTrack audioTrack) {
-        if (audioTrack == null) return;
-        String trackId = audioTrack.getId();
-        AudioTrackSink sink = audioSinks.remove(trackId);
-        audioStats.remove(trackId);
-        if (sink != null) {
-            try {
-                audioTrack.removeSink(sink);
-                System.out.printf("[WebRTC] 🔊 Removed audio sink for track: %s%n", trackId);
-            } catch (Exception e) {
-                // Ignore - sink may already be removed
+    private void cleanupAllAudioSinks() {
+        if (audioSinks.isEmpty()) return;
+        
+        System.out.printf("[WebRTC] 🔊 Cleaning up %d audio sink(s)%n", audioSinks.size());
+        
+        for (Map.Entry<String, AudioTrackSink> entry : audioSinks.entrySet()) {
+            String trackId = entry.getKey();
+            AudioTrackSink sink = entry.getValue();
+            AudioTrack track = audioTracks.get(trackId);
+            
+            if (track != null && sink != null) {
+                try {
+                    track.removeSink(sink);
+                    System.out.printf("[WebRTC]   Removed sink from track: %s%n", trackId);
+                } catch (Exception e) {
+                    // Track may already be disposed
+                }
             }
         }
+        
+        audioSinks.clear();
+        audioTracks.clear();
+        audioStats.clear();
     }
     
     /**
