@@ -458,7 +458,8 @@
 
 .voice-user-avatar {
   -fx-background-color: #334155;
-  -fx-background-radius: 50%; /* Perfect circle */
+  -fx-background-radius: 50%;
+  /* Perfect circle */
   -fx-pref-width: 64px;
   -fx-pref-height: 64px;
   -fx-alignment: CENTER;
@@ -591,11 +592,20 @@
 }
 
 .user-avatar-tiny {
+  -fx-border-color: transparent;
+  /*-fx-border-width: 2px;*/
+  /*-fx-border-radius: 16px;*/
   -fx-background-color: #334155;
-  -fx-background-radius: 16px;
-  -fx-pref-width: 28px;
-  -fx-pref-height: 28px;
+  /*-fx-background-radius: 16px;*/
+  /*-fx-pref-width: 28px;
+  -fx-pref-height: 28px;*/
   -fx-alignment: CENTER;
+  -fx-pref-width: 34px;
+  -fx-pref-height: 34px;
+  -fx-background-radius: 50%;
+  -fx-border-radius: 50%;
+  -fx-border-width: 2px;
+  -fx-border-style: solid;
 }
 
 .user-avatar-text-tiny {
@@ -620,6 +630,7 @@
 }
 
 .status-online {
+  -fx-border-color: #22c55e;
   -fx-text-fill: #22c55e;
   /* Green text for online */
   -fx-background-color: transparent;
@@ -627,6 +638,7 @@
 }
 
 .status-idle {
+  -fx-border-color: #fbbf24;
   -fx-text-fill: #fbbf24;
   /* Yellow text for idle */
   -fx-background-color: transparent;
@@ -634,6 +646,7 @@
 }
 
 .status-dnd {
+  -fx-border-color: #ef4444;
   -fx-text-fill: #ef4444;
   /* Red text for DND */
   -fx-background-color: transparent;
@@ -641,6 +654,7 @@
 }
 
 .status-busy {
+  -fx-border-color: #ef4444;
   -fx-text-fill: #ef4444;
   /* Red text for Busy */
   -fx-background-color: transparent;
@@ -648,6 +662,7 @@
 }
 
 .status-offline {
+  -fx-border-color: #6b7280;
   -fx-text-fill: #6b7280;
   /* Gray text for offline */
   -fx-background-color: transparent;
@@ -674,11 +689,152 @@
    USER INFO POPUP STYLES
    ================================================================= */
 
-/* Override for shadow slash offset */
-.slash-icon-shadow {
-  -fx-translate-y: 2;
+.user-info-popup {
+  -fx-background-color: #1e293b;
+  -fx-background-radius: 12px;
+  -fx-border-color: #334155;
+  -fx-border-radius: 12px;
+  -fx-border-width: 1px;
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.4), 20, 0, 0, 8);
 }
 
-.slash-icon-shadow-large {
-  -fx-translate-y: 2;
+.user-info-avatar-container {
+  -fx-alignment: BOTTOM_RIGHT;
+}
+
+.user-info-avatar {
+  -fx-background-color: #334155;
+  -fx-background-radius: 48px;
+  -fx-pref-width: 96px;
+  -fx-pref-height: 96px;
+  -fx-alignment: CENTER;
+}
+
+.user-info-avatar-text {
+  -fx-text-fill: white;
+  -fx-font-size: 36px;
+  -fx-font-weight: bold;
+}
+
+.user-info-status-indicator {
+  -fx-background-radius: 12px;
+  -fx-pref-width: 24px;
+  -fx-pref-height: 24px;
+  -fx-border-color: #1e293b;
+  -fx-border-width: 3px;
+  -fx-border-radius: 12px;
+  -fx-translate-x: 32px;
+  -fx-translate-y: 32px;
+}
+
+.user-info-username {
+  -fx-text-fill: white;
+  -fx-font-size: 20px;
+  -fx-font-weight: bold;
+}
+
+.user-info-role-icon {
+  -fx-icon-color: #f59e0b;
+  -fx-icon-size: 16px;
+}
+
+.user-info-status-text {
+  -fx-text-fill: #94a3b8;
+  -fx-font-size: 14px;
+}
+
+.popup-separator {
+  -fx-border-color: #334155;
+  -fx-border-width: 1px 0 0 0;
+}
+
+.info-section-header {
+  -fx-text-fill: #94a3b8;
+  -fx-font-size: 12px;
+  -fx-font-weight: bold;
+  -fx-letter-spacing: 0.5px;
+}
+
+.info-section-content {
+  -fx-text-fill: white;
+  -fx-font-size: 14px;
+}
+
+.info-section-content-small {
+  -fx-text-fill: #64748b;
+  -fx-font-size: 12px;
+  -fx-font-family: monospace;
+}
+
+.role-display-icon {
+  -fx-icon-color: #f59e0b;
+  -fx-icon-size: 14px;
+}
+
+.activity-indicator {
+  -fx-icon-color: #10b981;
+  -fx-icon-size: 12px;
+}
+
+.user-action-button {
+  -fx-background-radius: 8px;
+  -fx-cursor: hand;
+  -fx-font-size: 14px;
+  -fx-font-weight: 600;
+  -fx-padding: 10px 16px;
+  -fx-spacing: 8px;
+}
+
+.user-action-button.primary-action {
+  -fx-background-color: #3b82f6;
+  -fx-text-fill: white;
+}
+
+.user-action-button.primary-action:hover {
+  -fx-background-color: #2563eb;
+}
+
+.user-action-button.secondary-action {
+  -fx-background-color: #334155;
+  -fx-text-fill: #e2e8f0;
+}
+
+.user-action-button.secondary-action:hover {
+  -fx-background-color: #475569;
+}
+
+.user-action-button.warning-action {
+  -fx-background-color: #f59e0b;
+  -fx-text-fill: white;
+}
+
+.user-action-button.warning-action:hover {
+  -fx-background-color: #d97706;
+}
+
+.user-action-button.danger-action {
+  -fx-background-color: #ef4444;
+  -fx-text-fill: white;
+}
+
+.user-action-button.danger-action:hover {
+  -fx-background-color: #dc2626;
+}
+
+.user-action-button.neutral-action {
+  -fx-background-color: transparent;
+  -fx-text-fill: #94a3b8;
+  -fx-border-color: #334155;
+  -fx-border-width: 1px;
+  -fx-border-radius: 8px;
+}
+
+.user-action-button.neutral-action:hover {
+  -fx-background-color: #334155;
+  -fx-text-fill: white;
+}
+
+.button-icon {
+  -fx-icon-color: currentcolor;
+  -fx-icon-size: 14px;
 }

@@ -14,7 +14,8 @@
 <?import javafx.scene.layout.FlowPane?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<BorderPane fx:id="serverPane" stylesheets="@../styles/styles.css,@../styles/server_styles.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.saferoom.gui.controller.ServerController">
+<StackPane stylesheets="@../styles/styles.css,@../styles/server_styles.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.saferoom.gui.controller.ServerController">
+    <BorderPane fx:id="serverPane">
 
     <!-- Left Sidebar - Channels -->
     <left>
@@ -216,10 +217,22 @@
         <StackPane fx:id="mainContentArea" styleClass="main-content-area">
             
             <!-- Default Channel View -->
-            <VBox fx:id="defaultChannelView" styleClass="default-channel-view" alignment="CENTER" spacing="20.0">
-                <FontIcon iconLiteral="fas-hashtag" styleClass="default-channel-icon" />
-                <Label styleClass="default-channel-title" text="Welcome to the room!" />
-                <Label styleClass="default-channel-subtitle" text="Select a channel to start chatting or join a voice channel to talk." />
+            <VBox fx:id="defaultChannelView" styleClass="default-channel-view" spacing="0.0">
+                <HBox alignment="CENTER_RIGHT" styleClass="default-view-header">
+                    <padding>
+                        <Insets bottom="10.0" left="20.0" right="20.0" top="10.0" />
+                    </padding>
+                    <Button fx:id="toggleUsersBtnDefault" mnemonicParsing="false" styleClass="icon-button">
+                        <graphic>
+                            <FontIcon iconLiteral="fas-bars" styleClass="header-icon" />
+                        </graphic>
+                    </Button>
+                </HBox>
+                <VBox alignment="CENTER" spacing="20.0" VBox.vgrow="ALWAYS">
+                    <FontIcon iconLiteral="fas-hashtag" styleClass="default-channel-icon" />
+                    <Label styleClass="default-channel-title" text="Welcome to the server!" />
+                    <Label styleClass="default-channel-subtitle" text="Select a channel to start chatting or join a voice channel to talk." />
+                </VBox>
             </VBox>
 
             <!-- Text Chat View -->
@@ -241,6 +254,11 @@
                         <Button mnemonicParsing="false" styleClass="icon-button">
                             <graphic>
                                 <FontIcon iconLiteral="fas-bell" styleClass="header-icon" />
+                            </graphic>
+                        </Button>
+                        <Button fx:id="toggleUsersBtn" mnemonicParsing="false" styleClass="icon-button">
+                            <graphic>
+                                <FontIcon iconLiteral="fas-bars" styleClass="header-icon" />
                             </graphic>
                         </Button>
                     </HBox>
@@ -378,4 +396,11 @@
         </VBox>
     </right>
 
-</BorderPane>
+    </BorderPane>
+
+    <!-- Popup Overlay Container -->
+    <StackPane fx:id="popupOverlay" visible="false" managed="false" style="-fx-background-color: rgba(0, 0, 0, 0.5);">
+        <StackPane fx:id="popupContainer" maxHeight="-Infinity" maxWidth="-Infinity" />
+    </StackPane>
+
+</StackPane>

@@ -26,37 +26,60 @@ import java.util.ResourceBundle;
 public class UserInfoPopupController implements Initializable {
 
     // User Avatar and Basic Info
-    @FXML private StackPane userAvatarContainer;
-    @FXML private StackPane userAvatar;
-    @FXML private Label userAvatarText;
-    @FXML private StackPane statusIndicator;
-    @FXML private Label usernameLabel;
-    @FXML private FontIcon roleIcon;
-    @FXML private Label statusLabel;
+    @FXML
+    private StackPane userAvatarContainer;
+    @FXML
+    private StackPane userAvatar;
+    @FXML
+    private Label userAvatarText;
+    @FXML
+    private StackPane statusIndicator;
+    @FXML
+    private Label usernameLabel;
+    @FXML
+    private FontIcon roleIcon;
+    @FXML
+    private Label statusLabel;
 
     // User Details
-    @FXML private FontIcon roleDisplayIcon;
-    @FXML private Label roleLabel;
-    @FXML private Label statusDisplayLabel;
-    @FXML private VBox activitySection;
-    @FXML private Label activityLabel;
-    @FXML private Label memberSinceLabel;
-    @FXML private VBox userIdSection;
-    @FXML private Label userIdLabel;
+    @FXML
+    private FontIcon roleDisplayIcon;
+    @FXML
+    private Label roleLabel;
+    @FXML
+    private Label statusDisplayLabel;
+    @FXML
+    private VBox activitySection;
+    @FXML
+    private Label activityLabel;
+    @FXML
+    private Label memberSinceLabel;
+    @FXML
+    private VBox userIdSection;
+    @FXML
+    private Label userIdLabel;
 
     // Action Buttons
-    @FXML private Button sendMessageBtn;
-    @FXML private Button callBtn;
-    @FXML private Button videoCallBtn;
-    @FXML private VBox adminActionsSection;
-    @FXML private Button muteBtn;
-    @FXML private Button kickBtn;
-    @FXML private Button banBtn;
-    @FXML private Button closeBtn;
+    @FXML
+    private Button sendMessageBtn;
+    @FXML
+    private Button callBtn;
+    @FXML
+    private Button videoCallBtn;
+    @FXML
+    private VBox adminActionsSection;
+    @FXML
+    private Button muteBtn;
+    @FXML
+    private Button kickBtn;
+    @FXML
+    private Button banBtn;
+    @FXML
+    private Button closeBtn;
 
     private User currentUser;
     private boolean isCurrentUserAdmin = false; // This would be determined by current user's permissions
-    
+
     // WebRTC Call Integration
     private ChatService chatService;
     private String currentChannelId; // Channel ID for the conversation with this user
@@ -65,6 +88,7 @@ public class UserInfoPopupController implements Initializable {
     private ActiveCallDialog currentActiveCallDialog;
     private boolean callbacksSetup = false;
     private boolean currentCallVideoEnabled = false;
+    private Runnable onCloseCallback;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -74,13 +98,15 @@ public class UserInfoPopupController implements Initializable {
 
     public void setUserInfo(User user) {
         this.currentUser = user;
-        // Set channelId as username (same as ChatViewController does with currentChannelId)
+        // Set channelId as username (same as ChatViewController does with
+        // currentChannelId)
         this.currentChannelId = user.getUsername();
         populateUserInfo();
     }
-    
+
     /**
      * Set the channel ID for the conversation with this user
+     * 
      * @param channelId The channel/conversation ID
      */
     public void setChannelId(String channelId) {
@@ -94,7 +120,8 @@ public class UserInfoPopupController implements Initializable {
     }
 
     private void populateUserInfo() {
-        if (currentUser == null) return;
+        if (currentUser == null)
+            return;
 
         // Set avatar text (first letter of username)
         userAvatarText.setText(currentUser.getUsername().substring(0, 1).toUpperCase());
@@ -106,7 +133,7 @@ public class UserInfoPopupController implements Initializable {
         if (!currentUser.getRoleIcon().isEmpty()) {
             roleIcon.setIconLiteral(currentUser.getRoleIcon());
             roleIcon.setVisible(true);
-            
+
             roleDisplayIcon.setIconLiteral(currentUser.getRoleIcon());
             roleDisplayIcon.setVisible(true);
         } else {
@@ -151,11 +178,16 @@ public class UserInfoPopupController implements Initializable {
 
     private String getStatusStyleClass(String status) {
         switch (status.toLowerCase()) {
-            case "online": return "status-online";
-            case "idle": return "status-idle";
-            case "do not disturb": return "status-dnd";
-            case "offline": return "status-offline";
-            default: return "status-offline";
+            case "online":
+                return "status-online";
+            case "idle":
+                return "status-idle";
+            case "do not disturb":
+                return "status-dnd";
+            case "offline":
+                return "status-offline";
+            default:
+                return "status-offline";
         }
     }
 
@@ -170,7 +202,7 @@ public class UserInfoPopupController implements Initializable {
         sendMessageBtn.setOnAction(event -> handleSendMessage());
         callBtn.setOnAction(event -> handleCall());
         videoCallBtn.setOnAction(event -> handleVideoCall());
-        
+
         // Admin actions
         muteBtn.setOnAction(event -> handleMute());
         kickBtn.setOnAction(event -> handleKick());
@@ -226,8 +258,19 @@ public class UserInfoPopupController implements Initializable {
 
     @FXML
     private void closePopup() {
-        Stage stage = (Stage) closeBtn.getScene().getWindow();
-        stage.close();
+        if (onCloseCallback != null) {
+            onCloseCallback.run();
+        } else {
+            // Fallback for standalone usage
+            Stage stage = (Stage) closeBtn.getScene().getWindow();
+            if (stage != null) {
+                stage.close();
+            }
+        }
+    }
+
+    public void setOnCloseCallback(Runnable onCloseCallback) {
+        this.onCloseCallback = onCloseCallback;
     }
 
     // Method to set user-specific permissions
@@ -241,13 +284,14 @@ public class UserInfoPopupController implements Initializable {
             banBtn.setManaged(canBan);
         }
     }
-    
+
     // ===============================
     // WebRTC Call Integration Methods
     // ===============================
-    
+
     /**
      * Start a call (audio or video) with the current user
+     * 
      * @param videoEnabled true for video call, false for audio only
      */
     private void startCall(boolean videoEnabled) {
@@ -255,44 +299,45 @@ public class UserInfoPopupController implements Initializable {
             showAlert("Error", "Cannot start call: user information not available.", Alert.AlertType.ERROR);
             return;
         }
-        
+
         try {
             String targetUsername = currentChannelId;
             String myUsername = chatService.getCurrentUsername();
-            
+
             if (myUsername == null) {
                 showAlert("Error", "Cannot start call: current user not logged in.", Alert.AlertType.ERROR);
                 return;
             }
-            
+
             CallManager callManager = CallManager.getInstance();
-            
+
             // Initialize CallManager if needed
             if (!callManager.isInitialized()) {
                 callManager.initialize(myUsername);
             }
-            
+
             // Setup callbacks
             setupCallManagerCallbacks(callManager);
-            
+
             // Check if already in a call
             if (callManager.isInCall()) {
                 showAlert("Call In Progress", "You are already in a call.", Alert.AlertType.WARNING);
                 return;
             }
-            
+
             // Start the call
             callManager.startCall(targetUsername, true, videoEnabled)
                     .thenAccept(callId -> {
                         Platform.runLater(() -> {
                             currentCallVideoEnabled = videoEnabled;
                             String callMsg = videoEnabled ? "📹 Starting video call..." : "📞 Starting audio call...";
-                            chatService.sendMessage(currentChannelId, callMsg, new com.saferoom.gui.model.User(myUsername, myUsername));
-                            
+                            chatService.sendMessage(currentChannelId, callMsg,
+                                    new com.saferoom.gui.model.User(myUsername, myUsername));
+
                             // Show outgoing call dialog
                             currentOutgoingDialog = new OutgoingCallDialog(targetUsername, callId, videoEnabled);
                             currentOutgoingDialog.show();
-                            
+
                             // Close the user info popup after starting the call
                             closePopup();
                         });
@@ -308,7 +353,7 @@ public class UserInfoPopupController implements Initializable {
             showAlert("Error", "Error starting call: " + e.getMessage(), Alert.AlertType.ERROR);
         }
     }
-    
+
     /**
      * Setup CallManager callbacks for handling call events
      */
@@ -317,22 +362,21 @@ public class UserInfoPopupController implements Initializable {
             return; // Already setup
         }
         callbacksSetup = true;
-        
+
         String myUsername = chatService.getCurrentUsername();
         com.saferoom.gui.model.User currentUserModel = new com.saferoom.gui.model.User(myUsername, myUsername);
-        
+
         // Incoming call callback
         callManager.setOnIncomingCallCallback(info -> {
             Platform.runLater(() -> {
                 currentCallVideoEnabled = info.videoEnabled;
                 IncomingCallDialog incomingDialog = new IncomingCallDialog(
-                    info.callerUsername, 
-                    info.callId, 
-                    info.videoEnabled
-                );
-                
+                        info.callerUsername,
+                        info.callId,
+                        info.videoEnabled);
+
                 this.currentIncomingDialog = incomingDialog;
-                
+
                 incomingDialog.show().thenAccept(accepted -> {
                     if (accepted) {
                         callManager.acceptCall(info.callId);
@@ -343,28 +387,27 @@ public class UserInfoPopupController implements Initializable {
                 });
             });
         });
-        
+
         // Call accepted callback
         callManager.setOnCallAcceptedCallback(callId -> {
             Platform.runLater(() -> {
                 if (currentChannelId != null) {
                     chatService.sendMessage(currentChannelId, "✅ Call accepted - connecting...", currentUserModel);
                 }
-                
+
                 if (currentOutgoingDialog != null) {
                     currentOutgoingDialog.close();
                     currentOutgoingDialog = null;
                 }
-                
+
                 if (currentActiveCallDialog == null) {
                     currentActiveCallDialog = new ActiveCallDialog(
-                        currentChannelId, 
-                        callId, 
-                        currentCallVideoEnabled, 
-                        callManager
-                    );
+                            currentChannelId,
+                            callId,
+                            currentCallVideoEnabled,
+                            callManager);
                     currentActiveCallDialog.show();
-                    
+
                     if (currentCallVideoEnabled) {
                         VideoTrack localVideo = callManager.getLocalVideoTrack();
                         if (localVideo != null) {
@@ -374,7 +417,7 @@ public class UserInfoPopupController implements Initializable {
                 }
             });
         });
-        
+
         // Call rejected callback
         callManager.setOnCallRejectedCallback(callId -> {
             Platform.runLater(() -> {
@@ -383,7 +426,7 @@ public class UserInfoPopupController implements Initializable {
                 }
             });
         });
-        
+
         // Call connected callback
         callManager.setOnCallConnectedCallback(() -> {
             Platform.runLater(() -> {
@@ -392,14 +435,14 @@ public class UserInfoPopupController implements Initializable {
                 }
             });
         });
-        
+
         // Call ended callback
         callManager.setOnCallEndedCallback(callId -> {
             Platform.runLater(() -> {
                 if (currentChannelId != null) {
                     chatService.sendMessage(currentChannelId, "📴 Call ended", currentUserModel);
                 }
-                
+
                 if (currentOutgoingDialog != null) {
                     currentOutgoingDialog.close();
                     currentOutgoingDialog = null;
@@ -415,7 +458,7 @@ public class UserInfoPopupController implements Initializable {
                 currentCallVideoEnabled = false;
             });
         });
-        
+
         // Remote video track callback
         callManager.setOnRemoteTrackCallback(track -> {
             Platform.runLater(() -> {
@@ -424,7 +467,7 @@ public class UserInfoPopupController implements Initializable {
                 }
             });
         });
-        
+
         // Remote screen share stopped callback
         callManager.setOnRemoteScreenShareStoppedCallback(() -> {
             Platform.runLater(() -> {
@@ -434,7 +477,7 @@ public class UserInfoPopupController implements Initializable {
             });
         });
     }
-    
+
     /**
      * Show an alert dialog
      */
@@ -443,15 +486,14 @@ public class UserInfoPopupController implements Initializable {
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);
-        
+
         try {
             alert.getDialogPane().getStylesheets().add(
-                getClass().getResource("/styles/styles.css").toExternalForm()
-            );
+                    getClass().getResource("/styles/styles.css").toExternalForm());
         } catch (Exception e) {
             // Ignore if stylesheet loading fails
         }
-        
+
         alert.show();
     }
 }

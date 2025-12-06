@@ -38,64 +38,117 @@ import java.util.ArrayList;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.input.ClipboardContent;
-import javafx.scene.SnapshotParameters; 
+import javafx.scene.SnapshotParameters;
 import com.saferoom.gui.controller.MainController; // Ensure this is imported if not already
 
 public class ServerController implements Initializable {
 
-    @FXML private BorderPane serverPane;
-    @FXML private VBox channelsContainer;
-    @FXML private VBox voiceChannelsList;
-    @FXML private VBox textChannelsList;
-    @FXML private VBox fileChannelsList;
-    @FXML private VBox voiceChannelsSection;
-    @FXML private VBox textChannelsSection;
-    @FXML private VBox fileChannelsSection;
-    
+    @FXML
+    private BorderPane serverPane;
+    @FXML
+    private StackPane popupOverlay;
+    @FXML
+    private StackPane popupContainer;
+    @FXML
+    private VBox channelsContainer;
+    @FXML
+    private VBox voiceChannelsList;
+    @FXML
+    private VBox textChannelsList;
+    @FXML
+    private VBox fileChannelsList;
+    @FXML
+    private VBox voiceChannelsSection;
+    @FXML
+    private VBox textChannelsSection;
+    @FXML
+    private VBox fileChannelsSection;
+
     // User Info
-    @FXML private Label currentUserName;
-    @FXML private Label serverNameLabel;
-    @FXML private Label serverMembersLabel;
-    @FXML private Label serverPrivacyBadge;
-    @FXML private FontIcon serverIcon;
-    @FXML private Label totalUsersCount;
-    @FXML private Label onlineUsersCount;
-    @FXML private Label offlineUsersCount;
-    @FXML private VBox onlineUsersList;
-    @FXML private VBox offlineUsersList;
+    @FXML
+    private Label currentUserName;
+    @FXML
+    private Label serverNameLabel;
+    @FXML
+    private Label serverMembersLabel;
+    @FXML
+    private Label serverPrivacyBadge;
+    @FXML
+    private FontIcon serverIcon;
+    @FXML
+    private Label totalUsersCount;
+    @FXML
+    private Label onlineUsersCount;
+    @FXML
+    private Label offlineUsersCount;
+    @FXML
+    private VBox onlineUsersList;
+    @FXML
+    private VBox offlineUsersList;
 
     // Chat
-    @FXML private ListView<Message> messagesListView;
-    @FXML private TextField messageTextField;
-    @FXML private Button sendMessageBtn;
-    @FXML private VBox defaultChannelView;
-    @FXML private BorderPane textChatView;
-    @FXML private VBox voiceChatView;
-    @FXML private Label currentChannelName;
-    @FXML private FontIcon currentChannelIcon;
-    @FXML private Label currentChannelTopic;
-    @FXML private VBox textGeneralNotification;
-    @FXML private VBox textTeamNotification;
+    @FXML
+    private ListView<Message> messagesListView;
+    @FXML
+    private TextField messageTextField;
+    @FXML
+    private Button sendMessageBtn;
+    @FXML
+    private VBox defaultChannelView;
+    @FXML
+    private BorderPane textChatView;
+    @FXML
+    private VBox voiceChatView;
+    @FXML
+    private Label currentChannelName;
+    @FXML
+    private FontIcon currentChannelIcon;
+    @FXML
+    private Label currentChannelTopic;
+    @FXML
+    private VBox textGeneralNotification;
+    @FXML
+    private VBox textTeamNotification;
+    @FXML
+    private Button toggleUsersBtn;
+    @FXML
+    private Button toggleUsersBtnDefault;
 
     // Voice
-    @FXML private Label voiceChannelName;
-    @FXML private FlowPane voiceUsersContainer; // CHANGED to FlowPane
-    @FXML private Button toggleMicBtn;
-    @FXML private Button toggleDeafenBtn;
-    @FXML private Button muteBtn;
-    @FXML private Button deafenBtn;
-    @FXML private Button shareScreenBtn;
+    @FXML
+    private Label voiceChannelName;
+    @FXML
+    private FlowPane voiceUsersContainer; // CHANGED to FlowPane
+    @FXML
+    private Button toggleMicBtn;
+    @FXML
+    private Button toggleDeafenBtn;
+    @FXML
+    private Button muteBtn;
+    @FXML
+    private Button deafenBtn;
+    @FXML
+    private Button shareScreenBtn;
 
     // Channel Items (for selection clearing)
-    @FXML private HBox voiceGeneral;
-    @FXML private HBox voiceMeeting;
-    @FXML private HBox voicePrivate;
-    @FXML private HBox textGeneral;
-    @FXML private HBox textAnnouncements;
-    @FXML private HBox textTeam;
-    @FXML private HBox textPrivate;
-    @FXML private HBox fileResources;
-    @FXML private HBox fileProject;
+    @FXML
+    private HBox voiceGeneral;
+    @FXML
+    private HBox voiceMeeting;
+    @FXML
+    private HBox voicePrivate;
+    @FXML
+    private HBox textGeneral;
+    @FXML
+    private HBox textAnnouncements;
+    @FXML
+    private HBox textTeam;
+    @FXML
+    private HBox textPrivate;
+    @FXML
+    private HBox fileResources;
+    @FXML
+    private HBox fileProject;
 
     // State
     private List<User> serverUsers = new java.util.ArrayList<>();
@@ -484,10 +537,14 @@ public class ServerController implements Initializable {
         setupChannelContextMenu(item, true);
     }
 
-    @FXML private VBox usersSidebar;
-    @FXML private VBox offlineUsersSection;
-    @FXML private Button settingsBtn;
-    @FXML private Label currentUserStatus;
+    @FXML
+    private VBox usersSidebar;
+    @FXML
+    private VBox offlineUsersSection;
+    @FXML
+    private Button settingsBtn;
+    @FXML
+    private Label currentUserStatus;
 
     // Data - Unique fields preserved
 
@@ -511,11 +568,11 @@ public class ServerController implements Initializable {
 
         setupReordering(fileChannelsList);
 
-        initializeMockData(); 
+        initializeMockData();
         setupContextMenusForExistingNodes();
         populateUsers();
         setupMessageListView();
-        
+
         // Auto-join voice to show participants
         joinVoiceChannel("General", "fas-volume-up");
 
@@ -525,6 +582,14 @@ public class ServerController implements Initializable {
         // Setup message sending
         sendMessageBtn.setOnAction(event -> sendMessage());
         messageTextField.setOnAction(event -> sendMessage());
+
+        // Toggle Users Sidebar
+        if (toggleUsersBtn != null) {
+            toggleUsersBtn.setOnAction(event -> toggleUsersSidebar());
+        }
+        if (toggleUsersBtnDefault != null) {
+            toggleUsersBtnDefault.setOnAction(event -> toggleUsersSidebar());
+        }
 
         // Ensure server pane allows window resize by not consuming edge mouse events
         setupResizeEventPassthrough();
@@ -569,7 +634,6 @@ public class ServerController implements Initializable {
                 event -> openTextChannel("project-files", "fas-file-code", "Project files repository"));
 
         // Voice users indicators
-
 
         // Update channel selection styling
         updateChannelSelection();
@@ -666,8 +730,8 @@ public class ServerController implements Initializable {
         toggleDeafenBtn.setOnAction(event -> toggleDeafen());
         shareScreenBtn.setOnAction(event -> shareScreen());
         leaveVoiceBtn.setOnAction(event -> leaveVoiceChannel());
-        
-        // Chat controls  
+
+        // Chat controls
         sendMessageBtn.setOnAction(event -> sendMessage());
         messageTextField.setOnAction(event -> sendMessage());
     }
@@ -675,29 +739,29 @@ public class ServerController implements Initializable {
     private void initializeMockVoiceUsers() {
         if (voiceUsersContainer != null) {
             voiceUsersContainer.getChildren().clear();
-            
+
             java.util.List<User> mockVoiceUsers = new java.util.ArrayList<>();
             mockVoiceUsers.add(new User("v1", "SilentBob", "Online", "Member", "", true, "Listening"));
             mockVoiceUsers.add(new User("v2", "LoudMouth", "Online", "Admin", "fas-crown", true, "Talking"));
             mockVoiceUsers.add(new User("v3", "MusicBot", "Online", "Bot", "fas-robot", true, "Playing Music"));
-            
+
             // Set mock speaking states
             for (User user : mockVoiceUsers) {
-                 VBox userItem = createVoiceUserItem(user);
-                 
-                 // Mock states for visual demo
-                 if (user.getUsername().equals("LoudMouth")) {
-                     userItem.getStyleClass().add("speaking");
-                 }
-                 if (user.getUsername().equals("SilentBob")) {
-                     userItem.getStyleClass().add("muted");
-                     // Find mic icon and update it
-                     if (userItem.getChildren().size() > 2 && userItem.getChildren().get(2) instanceof FontIcon) {
-                         ((FontIcon) userItem.getChildren().get(2)).setIconLiteral("fas-microphone-slash");
-                     }
-                 }
-                 
-                 voiceUsersContainer.getChildren().add(userItem);
+                VBox userItem = createVoiceUserItem(user);
+
+                // Mock states for visual demo
+                if (user.getUsername().equals("LoudMouth")) {
+                    userItem.getStyleClass().add("speaking");
+                }
+                if (user.getUsername().equals("SilentBob")) {
+                    userItem.getStyleClass().add("muted");
+                    // Find mic icon and update it
+                    if (userItem.getChildren().size() > 2 && userItem.getChildren().get(2) instanceof FontIcon) {
+                        ((FontIcon) userItem.getChildren().get(2)).setIconLiteral("fas-microphone-slash");
+                    }
+                }
+
+                voiceUsersContainer.getChildren().add(userItem);
             }
         }
     }
@@ -760,18 +824,11 @@ public class ServerController implements Initializable {
         // User avatar
         StackPane avatar = new StackPane();
         avatar.getStyleClass().add("user-avatar-tiny");
+        // Add status style class to avatar for border
+        avatar.getStyleClass().add(getStatusStyleClass(user.getStatus()));
         Label avatarText = new Label(user.getUsername().substring(0, 1).toUpperCase());
         avatarText.getStyleClass().add("user-avatar-text-tiny");
         avatar.getChildren().add(avatarText);
-
-        // Status indicator
-        StackPane statusContainer = new StackPane();
-        statusContainer.getStyleClass().add("user-status-container");
-        statusContainer.getChildren().add(avatar);
-
-        StackPane statusDot = new StackPane();
-        statusDot.getStyleClass().addAll("user-status-dot", getStatusStyleClass(user.getStatus()));
-        statusContainer.getChildren().add(statusDot);
 
         // Username and role
         VBox userInfo = new VBox(1.0);
@@ -796,7 +853,7 @@ public class ServerController implements Initializable {
             userInfo.getChildren().add(activity);
         }
 
-        userItem.getChildren().addAll(statusContainer, userInfo);
+        userItem.getChildren().addAll(avatar, userInfo);
 
         // Click handler to show user info popup
         userItem.setOnMouseClicked(event -> showUserInfoPopup(user));
@@ -827,13 +884,27 @@ public class ServerController implements Initializable {
             UserInfoPopupController controller = loader.getController();
             controller.setUserInfo(user);
 
-            Stage popup = new Stage();
-            popup.initModality(Modality.APPLICATION_MODAL);
-            popup.initStyle(StageStyle.UTILITY);
-            popup.setTitle("User Information");
-            popup.setScene(new Scene(root));
-            popup.setResizable(false);
-            popup.show();
+            // Set the close callback to hide the overlay
+            controller.setOnCloseCallback(() -> {
+                popupOverlay.setVisible(false);
+                popupOverlay.setManaged(false);
+                popupContainer.getChildren().clear();
+            });
+
+            // Add content to overlay and show it
+            popupContainer.getChildren().setAll(root);
+            popupOverlay.setVisible(true);
+            popupOverlay.setManaged(true);
+
+            // Optional: Close on background click
+            popupOverlay.setOnMouseClicked(event -> {
+                if (event.getTarget() == popupOverlay) {
+                    popupOverlay.setVisible(false);
+                    popupOverlay.setManaged(false);
+                    popupContainer.getChildren().clear();
+                }
+            });
+
         } catch (IOException e) {
             e.printStackTrace();
             System.err.println("Could not load UserInfoPopup.fxml");
@@ -862,8 +933,6 @@ public class ServerController implements Initializable {
         clearChannelNotifications(channelName);
     }
 
-
-
     private void joinVoiceChannel(String channelName, String iconLiteral) {
         voiceChannelName.setText(channelName);
 
@@ -871,7 +940,7 @@ public class ServerController implements Initializable {
         voiceUsersContainer.getChildren().clear();
 
         List<User> voiceUsers = new java.util.ArrayList<>();
-    
+
         // Add CURRENT USER first (use actual username from currentUserName label)
         String actualUsername = currentUserName.getText();
         if (actualUsername == null || actualUsername.isEmpty()) {
@@ -879,18 +948,19 @@ public class ServerController implements Initializable {
         }
         User currentUser = new User("me", actualUsername, "Online", "Member", "", false, "");
         voiceUsers.add(currentUser);
-        
+
         // Add some other mock users
         voiceUsers.addAll(serverUsers.subList(0, Math.min(5, serverUsers.size())));
-        
+
         for (User user : voiceUsers) {
             if (user.isOnline()) {
                 VBox voiceUser = createVoiceUserItem(user);
                 voiceUsersContainer.getChildren().add(voiceUser);
-                
-                // Special styling for current user (optional, can just reuse createVoiceUserItem)
+
+                // Special styling for current user (optional, can just reuse
+                // createVoiceUserItem)
                 if (user.getId().equals("me")) {
-                     voiceUser.getStyleClass().add("current-user-voice-card");
+                    voiceUser.getStyleClass().add("current-user-voice-card");
                 }
             }
         }
@@ -923,7 +993,7 @@ public class ServerController implements Initializable {
         micIcon.getStyleClass().add("voice-user-mic");
 
         voiceUser.getChildren().addAll(avatar, username, micIcon);
-        
+
         // Add speaking/muted logic (mock)
         if (user.getUsername().equals("Alice Cooper")) {
             voiceUser.getStyleClass().add("speaking");
@@ -991,23 +1061,23 @@ public class ServerController implements Initializable {
         if (messageText.isEmpty()) {
             return;
         }
-        
+
         // Get the actual current user's name
         String actualUsername = currentUserName.getText();
         if (actualUsername == null || actualUsername.isEmpty()) {
             actualUsername = "Guest"; // Fallback
         }
-        
+
         // Get first character for avatar
         String avatarChar = actualUsername.substring(0, 1).toUpperCase();
-        
+
         // Create and add the message
         Message newMessage = new Message(messageText, actualUsername, avatarChar);
         messagesListView.getItems().add(newMessage);
-        
+
         // Clear the input field
         messageTextField.clear();
-        
+
         // Scroll to bottom
         messagesListView.scrollTo(messagesListView.getItems().size() - 1);
     }
@@ -1414,7 +1484,6 @@ public class ServerController implements Initializable {
         });
     }
 
-
     private void setupMessageListView() {
         messagesListView.setCellFactory(listView -> new javafx.scene.control.ListCell<Message>() {
             @Override
@@ -1432,7 +1501,8 @@ public class ServerController implements Initializable {
                         Message prev = getListView().getItems().get(index - 1);
                         if (prev != null && prev.getSenderId().equals(message.getSenderId())) {
                             // Check time difference (e.g., 5 minutes)
-                            java.time.Duration diff = java.time.Duration.between(prev.getTimestamp(), message.getTimestamp());
+                            java.time.Duration diff = java.time.Duration.between(prev.getTimestamp(),
+                                    message.getTimestamp());
                             if (diff.toMinutes() < 5) {
                                 isGrouped = true;
                             }
@@ -1442,24 +1512,26 @@ public class ServerController implements Initializable {
                     // Main Container
                     HBox container = new HBox(10);
                     container.setAlignment(Pos.TOP_LEFT);
-                    container.setPadding(new javafx.geometry.Insets(2, 0, 2, 10)); // Top/Bottom padding small for grouped
+                    container.setPadding(new javafx.geometry.Insets(2, 0, 2, 10)); // Top/Bottom padding small for
+                                                                                   // grouped
 
                     // Avatar Area (Left)
                     StackPane avatarContainer = new StackPane();
                     avatarContainer.setPrefWidth(40);
                     avatarContainer.setMinWidth(40);
-                    
+
                     if (!isGrouped) {
                         avatarContainer.setPrefHeight(40);
                         avatarContainer.setMinHeight(40);
-                        container.setPadding(new javafx.geometry.Insets(10, 0, 2, 10)); // More top padding for new group
-                        
+                        container.setPadding(new javafx.geometry.Insets(10, 0, 2, 10)); // More top padding for new
+                                                                                        // group
+
                         Label avatarLabel = new Label(message.getSenderAvatarChar());
                         avatarLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px;");
-                        
+
                         javafx.scene.shape.Circle avatarBg = new javafx.scene.shape.Circle(20);
                         avatarBg.setFill(Color.web("#5865F2")); // Discord Blurple-ish
-                        
+
                         avatarContainer.getChildren().addAll(avatarBg, avatarLabel);
                     } else {
                         // Grouped: no specific height, naturally collapsed
@@ -1468,19 +1540,20 @@ public class ServerController implements Initializable {
                     // Content Area (Right)
                     VBox contentBox = new VBox(2);
                     contentBox.setAlignment(Pos.TOP_LEFT);
-                    
+
                     if (!isGrouped) {
                         // Header: Username + Timestamp
                         HBox header = new HBox(8);
                         header.setAlignment(Pos.BASELINE_LEFT);
-                        
+
                         Label usernameLabel = new Label(message.getSenderId()); // Use senderId as name for now
                         usernameLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;");
-                        
-                        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
+
+                        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter
+                                .ofPattern("HH:mm");
                         Label timeLabel = new Label("Today at " + message.getTimestamp().format(formatter));
                         timeLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px;");
-                        
+
                         header.getChildren().addAll(usernameLabel, timeLabel);
                         contentBox.getChildren().add(header);
                     }
@@ -1501,5 +1574,13 @@ public class ServerController implements Initializable {
                 }
             }
         });
+    }
+
+    private void toggleUsersSidebar() {
+        if (usersSidebar != null) {
+            boolean isVisible = usersSidebar.isVisible();
+            usersSidebar.setVisible(!isVisible);
+            usersSidebar.setManaged(!isVisible);
+        }
     }
 }
