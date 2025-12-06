@@ -210,6 +210,9 @@ public class CallManager {
     
     /**
      * Accept incoming call
+     * 
+     * NOW is when we create peer connection and start media capture!
+     * This ensures camera/mic only start after user explicitly accepts.
      */
     public void acceptCall(String callId) {
         if (currentState != CallState.RINGING || isOutgoingCall) {
@@ -218,6 +221,31 @@ public class CallManager {
         }
         
         System.out.printf("[CallManager] ✅ Accepting call: %s%n", callId);
+        
+        // ═══════════════════════════════════════════════════════════════
+        // NOW create peer connection and add media tracks
+        // This is the correct place - AFTER user consent
+        // ═══════════════════════════════════════════════════════════════
+        System.out.println("[CallManager] 🎥 NOW starting media capture (user accepted)...");
+        
+        webrtcClient = new WebRTCClient(currentCallId, remoteUsername);
+        webrtcClient.createPeerConnection(pendingAudioEnabled, pendingVideoEnabled);
+        ensureScreenShareController();
+        
+        // 🎤 Add audio track if audio enabled
+        if (pendingAudioEnabled) {
+            System.out.println("[CallManager] Adding audio track for accepted call...");
+            webrtcClient.addAudioTrack();
+        }
+        
+        // 📹 Add video track if video enabled
+        if (pendingVideoEnabled) {
+            System.out.println("[CallManager] Adding video track for accepted call...");
+            webrtcClient.addVideoTrack();
+            registerCameraWithScreenShareController();
+        }
+        
+        setupWebRTCCallbacks();
         
         // Send CALL_ACCEPT
         boolean success = signalingClient.sendCallAccept(callId, remoteUsername);
@@ -401,8 +429,15 @@ public class CallManager {
         }
     }
     
+    // Store incoming call media settings for later use when accepted
+    private boolean pendingAudioEnabled = false;
+    private boolean pendingVideoEnabled = false;
+    
     /**
      * Handle incoming call request
+     * 
+     * IMPORTANT: Do NOT start camera/mic here!
+     * Media capture should only start AFTER user accepts the call.
      */
     private void handleIncomingCallRequest(WebRTCSignal signal) {
         System.out.printf("[CallManager] Incoming call from %s (audio=%b, video=%b)%n",
@@ -419,29 +454,20 @@ public class CallManager {
         this.isOutgoingCall = false;
         this.currentState = CallState.RINGING;
         
+        // Store media settings for when call is accepted
+        this.pendingAudioEnabled = signal.getAudioEnabled();
+        this.pendingVideoEnabled = signal.getVideoEnabled();
+        
         System.out.printf("[CallManager] Call state updated: RINGING (callId: %s)%n", currentCallId);
+        System.out.println("[CallManager] ⏸️ Media capture DEFERRED until user accepts call");
         
-        // Create WebRTC peer connection
-        webrtcClient = new WebRTCClient(currentCallId, remoteUsername);
-        webrtcClient.createPeerConnection(signal.getAudioEnabled(), signal.getVideoEnabled());
-        ensureScreenShareController();
+        // ═══════════════════════════════════════════════════════════════
+        // DO NOT create peer connection or add tracks here!
+        // Wait for user to accept the call first.
+        // This prevents camera from opening before user consent.
+        // ═══════════════════════════════════════════════════════════════
         
-        // 🎤 Add audio track if audio enabled
-        if (signal.getAudioEnabled()) {
-            System.out.println("[CallManager] Adding audio track for incoming call...");
-            webrtcClient.addAudioTrack();
-        }
-        
-        // 📹 Add video track if video enabled
-        if (signal.getVideoEnabled()) {
-            System.out.println("[CallManager] Adding video track for incoming call...");
-            webrtcClient.addVideoTrack();
-            registerCameraWithScreenShareController();
-        }
-        
-        setupWebRTCCallbacks();
-        
-        // Notify GUI
+        // Notify GUI to show incoming call dialog
         if (onIncomingCallCallback != null) {
             System.out.printf("[CallManager] Triggering incoming call callback for GUI...%n");
             IncomingCallInfo info = new IncomingCallInfo(
@@ -732,6 +758,10 @@ public class CallManager {
         this.currentCallId = null;
         this.remoteUsername = null;
         this.isOutgoingCall = false;
+        
+        // Clear pending media settings
+        this.pendingAudioEnabled = false;
+        this.pendingVideoEnabled = false;
         
         // Now close WebRTC connection (this may trigger callbacks, but state is already IDLE)
         if (webrtcClient != null) {
