@@ -40,7 +40,7 @@ public class WebRTCClient {
     
     // Virtual Thread executor for async WebRTC operations (ICE, signaling, DataChannel)
     private static ExecutorService webrtcExecutor;
-    
+   // Call ID for the current call
     private String currentCallId;
     private String remoteUsername;
     private boolean audioEnabled;
