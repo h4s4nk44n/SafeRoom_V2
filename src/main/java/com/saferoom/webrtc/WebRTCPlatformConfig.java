@@ -59,18 +59,16 @@ final class WebRTCPlatformConfig {
         RTCRtpCapabilities senderCaps = factory.getRtpSenderCapabilities(MediaType.VIDEO);
         
         // ═══════════════════════════════════════════════════════════════
-        // CROSS-PLATFORM FIX: Force VP8 for Linux <-> Windows compatibility
-        //
-        // H.264 platform farkları (AVCC vs Annex B, SPS/PPS in-band/out-of-band)
-        // yüzünden decode başarısız olabiliyor. VP8 yazılım tabanlı ve
-        // kapsülleme farkları yok.
+        // CROSS-PLATFORM: Let WebRTC auto-negotiate codecs
+        // Don't force VP8-only as Windows may have issues with software VP8
+        // Just reorder to prefer VP8 but keep all codecs available
         // ═══════════════════════════════════════════════════════════════
         
-        List<RTCRtpCodecCapability> sorted = reorderCodecs(senderCaps, false); // VP8 ONLY
+        List<RTCRtpCodecCapability> sorted = reorderCodecsKeepAll(senderCaps);
         
         if (!sorted.isEmpty()) {
-            System.out.printf("[WebRTC] %s → VP8 preferred (cross-platform compatibility)%n", platformName);
-            System.out.println("[WebRTC] Codec priority (VP8 first to avoid H.264 format issues):");
+            System.out.printf("[WebRTC] %s → All codecs available (VP8 preferred)%n", platformName);
+            System.out.println("[WebRTC] Codec priority:");
             for (int i = 0; i < Math.min(5, sorted.size()); i++) {
                 RTCRtpCodecCapability codec = sorted.get(i);
                 if (codec != null && codec.getName() != null) {
@@ -136,12 +134,10 @@ final class WebRTCPlatformConfig {
     }
 
     /**
-     * Reorder codecs based on platform preference.
-     * @param capabilities RTP capabilities from factory
-     * @param preferH264 true to prioritize H264 (macOS/Windows), false for VP8/VP9 (Linux)
+     * Reorder codecs - VP8 first but KEEP ALL codecs available.
+     * This allows fallback to H264 if VP8 fails on either platform.
      */
-    private static List<RTCRtpCodecCapability> reorderCodecs(RTCRtpCapabilities capabilities, 
-                                                              boolean preferH264) {
+    private static List<RTCRtpCodecCapability> reorderCodecsKeepAll(RTCRtpCapabilities capabilities) {
         if (capabilities == null || capabilities.getCodecs() == null) {
             return List.of();
         }
@@ -171,31 +167,13 @@ final class WebRTCPlatformConfig {
             return name != null && name.toUpperCase(Locale.ROOT).contains("VP9");
         };
 
-        // Force VP8 ONLY for cross-platform reliability
-        if (!preferH264) {
-            List<RTCRtpCodecCapability> vp8Only = codecs.stream()
-                .filter(isVP8)
-                .toList();
-            if (!vp8Only.isEmpty()) {
-                return Collections.unmodifiableList(vp8Only);
-            }
-        }
-
-        if (preferH264) {
-            // H264 first, then VP8, then VP9, then others
-            codecs.sort((a, b) -> {
-                int scoreA = isH264.test(a) ? 3 : isVP8.test(a) ? 2 : isVP9.test(a) ? 1 : 0;
-                int scoreB = isH264.test(b) ? 3 : isVP8.test(b) ? 2 : isVP9.test(b) ? 1 : 0;
-                return Integer.compare(scoreB, scoreA);
-            });
-        } else {
-            // VP8 first, then VP9, then H264, then others
-            codecs.sort((a, b) -> {
-                int scoreA = isVP8.test(a) ? 3 : isVP9.test(a) ? 2 : isH264.test(a) ? 1 : 0;
-                int scoreB = isVP8.test(b) ? 3 : isVP9.test(b) ? 2 : isH264.test(b) ? 1 : 0;
-                return Integer.compare(scoreB, scoreA);
-            });
-        }
+        // VP8 first, then H264 (for hardware fallback), then VP9, then others
+        // Keep ALL codecs - don't filter any out
+        codecs.sort((a, b) -> {
+            int scoreA = isVP8.test(a) ? 4 : isH264.test(a) ? 3 : isVP9.test(a) ? 2 : 1;
+            int scoreB = isVP8.test(b) ? 4 : isH264.test(b) ? 3 : isVP9.test(b) ? 2 : 1;
+            return Integer.compare(scoreB, scoreA);
+        });
         
         return Collections.unmodifiableList(codecs);
     }
