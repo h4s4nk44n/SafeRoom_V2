@@ -286,14 +286,28 @@ public class VideoPanel extends Canvas {
             System.err.printf("[VideoPanel] ⚠️ Video stalled (received=%d, rendered=%d)%n",
                 frameCount, renderedCount);
             
-            // Only re-attach if we had frames before
-            clearLatestFrame();
-            closeFrameProcessor();
-            frameProcessor = buildFrameProcessor();
-            if (videoTrack != null && videoSink != null) {
-                System.out.println("[VideoPanel] Re-attaching video sink...");
-                videoTrack.removeSink(videoSink);
-                videoTrack.addSink(videoSink);
+            // Don't try to recover if track is disposed - just stop
+            if (videoTrack == null || !isActive) {
+                System.out.println("[VideoPanel] Track disposed, stopping recovery attempts");
+                stopAnimation();
+                return;
+            }
+            
+            // Try to re-attach sink (with safety check)
+            try {
+                clearLatestFrame();
+                closeFrameProcessor();
+                frameProcessor = buildFrameProcessor();
+                if (videoTrack != null && videoSink != null) {
+                    System.out.println("[VideoPanel] Re-attaching video sink...");
+                    videoTrack.removeSink(videoSink);
+                    videoTrack.addSink(videoSink);
+                }
+            } catch (Exception e) {
+                // Track was disposed while we were trying to recover
+                System.out.println("[VideoPanel] Track disposed during recovery: " + e.getMessage());
+                stopAnimation();
+                return;
             }
         } else {
             // Initial connection - just wait longer, don't spam logs
