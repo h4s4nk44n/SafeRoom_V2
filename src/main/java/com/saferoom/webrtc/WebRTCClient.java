@@ -925,18 +925,34 @@ public class WebRTCClient {
     /**
      * Handle remote audio track (automatically plays received audio)
      */
+    // Audio monitoring
+    private volatile long audioFrameCount = 0;
+    private volatile long lastAudioLogTime = 0;
+    
     private void handleRemoteAudioTrack(AudioTrack audioTrack) {
-        System.out.println("[WebRTC] Setting up remote audio playback...");
+        System.out.println("[WebRTC] ═══════════════════════════════════════════");
+        System.out.println("[WebRTC] 🔊 Setting up remote audio playback...");
+        System.out.printf("[WebRTC]   Track ID: %s%n", audioTrack.getId());
+        System.out.printf("[WebRTC]   Enabled: %b%n", audioTrack.isEnabled());
         
-        // Add sink to monitor audio data (optional - for debugging)
+        audioFrameCount = 0;
+        lastAudioLogTime = System.currentTimeMillis();
+        
+        // Add sink to monitor audio data and confirm it's playing
         AudioTrackSink sink = (data, bitsPerSample, sampleRate, channels, frames) -> {
-            // Audio data is automatically played through speakers by AudioDeviceModule
-            // This callback is just for monitoring/debugging
-            // System.out.printf("[WebRTC] Receiving audio: %d Hz, %d channels%n", sampleRate, channels);
+            audioFrameCount++;
+            long now = System.currentTimeMillis();
+            // Log every 5 seconds to confirm audio is flowing
+            if (now - lastAudioLogTime >= 5000) {
+                System.out.printf("[WebRTC] 🔊 Audio flowing: %d frames @ %dHz, %dch%n", 
+                    audioFrameCount, sampleRate, channels);
+                lastAudioLogTime = now;
+            }
         };
         
         audioTrack.addSink(sink);
-        System.out.println("[WebRTC] Remote audio track ready");
+        System.out.println("[WebRTC] ✅ Remote audio track ready (playback via AudioDeviceModule)");
+        System.out.println("[WebRTC] ═══════════════════════════════════════════");
     }
     
     /**

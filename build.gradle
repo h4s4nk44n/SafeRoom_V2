@@ -21,77 +21,129 @@ repositories {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// PLATFORM DETECTION - Runs at build time
+// ═══════════════════════════════════════════════════════════════════
+def osName = System.getProperty('os.name').toLowerCase()
+def osArch = System.getProperty('os.arch').toLowerCase()
+def isWindows = osName.contains('win')
+def isMac = osName.contains('mac')
+def isArm = osArch.contains('aarch64') || osArch.contains('arm')
+
+// Native classifier for webrtc-java
+def nativeClassifier = isWindows ? 'windows-x86_64' : 
+                       (isMac ? (isArm ? 'macos-aarch64' : 'macos-x86_64') : 'linux-x86_64')
+
+// Native classifier for bytedeco/ffmpeg (different naming)
+def ffmpegClassifier = isWindows ? 'windows-x86_64' : 
+                       (isMac ? (isArm ? 'macosx-arm64' : 'macosx-x86_64') : 'linux-x86_64')
+
+println "═══════════════════════════════════════════════════════════════════"
+println "[Build] Platform: ${osName}"
+println "[Build] Architecture: ${osArch}"
+println "[Build] WebRTC native: ${nativeClassifier}"
+println "[Build] FFmpeg native: ${ffmpegClassifier}"
+println "═══════════════════════════════════════════════════════════════════"
+
 def javafxVersion = '21.0.1'
 
-dependencies {
-    // JavaFX (tamamı Maven üzerinden)
-    implementation "org.openjfx:javafx-controls:$javafxVersion"
-    implementation "org.openjfx:javafx-fxml:$javafxVersion"
-    implementation "org.openjfx:javafx-base:$javafxVersion"
-    implementation "org.openjfx:javafx-graphics:$javafxVersion"
-    implementation "org.openjfx:javafx-media:$javafxVersion"
-    implementation "org.openjfx:javafx-web:$javafxVersion"
-    implementation "org.openjfx:javafx-swing:$javafxVersion"
+// ═══════════════════════════════════════════════════════════════════
+// DEPENDENCY EXCLUSIONS - Remove junk we don't need
+// ═══════════════════════════════════════════════════════════════════
+configurations.all {
+    // Exclude heavy bytedeco modules we don't use
+    exclude group: 'org.bytedeco', module: 'opencv'
+    exclude group: 'org.bytedeco', module: 'openblas'
+    exclude group: 'org.bytedeco', module: 'flycapture'
+    exclude group: 'org.bytedeco', module: 'libdc1394'
+    exclude group: 'org.bytedeco', module: 'libfreenect'
+    exclude group: 'org.bytedeco', module: 'libfreenect2'
+    exclude group: 'org.bytedeco', module: 'librealsense'
+    exclude group: 'org.bytedeco', module: 'librealsense2'
+    exclude group: 'org.bytedeco', module: 'videoinput'
+    exclude group: 'org.bytedeco', module: 'artoolkitplus'
+    exclude group: 'org.bytedeco', module: 'tesseract'
+    exclude group: 'org.bytedeco', module: 'leptonica'
+    exclude group: 'org.bytedeco', module: 'hdf5'
+    exclude group: 'org.bytedeco', module: 'mkl'
+    exclude group: 'org.bytedeco', module: 'mkl-dnn'
+    exclude group: 'org.bytedeco', module: 'cuda'
+    exclude group: 'org.bytedeco', module: 'tensorrt'
+    exclude group: 'org.bytedeco', module: 'tensorflow'
+    exclude group: 'org.bytedeco', module: 'pytorch'
+    exclude group: 'org.bytedeco', module: 'caffe'
+    exclude group: 'org.bytedeco', module: 'ale'
+    exclude group: 'org.bytedeco', module: 'cpython'
+    exclude group: 'org.bytedeco', module: 'numpy'
+    exclude group: 'org.bytedeco', module: 'scipy'
+    exclude group: 'org.bytedeco', module: 'gym'
+    exclude group: 'org.bytedeco', module: 'llvm'
+    exclude group: 'org.bytedeco', module: 'libpostal'
+    exclude group: 'org.bytedeco', module: 'systems'
+}
 
-    // JFoenix (JavaFX UI) - Modern Material Design
+dependencies {
+    // ═══════════════════════════════════════════════════════════════
+    // UI Libraries
+    // ═══════════════════════════════════════════════════════════════
     implementation 'com.jfoenix:jfoenix:9.0.10'
-    
-    // Ikonli (Icons for JavaFX)
     implementation 'org.kordamp.ikonli:ikonli-javafx:12.3.1'
     implementation 'org.kordamp.ikonli:ikonli-fontawesome5-pack:12.3.1'
 
     // PDF rendering
     implementation 'org.apache.pdfbox:pdfbox:2.0.30'
 
-    // Multimedia helpers
-    implementation 'org.bytedeco:javacv-platform:1.5.10'
+    // ═══════════════════════════════════════════════════════════════
+    // FFmpeg - ONLY current platform's native (not javacv-platform!)
+    // ═══════════════════════════════════════════════════════════════
+    implementation('org.bytedeco:javacv:1.5.10') {
+        // Exclude all natives - we add only current platform below
+        exclude group: 'org.bytedeco', module: 'javacv-platform'
+    }
+    implementation 'org.bytedeco:javacpp:1.5.10'
+    implementation 'org.bytedeco:ffmpeg:6.1.1-1.5.10'
+    // Only current platform's native - saves ~400MB
+    runtimeOnly "org.bytedeco:ffmpeg:6.1.1-1.5.10:${ffmpegClassifier}"
 
-    // gRPC ve Protobuf
+    // ═══════════════════════════════════════════════════════════════
+    // gRPC & Protobuf
+    // ═══════════════════════════════════════════════════════════════
     implementation 'io.grpc:grpc-netty-shaded:1.58.0'
     implementation 'io.grpc:grpc-protobuf:1.58.0'
     implementation 'io.grpc:grpc-stub:1.58.0'
     compileOnly 'org.apache.tomcat:annotations-api:6.0.53'
     implementation 'com.google.protobuf:protobuf-java:3.23.4'
 
-    // Network & P2P
+    // ═══════════════════════════════════════════════════════════════
+    // Local JARs
+    // ═══════════════════════════════════════════════════════════════
     implementation files('libs/jstun-0.7.4.jar')
     implementation files('libs/weupnp-0.1.4.jar')
-
-    // Email
     implementation files('libs/javax.mail.jar')
     implementation files('libs/javax.activation-1.2.0.jar')
-
-    // Database
     implementation files('libs/mysql-connector-j-9.2.0.jar')
-
-    // SQLite for Java (pure Java, no native dependencies)
-    implementation 'org.xerial:sqlite-jdbc:3.45.0.0'
-    
-    // JSON processing
-    implementation 'com.google.code.gson:gson:2.10.1'
-    
-    // Crypto utilities for encryption
-    implementation 'org.bouncycastle:bcprov-jdk18on:1.77'
-    
-    // QR Code generation for Secure Files
-    implementation 'com.google.zxing:core:3.5.3'
-    implementation 'com.google.zxing:javase:3.5.3'
-
-    // Logging
     implementation files('libs/slf4j-api-1.7.36.jar')
     implementation files('libs/slf4j-simple-1.7.36.jar')
 
-    // WebRTC - Core library (platform-independent Java code)
-    implementation 'dev.onvoid.webrtc:webrtc-java:0.14.0'
-    
-    // WebRTC - Native libraries for all platforms
-    // Gradle downloads all, JVM loads the correct one at runtime based on OS
-    runtimeOnly group: 'dev.onvoid.webrtc', name: 'webrtc-java', version: '0.14.0', classifier: 'linux-x86_64'
-    runtimeOnly group: 'dev.onvoid.webrtc', name: 'webrtc-java', version: '0.14.0', classifier: 'macos-x86_64'
-    runtimeOnly group: 'dev.onvoid.webrtc', name: 'webrtc-java', version: '0.14.0', classifier: 'macos-aarch64'
-    runtimeOnly group: 'dev.onvoid.webrtc', name: 'webrtc-java', version: '0.14.0', classifier: 'windows-x86_64'
+    // ═══════════════════════════════════════════════════════════════
+    // Database & Utilities
+    // ═══════════════════════════════════════════════════════════════
+    implementation 'org.xerial:sqlite-jdbc:3.45.0.0'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.77'
+    implementation 'com.google.zxing:core:3.5.3'
+    implementation 'com.google.zxing:javase:3.5.3'
 
-    // JUnit 5 for testing
+    // ═══════════════════════════════════════════════════════════════
+    // WebRTC - CURRENT PLATFORM ONLY
+    // ═══════════════════════════════════════════════════════════════
+    implementation 'dev.onvoid.webrtc:webrtc-java:0.14.0'
+    // Only current platform's native - saves ~100MB per other platform
+    runtimeOnly "dev.onvoid.webrtc:webrtc-java:0.14.0:${nativeClassifier}"
+
+    // ═══════════════════════════════════════════════════════════════
+    // Testing
+    // ═══════════════════════════════════════════════════════════════
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
 }
 
@@ -135,20 +187,20 @@ sourceSets {
     }
 }
 
-// CompileJava task'ının generateProto'ya bağımlı olduğunu belirt
 compileJava.dependsOn 'generateProto'
 
+// ═══════════════════════════════════════════════════════════════════
+// JavaFX - NO WEB MODULE (saves ~80MB)
+// ═══════════════════════════════════════════════════════════════════
 javafx {
     version = javafxVersion
-    modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.graphics', 'javafx.base', 'javafx.media', 'javafx.web', 'javafx.swing' ]
+    modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.graphics', 'javafx.base', 'javafx.media', 'javafx.swing' ]
 }
 
-// Duplicate handling strategy
 processResources {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-// Distribution tasks duplicate handling
 tasks.withType(Tar).configureEach {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
@@ -160,7 +212,7 @@ tasks.withType(Zip).configureEach {
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs += '--enable-preview'
     options.release = 21
-    options.encoding = 'UTF-8'  // Windows Turkce karakter sorunu icin
+    options.encoding = 'UTF-8'
 }
 
 tasks.withType(Test).configureEach {
@@ -168,33 +220,66 @@ tasks.withType(Test).configureEach {
     jvmArgs += '--enable-preview'
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// RUNTIME - Memory optimizations + Platform-specific rendering
+// ═══════════════════════════════════════════════════════════════════
 tasks.withType(JavaExec).configureEach {
     jvmArgs += '--enable-preview'
     
-    // Platform-specific JavaFX rendering pipeline
-    def osName = System.getProperty('os.name').toLowerCase()
-    if (osName.contains('win')) {
-        // Windows: Use DirectX (D3D) pipeline - much faster than SW fallback
+    // ═══════════════════════════════════════════════════════════════
+    // JVM Memory Settings - Reduced but functional
+    // ═══════════════════════════════════════════════════════════════
+    jvmArgs += '-Xms32m'
+    jvmArgs += '-Xmx256m'
+    jvmArgs += '-XX:+UseG1GC'
+    jvmArgs += '-XX:MaxGCPauseMillis=50'
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Netty/gRPC buffer optimization
+    // ═══════════════════════════════════════════════════════════════
+    jvmArgs += '-Dio.netty.allocator.maxOrder=3'
+    jvmArgs += '-Dio.netty.allocator.numDirectArenas=2'
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Platform-specific JavaFX rendering
+    // ═══════════════════════════════════════════════════════════════
+    if (isWindows) {
         jvmArgs += '-Dprism.order=d3d,sw'
         jvmArgs += '-Dprism.d3d.forceGPU=true'
-        System.out.println("[Build] Windows detected: Using DirectX (D3D) pipeline")
-    } else if (osName.contains('mac')) {
-        // macOS: Use Metal or ES2 (OpenGL)
+        println "[Runtime] Windows: DirectX (D3D) pipeline"
+    } else if (isMac) {
         jvmArgs += '-Dprism.order=es2,sw'
         jvmArgs += '-Dprism.forceGPU=true'
+        println "[Runtime] macOS: OpenGL (ES2) pipeline"
     } else {
-        // Linux: Use ES2 (OpenGL)
         jvmArgs += '-Dprism.order=es2,sw'
         jvmArgs += '-Dprism.forceGPU=true'
+        println "[Runtime] Linux: OpenGL (ES2) pipeline"
     }
     
-    // Common JavaFX optimizations
-    jvmArgs += '-Dprism.verbose=true'                  // Log which renderer is used
-    jvmArgs += '-Djavafx.animation.fullspeed=false'    // Don't skip frames
-    jvmArgs += '-Dprism.vsync=true'                    // Enable VSync
-    jvmArgs += '-Dprism.dirtyopts=true'                // Dirty region optimizations
-    
-    // Uncomment for detailed stats:
-    // jvmArgs += '-Dprism.printStats=true'
+    // Common optimizations
+    jvmArgs += '-Dprism.vsync=true'
+    jvmArgs += '-Dprism.dirtyopts=true'
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// Debug task - Show dependency sizes
+// ═══════════════════════════════════════════════════════════════════
+task showDeps {
+    doLast {
+        println "\n═══════════════════════════════════════════════════════"
+        println "RUNTIME DEPENDENCIES (>1MB)"
+        println "═══════════════════════════════════════════════════════"
+        def total = 0
+        configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+            def size = artifact.file.length() / 1024 / 1024
+            total += size
+            if (size > 1) {
+                printf "%-50s %6.1f MB\n", artifact.name, size
+            }
+        }
+        println "═══════════════════════════════════════════════════════"
+        printf "TOTAL: %.1f MB\n", total
+        println "═══════════════════════════════════════════════════════"
+    }
+}

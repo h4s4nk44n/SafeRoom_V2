@@ -68,11 +68,16 @@ public class VideoPanel extends Canvas {
                                 renderedCount, frame.getWidth(), frame.getHeight());
                             lastRenderedLog = renderedCount;
                         }
+                        firstFrameReceived = true;
                     } finally {
                         frame.release();
                     }
-                } else if (System.nanoTime() - lastFrameTimestamp > FREEZE_DETECTION_NANOS) {
-                    handleStall();
+                } else {
+                    // Use longer timeout for initial connection, shorter after first frame
+                    long timeout = firstFrameReceived ? FREEZE_DETECTION_NANOS : INITIAL_WAIT_NANOS;
+                    if (System.nanoTime() - lastFrameTimestamp > timeout) {
+                        handleStall();
+                    }
                 }
             }
         };
@@ -103,6 +108,8 @@ public class VideoPanel extends Canvas {
         this.videoTrack = track;
         this.isActive = true;
         this.frameCount = 0;
+        this.firstFrameReceived = false;
+        this.initialWaitLogged = false;
 
         frameProcessor = buildFrameProcessor();
         videoSink = frame -> {
@@ -274,24 +281,36 @@ public class VideoPanel extends Canvas {
     }
 
     private void handleStall() {
-        System.err.printf("[VideoPanel] ⚠️ No frame rendered for 2s (received=%d, setToLatest=%d, rendered=%d)%n",
-            frameCount, framesSetToLatest, renderedCount);
-        System.err.printf("[VideoPanel]   isActive=%b, renderingPaused=%b, animationRunning=%b%n",
-            isActive, renderingPaused, animationRunning);
-        
-        clearLatestFrame();
-        closeFrameProcessor();
-        frameProcessor = buildFrameProcessor();
-        if (videoTrack != null && videoSink != null) {
-            System.out.println("[VideoPanel] Re-attaching video sink...");
-            videoTrack.removeSink(videoSink);
-            videoTrack.addSink(videoSink);
+        // Only log warning if we've received frames before (actual stall vs initial delay)
+        if (frameCount > 0) {
+            System.err.printf("[VideoPanel] ⚠️ Video stalled (received=%d, rendered=%d)%n",
+                frameCount, renderedCount);
+            
+            // Only re-attach if we had frames before
+            clearLatestFrame();
+            closeFrameProcessor();
+            frameProcessor = buildFrameProcessor();
+            if (videoTrack != null && videoSink != null) {
+                System.out.println("[VideoPanel] Re-attaching video sink...");
+                videoTrack.removeSink(videoSink);
+                videoTrack.addSink(videoSink);
+            }
+        } else {
+            // Initial connection - just wait longer, don't spam logs
+            if (!initialWaitLogged) {
+                System.out.println("[VideoPanel] ⏳ Waiting for first frame (ICE connecting...)");
+                initialWaitLogged = true;
+            }
         }
         lastFrameTimestamp = System.nanoTime();
     }
 
-    private static final long FREEZE_DETECTION_NANOS = TimeUnit.MILLISECONDS.toNanos(2000);
+    // Stall detection: 500ms after first frame, 5s for initial connection
+    private static final long FREEZE_DETECTION_NANOS = TimeUnit.MILLISECONDS.toNanos(500);
+    private static final long INITIAL_WAIT_NANOS = TimeUnit.MILLISECONDS.toNanos(5000);
     private volatile long lastFrameTimestamp = System.nanoTime();
+    private volatile boolean initialWaitLogged = false;
+    private volatile boolean firstFrameReceived = false;
 
     private void startAnimation() {
         if (!animationRunning) {
