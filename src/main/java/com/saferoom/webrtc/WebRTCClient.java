@@ -178,25 +178,6 @@ public class WebRTCClient {
                         System.out.println("[WebRTC] [Windows] No speaker detected");
                     }
                     
-                    // ═══════════════════════════════════════════════════════════════
-                    // CRITICAL FIX: Start playout/recording on SAME THREAD as init
-                    // Windows COM requires audio operations on same thread as init
-                    // If called from different thread (onTrack callback), COM fails
-                    // ═══════════════════════════════════════════════════════════════
-                    try {
-                        adm.startPlayout();
-                        System.out.println("[WebRTC] [Windows] 🔊 Playout started (pre-emptive)");
-                    } catch (Exception e) {
-                        System.err.println("[WebRTC] [Windows] Playout start failed: " + e.getMessage());
-                    }
-                    
-                    try {
-                        adm.startRecording();
-                        System.out.println("[WebRTC] [Windows] 🎙️ Recording started (pre-emptive)");
-                    } catch (Exception e) {
-                        System.err.println("[WebRTC] [Windows] Recording start failed: " + e.getMessage());
-                    }
-                    
                     admRef.set(adm);
                     System.out.println("[WebRTC] [Windows] AudioDeviceModule initialized successfully");
                     
@@ -223,11 +204,6 @@ public class WebRTCClient {
         
         // Store the ADM reference
         audioDeviceModule = admRef.get();
-        
-        // Mark playout/recording as started (they were started in init thread)
-        playoutStarted = true;
-        recordingStarted = true;
-        
         System.out.println("[WebRTC] [Windows] Audio initialization completed");
     }
     
