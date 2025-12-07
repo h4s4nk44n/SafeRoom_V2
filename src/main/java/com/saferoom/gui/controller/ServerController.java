@@ -107,6 +107,10 @@ public class ServerController implements Initializable {
     private boolean isUserDeafened = false;
     private Popup currentEditPopup;
     private Node currentEditTarget;
+    
+    // Current user's voice card components for status updates
+    private VBox currentUserVoiceCard;
+    private FontIcon currentUserMicIcon;
 
     @FXML
     private Button leaveVoiceBtn;
@@ -877,10 +881,10 @@ public class ServerController implements Initializable {
         if (actualUsername == null || actualUsername.isEmpty()) {
             actualUsername = "Guest"; // Fallback
         }
-        User currentUser = new User("me", actualUsername, "Online", "Member", "", false, "");
+        User currentUser = new User("me", actualUsername, "Online", "Member", "", true, "");
         voiceUsers.add(currentUser);
         
-        // Add some other mock users
+        // Add other mock users
         voiceUsers.addAll(serverUsers.subList(0, Math.min(5, serverUsers.size())));
         
         for (User user : voiceUsers) {
@@ -888,9 +892,19 @@ public class ServerController implements Initializable {
                 VBox voiceUser = createVoiceUserItem(user);
                 voiceUsersContainer.getChildren().add(voiceUser);
                 
-                // Special styling for current user (optional, can just reuse createVoiceUserItem)
+                // Special styling for current user and store reference
                 if (user.getId().equals("me")) {
                      voiceUser.getStyleClass().add("current-user-voice-card");
+                     currentUserVoiceCard = voiceUser;
+                     // Find and store the mic icon (it's the 3rd child: avatar, username, mic)
+                     if (voiceUser.getChildren().size() >= 3) {
+                         Node micNode = voiceUser.getChildren().get(2);
+                         if (micNode instanceof FontIcon) {
+                             currentUserMicIcon = (FontIcon) micNode;
+                             // Apply current mute/deafen state
+                             updateCurrentUserVoiceStatus();
+                         }
+                     }
                 }
             }
         }
@@ -1028,6 +1042,9 @@ public class ServerController implements Initializable {
             muteBtn.getStyleClass().remove("muted");
             toggleMicBtn.getStyleClass().remove("muted");
         }
+        
+        // Update current user's voice card
+        updateCurrentUserVoiceStatus();
     }
 
     private void toggleDeafen() {
@@ -1065,6 +1082,25 @@ public class ServerController implements Initializable {
 
             deafenBtn.getStyleClass().remove("deafened");
             toggleDeafenBtn.getStyleClass().remove("deafened");
+        }
+        
+        // Update current user's voice card
+        updateCurrentUserVoiceStatus();
+    }
+    
+    private void updateCurrentUserVoiceStatus() {
+        if (currentUserMicIcon != null && currentUserVoiceCard != null) {
+            // Update mic icon based on mute/deafen status
+            if (isUserDeafened || isUserMuted) {
+                currentUserMicIcon.setIconLiteral("fas-microphone-slash");
+                currentUserVoiceCard.getStyleClass().remove("speaking");
+                if (!currentUserVoiceCard.getStyleClass().contains("muted")) {
+                    currentUserVoiceCard.getStyleClass().add("muted");
+                }
+            } else {
+                currentUserMicIcon.setIconLiteral("fas-microphone");
+                currentUserVoiceCard.getStyleClass().remove("muted");
+            }
         }
     }
 
