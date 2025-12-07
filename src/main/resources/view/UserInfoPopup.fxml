@@ -16,7 +16,7 @@
     </padding>
 
     <!-- User Avatar and Basic Info -->
-    <VBox spacing="10.0" alignment="CENTER">
+    <HBox spacing="15.0" alignment="CENTER_LEFT">
         <StackPane fx:id="userAvatarContainer" styleClass="user-info-avatar-container">
             <StackPane fx:id="userAvatar" styleClass="user-info-avatar">
                 <Label fx:id="userAvatarText" styleClass="user-info-avatar-text" text="U" />
@@ -25,35 +25,20 @@
             <StackPane fx:id="statusIndicator" styleClass="user-info-status-indicator" />
         </StackPane>
         
-        <VBox spacing="3.0" alignment="CENTER">
-            <HBox spacing="8.0" alignment="CENTER">
+        <VBox spacing="3.0" alignment="CENTER_LEFT">
+            <HBox spacing="8.0" alignment="CENTER_LEFT">
                 <Label fx:id="usernameLabel" styleClass="user-info-username" text="Username" />
                 <FontIcon fx:id="roleIcon" styleClass="user-info-role-icon" visible="false" />
             </HBox>
-            <Label fx:id="statusLabel" styleClass="user-info-status-text" text="Online" />
+            <Label fx:id="headerRoleLabel" styleClass="user-info-status-text" text="Member" />
         </VBox>
-    </VBox>
+    </HBox>
 
     <Separator styleClass="popup-separator" />
 
     <!-- User Details -->
     <VBox spacing="12.0">
         
-        <!-- Role Information -->
-        <VBox spacing="5.0">
-            <Label styleClass="info-section-header" text="Role" />
-            <HBox spacing="8.0" alignment="CENTER_LEFT">
-                <FontIcon fx:id="roleDisplayIcon" styleClass="role-display-icon" visible="false" />
-                <Label fx:id="roleLabel" styleClass="info-section-content" text="Member" />
-            </HBox>
-        </VBox>
-
-        <!-- Status Information -->
-        <VBox spacing="5.0">
-            <Label styleClass="info-section-header" text="Status" />
-            <Label fx:id="statusDisplayLabel" styleClass="info-section-content" text="Online" />
-        </VBox>
-
         <!-- Activity Information -->
         <VBox fx:id="activitySection" spacing="5.0">
             <Label styleClass="info-section-header" text="Activity" />

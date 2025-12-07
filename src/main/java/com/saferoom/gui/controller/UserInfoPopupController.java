@@ -39,15 +39,9 @@ public class UserInfoPopupController implements Initializable {
     @FXML
     private FontIcon roleIcon;
     @FXML
-    private Label statusLabel;
+    private Label headerRoleLabel;
 
     // User Details
-    @FXML
-    private FontIcon roleDisplayIcon;
-    @FXML
-    private Label roleLabel;
-    @FXML
-    private Label statusDisplayLabel;
     @FXML
     private VBox activitySection;
     @FXML
@@ -126,21 +120,8 @@ public class UserInfoPopupController implements Initializable {
         // Set username
         usernameLabel.setText(currentUser.getUsername());
 
-        // Set role icon if exists
-        if (!currentUser.getRoleIcon().isEmpty()) {
-            roleIcon.setIconLiteral(currentUser.getRoleIcon());
-            roleIcon.setVisible(true);
-
-            roleDisplayIcon.setIconLiteral(currentUser.getRoleIcon());
-            roleDisplayIcon.setVisible(true);
-        } else {
-            roleIcon.setVisible(false);
-            roleDisplayIcon.setVisible(false);
-        }
-
-        // Set status
-        statusLabel.setText(currentUser.getStatus());
-        statusDisplayLabel.setText(currentUser.getStatus());
+        // Set role in header
+        headerRoleLabel.setText(currentUser.getRole());
 
         // Set status indicator styling
         statusIndicator.getStyleClass().removeAll("status-online", "status-idle", "status-dnd", "status-offline");
@@ -149,13 +130,6 @@ public class UserInfoPopupController implements Initializable {
         // Set avatar status border
         userAvatar.getStyleClass().removeAll("avatar-online", "avatar-idle", "avatar-dnd", "avatar-offline");
         userAvatar.getStyleClass().add(getAvatarStatusStyleClass(currentUser.getStatus()));
-
-        // Set avatar status border
-        userAvatar.getStyleClass().removeAll("avatar-online", "avatar-idle", "avatar-dnd", "avatar-offline");
-        userAvatar.getStyleClass().add(getAvatarStatusStyleClass(currentUser.getStatus()));
-
-        // Set role
-        roleLabel.setText(currentUser.getRole());
 
         // Set activity
         if (!currentUser.getActivity().isEmpty()) {

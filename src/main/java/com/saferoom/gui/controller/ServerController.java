@@ -558,6 +558,12 @@ public class ServerController implements Initializable {
     private boolean fileChannelsExpanded = true;
     private MainController mainController;
 
+    private enum SidebarState {
+        OPEN, COMPACT, CLOSED
+    }
+
+    private SidebarState currentSidebarState = SidebarState.OPEN;
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         setupChannelHandlers();
@@ -904,34 +910,27 @@ public class ServerController implements Initializable {
 
             // Position Logic
             if (anchorNode != null) {
-                // Determine position relative to anchor
+
                 javafx.geometry.Bounds anchorBounds = anchorNode.localToScene(anchorNode.getBoundsInLocal());
-
-                // Assuming popup width is approx 300 (prefWidth in FXML)
-                // Position to the left of the anchor
                 double popupWidth = 300;
-                double popupHeight = 550; // Approximate height including actions
+                double popupHeight = 360;
 
-                double x = anchorBounds.getMinX() - popupWidth - 90; // 90px Gap
+                double x = anchorBounds.getMinX() - popupWidth - 90;
                 double y = anchorBounds.getMinY();
 
-                // Get scene height for boundary check
                 double sceneHeight = popupOverlay.getScene().getHeight();
 
-                // Check vertical overflow
                 if (y + popupHeight > sceneHeight) {
-                    // Shift up so bottom aligns with bottom of screen (minus padding)
-                    y = sceneHeight - popupHeight - 20;
+                    y = sceneHeight - popupHeight - 60;
                 }
 
-                // Ensure top doesn't go off-screen
                 if (y < 10) {
                     y = 10;
                 }
 
-                // Ensure it's not off-screen (basic check)
-                if (x < 10)
-                    x = anchorBounds.getMaxX() + 10; // Flip to right if no space on left
+                if (x < 10) {
+                    x = anchorBounds.getMaxX() + 10;
+                }
 
                 javafx.scene.layout.StackPane.setAlignment(popupContainer, Pos.TOP_LEFT);
                 popupContainer.setTranslateX(x);
@@ -943,7 +942,6 @@ public class ServerController implements Initializable {
             popupOverlay.setVisible(true);
             popupOverlay.setManaged(true);
 
-            // Optional: Close on background click
             popupOverlay.setOnMouseClicked(event -> {
                 if (event.getTarget() == popupOverlay) {
                     popupOverlay.setVisible(false);
@@ -1655,10 +1653,116 @@ public class ServerController implements Initializable {
     }
 
     private void toggleUsersSidebar() {
-        if (usersSidebar != null) {
-            boolean isVisible = usersSidebar.isVisible();
-            usersSidebar.setVisible(!isVisible);
-            usersSidebar.setManaged(!isVisible);
+        switch (currentSidebarState) {
+            case OPEN:
+                currentSidebarState = SidebarState.COMPACT;
+                break;
+            case COMPACT:
+                currentSidebarState = SidebarState.CLOSED;
+                break;
+            case CLOSED:
+                currentSidebarState = SidebarState.OPEN;
+                break;
+        }
+        updateSidebarState();
+    }
+
+    private void updateSidebarState() {
+        if (usersSidebar == null)
+            return;
+
+        switch (currentSidebarState) {
+            case OPEN:
+                usersSidebar.setVisible(true);
+                usersSidebar.setManaged(true);
+                usersSidebar.setPrefWidth(240);
+                usersSidebar.setMinWidth(240);
+                usersSidebar.setMaxWidth(240);
+                updateUserItemsState(true);
+                break;
+            case COMPACT:
+                usersSidebar.setVisible(true);
+                usersSidebar.setManaged(true);
+                usersSidebar.setPrefWidth(80); // Reduced width
+                usersSidebar.setMinWidth(80);
+                usersSidebar.setMaxWidth(80);
+                updateUserItemsState(false);
+                break;
+            case CLOSED:
+                usersSidebar.setVisible(false);
+                usersSidebar.setManaged(false);
+                break;
+        }
+
+        updateSidebarHeaders(currentSidebarState == SidebarState.COMPACT);
+    }
+
+    private void updateSidebarHeaders(boolean isCompact) {
+        if (usersSidebar == null)
+            return;
+
+        for (Node node : usersSidebar.getChildren()) {
+            if (node instanceof HBox) {
+                // Direct header (e.g. Online Users header)
+                updateHeaderContent((HBox) node, isCompact);
+            } else if (node instanceof VBox) {
+                // Section container (e.g. Offline Users section)
+                VBox section = (VBox) node;
+                if (!section.getChildren().isEmpty() && section.getChildren().get(0) instanceof HBox) {
+                    updateHeaderContent((HBox) section.getChildren().get(0), isCompact);
+                }
+            }
+        }
+    }
+
+    private void updateHeaderContent(javafx.scene.layout.Pane header, boolean isCompact) {
+        for (Node child : header.getChildren()) {
+            if (child instanceof Label) {
+                Label label = (Label) child;
+                if (isCompact) {
+                    // Only show if text is purely numeric (user counts)
+                    boolean isNumeric = label.getText().matches("\\d+");
+                    label.setVisible(isNumeric);
+                    label.setManaged(isNumeric);
+                } else {
+                    // Show everything in open mode
+                    label.setVisible(true);
+                    label.setManaged(true);
+                }
+            }
+        }
+    }
+
+    private void updateUserItemsState(boolean showDetails) {
+        // Update styling for lists container if needed
+        if (!showDetails) {
+            onlineUsersList.setAlignment(Pos.TOP_CENTER);
+            offlineUsersList.setAlignment(Pos.TOP_CENTER);
+        } else {
+            onlineUsersList.setAlignment(Pos.TOP_LEFT);
+            offlineUsersList.setAlignment(Pos.TOP_LEFT);
+        }
+
+        // Iterate through all user items in both lists
+        updateListItems(onlineUsersList, showDetails);
+        updateListItems(offlineUsersList, showDetails);
+    }
+
+    private void updateListItems(VBox list, boolean showDetails) {
+        for (Node node : list.getChildren()) {
+            if (node instanceof HBox) {
+                HBox item = (HBox) node;
+                // Assuming standard structure from createUserItem: Avatar (StackPane) is index
+                // 0, Details (VBox) is index 1
+                if (item.getChildren().size() > 1) {
+                    Node details = item.getChildren().get(1);
+                    details.setVisible(showDetails);
+                    details.setManaged(showDetails);
+                }
+
+                // Adjust alignment for the item itself
+                item.setAlignment(showDetails ? Pos.CENTER_LEFT : Pos.CENTER);
+            }
         }
     }
 }
