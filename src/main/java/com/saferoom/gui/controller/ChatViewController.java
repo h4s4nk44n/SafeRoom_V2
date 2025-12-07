@@ -1656,20 +1656,28 @@ public class ChatViewController {
                 if (currentActiveCallDialog == null) {
                     currentActiveCallDialog = new ActiveCallDialog(currentChannelId, callId, currentCallVideoEnabled, callManager);
                     currentActiveCallDialog.show();
-                    // NOTE: Local video will be attached via onLocalTracksReadyCallback
-                    // For CALLER, tracks are added in startCall() so callback fires immediately
-                    // For CALLEE, tracks are added in handleOffer() after this callback
+                    
+                    // 🎥 For CALLER: Tracks are ALREADY added in startCall()
+                    // So we attach local video immediately here
+                    if (currentCallVideoEnabled) {
+                        VideoTrack localVideo = callManager.getLocalVideoTrack();
+                        if (localVideo != null) {
+                            System.out.println("[ChatViewController] 🎥 Attaching local video (CALLER - tracks already ready)");
+                            currentActiveCallDialog.attachLocalVideo(localVideo);
+                        }
+                    }
                 }
             });
         });
         
-        // 🎥 Attach local video when tracks are actually ready
+        // 🎥 For CALLEE: Attach local video when tracks are actually ready
+        // (tracks are added in handleOffer() AFTER dialog is created)
         callManager.setOnLocalTracksReadyCallback(() -> {
             Platform.runLater(() -> {
                 if (currentActiveCallDialog != null && currentCallVideoEnabled) {
                     VideoTrack localVideo = callManager.getLocalVideoTrack();
                     if (localVideo != null) {
-                        System.out.println("[ChatViewController] 🎥 Attaching local video (tracks now ready)");
+                        System.out.println("[ChatViewController] 🎥 Attaching local video (CALLEE - tracks now ready)");
                         currentActiveCallDialog.attachLocalVideo(localVideo);
                     }
                 }
