@@ -156,7 +156,7 @@ public class ServerController implements Initializable {
     private List<Channel> voiceChannels = new java.util.ArrayList<>();
     private String currentServerName = "SafeRoom";
     private String currentChannel = "";
-    
+
     // Track current user's voice card for mute/deafen status updates
     private VBox currentUserVoiceCard;
     private FontIcon currentUserMicIcon;
@@ -860,7 +860,7 @@ public class ServerController implements Initializable {
         userItem.getChildren().addAll(avatar, userInfo);
 
         // Click handler to show user info popup
-        userItem.setOnMouseClicked(event -> showUserInfoPopup(user));
+        userItem.setOnMouseClicked(event -> showUserInfoPopup(user, userItem));
 
         return userItem;
     }
@@ -880,7 +880,7 @@ public class ServerController implements Initializable {
         }
     }
 
-    private void showUserInfoPopup(User user) {
+    private void showUserInfoPopup(User user, javafx.scene.Node anchorNode) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/UserInfoPopup.fxml"));
             Parent root = loader.load();
@@ -893,10 +893,53 @@ public class ServerController implements Initializable {
                 popupOverlay.setVisible(false);
                 popupOverlay.setManaged(false);
                 popupContainer.getChildren().clear();
+                // Reset styling
+                popupContainer.setTranslateX(0);
+                popupContainer.setTranslateY(0);
+                javafx.scene.layout.StackPane.setAlignment(popupContainer, Pos.CENTER);
             });
 
-            // Add content to overlay and show it
+            // Add content to overlay
             popupContainer.getChildren().setAll(root);
+
+            // Position Logic
+            if (anchorNode != null) {
+                // Determine position relative to anchor
+                javafx.geometry.Bounds anchorBounds = anchorNode.localToScene(anchorNode.getBoundsInLocal());
+
+                // Assuming popup width is approx 300 (prefWidth in FXML)
+                // Position to the left of the anchor
+                double popupWidth = 300;
+                double popupHeight = 550; // Approximate height including actions
+
+                double x = anchorBounds.getMinX() - popupWidth - 90; // 90px Gap
+                double y = anchorBounds.getMinY();
+
+                // Get scene height for boundary check
+                double sceneHeight = popupOverlay.getScene().getHeight();
+
+                // Check vertical overflow
+                if (y + popupHeight > sceneHeight) {
+                    // Shift up so bottom aligns with bottom of screen (minus padding)
+                    y = sceneHeight - popupHeight - 20;
+                }
+
+                // Ensure top doesn't go off-screen
+                if (y < 10) {
+                    y = 10;
+                }
+
+                // Ensure it's not off-screen (basic check)
+                if (x < 10)
+                    x = anchorBounds.getMaxX() + 10; // Flip to right if no space on left
+
+                javafx.scene.layout.StackPane.setAlignment(popupContainer, Pos.TOP_LEFT);
+                popupContainer.setTranslateX(x);
+                popupContainer.setTranslateY(y);
+            } else {
+                javafx.scene.layout.StackPane.setAlignment(popupContainer, Pos.CENTER);
+            }
+
             popupOverlay.setVisible(true);
             popupOverlay.setManaged(true);
 
@@ -1111,7 +1154,7 @@ public class ServerController implements Initializable {
             muteBtn.getStyleClass().remove("muted");
             toggleMicBtn.getStyleClass().remove("muted");
         }
-        
+
         // Update current user's voice card
         updateCurrentUserVoiceStatus();
     }
@@ -1152,11 +1195,11 @@ public class ServerController implements Initializable {
             deafenBtn.getStyleClass().remove("deafened");
             toggleDeafenBtn.getStyleClass().remove("deafened");
         }
-        
+
         // Update current user's voice card
         updateCurrentUserVoiceStatus();
     }
-    
+
     private void updateCurrentUserVoiceStatus() {
         if (currentUserMicIcon != null && currentUserVoiceCard != null) {
             // Update mic icon based on mute/deafen status
