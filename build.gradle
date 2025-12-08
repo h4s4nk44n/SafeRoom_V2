@@ -309,6 +309,14 @@ tasks.withType(Test).configureEach {
 tasks.withType(JavaExec).configureEach {
     jvmArgs += '--enable-preview'
     
+    // JFR Profiling: ./gradlew run -Pjfr=post_opt
+    if (project.hasProperty('jfr')) {
+        def jfrFile = "${projectDir}/profiling/${project.property('jfr')}.jfr"
+        file("${projectDir}/profiling").mkdirs()
+        jvmArgs += "-XX:StartFlightRecording=filename=${jfrFile},dumponexit=true,settings=profile"
+        println "🎬 JFR: ${jfrFile}"
+    }
+    
     // ─────────────────────────────────────────────────────────────────────────────
     // HEAP CONFIGURATION
     // ─────────────────────────────────────────────────────────────────────────────
