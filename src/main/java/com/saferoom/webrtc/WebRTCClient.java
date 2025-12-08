@@ -458,26 +458,12 @@ public class WebRTCClient {
             stunServer.urls.add("stun:stun.l.google.com:19302");
             stunServer.urls.add("stun:stun1.l.google.com:19302");
             stunServer.urls.add("stun:stun2.l.google.com:19302");
+            stunServer.urls.add("stun:stun3.l.google.com:19302");
+            stunServer.urls.add("stun:stun4.l.google.com:19302");
             iceServers.add(stunServer);
 
-            // TURN server (for symmetric NAT - REQUIRED for cross-network calls)
-            // Using free OpenRelay TURN servers
-            RTCIceServer turnServer = new RTCIceServer();
-            turnServer.urls.add("turn:openrelay.metered.ca:80");
-            turnServer.urls.add("turn:openrelay.metered.ca:443");
-            turnServer.urls.add("turn:openrelay.metered.ca:443?transport=tcp");
-            turnServer.username = "openrelayproject";
-            turnServer.password = "openrelayproject";
-            iceServers.add(turnServer);
-
-            // Alternative TURN (backup)
-            RTCIceServer turnServer2 = new RTCIceServer();
-            turnServer2.urls.add("turn:relay.metered.ca:80");
-            turnServer2.urls.add("turn:relay.metered.ca:443");
-            turnServer2.urls.add("turn:relay.metered.ca:443?transport=tcp");
-            turnServer2.username = "e8dd65b92c62d5e948d06b16";
-            turnServer2.password = "uWdWNmkhvyqTEj3I";
-            iceServers.add(turnServer2);
+            // ⚠️ TURN SERVERS REMOVED by request (Pure P2P Mode)
+            // Note: Communication between symmetric NATs will likely fail.
 
             System.out.printf("[WebRTC] Configured %d ICE servers (STUN + TURN)%n", iceServers.size());
 
