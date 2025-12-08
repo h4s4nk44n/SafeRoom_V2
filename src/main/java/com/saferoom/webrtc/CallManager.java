@@ -49,6 +49,9 @@ public class CallManager {
     // 🧊 ICE Candidate Buffering to prevent race conditions
     private final java.util.List<WebRTCSignal> pendingIceCandidates = new java.util.ArrayList<>();
 
+    // ⚡ FAST P2P: Pre-generated offer to send immediately on accept
+    private String preGeneratedOffer;
+
     /**
      * Call states (matching server-side WebRTCSessionManager.CallState)
      */
@@ -188,6 +191,16 @@ public class CallManager {
                         System.out.println("[CallManager] 🎥 Local tracks ready (caller) - notifying GUI");
                         onLocalTracksReadyCallback.run();
                     }
+
+                    // ⚡ FAST P2P: Generate OFFER now (during RINGING) so it's ready instantly
+                    System.out.println("[CallManager] ⚡ Generating Early Offer during RINGING...");
+                    webrtcClient.createOffer().thenAccept(sdp -> {
+                        this.preGeneratedOffer = sdp;
+                        System.out.println("[CallManager] ⚡ Early Offer generated and ready!");
+                    }).exceptionally(ex -> {
+                        System.err.printf("[CallManager] ❌ Failed to generate Early Offer: %s%n", ex.getMessage());
+                        return null;
+                    });
 
                     return callId;
                 })
@@ -498,12 +511,21 @@ public class CallManager {
 
         this.currentState = CallState.CONNECTING;
 
-        // Create SDP offer
-        webrtcClient.createOffer().thenAccept(sdp -> {
-            // Send OFFER to callee
-            signalingClient.sendOffer(currentCallId, remoteUsername, sdp);
-            System.out.println("[CallManager] Offer sent");
-        });
+        this.currentState = CallState.CONNECTING;
+
+        // ⚡ FAST P2P: Send pre-generated offer if available
+        if (preGeneratedOffer != null) {
+            System.out.println("[CallManager] ⚡ Sending Early Offer immediately!");
+            signalingClient.sendOffer(currentCallId, remoteUsername, preGeneratedOffer);
+            preGeneratedOffer = null; // Consume it
+        } else {
+            // Fallback (race condition where answer happened before offer gen finished?)
+            System.out.println("[CallManager] ⚠️ Early offer not ready, generating now...");
+            webrtcClient.createOffer().thenAccept(sdp -> {
+                signalingClient.sendOffer(currentCallId, remoteUsername, sdp);
+                System.out.println("[CallManager] Offer sent");
+            });
+        }
 
         if (onCallAcceptedCallback != null) {
             onCallAcceptedCallback.accept(currentCallId);

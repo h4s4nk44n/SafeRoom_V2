@@ -470,6 +470,11 @@ public class WebRTCClient {
             RTCConfiguration config = new RTCConfiguration();
             config.iceServers = iceServers;
 
+            // ⚡ FAST P2P OPTIMIZATIONS ⚡
+            config.bundlePolicy = RTCBundlePolicy.MAX_BUNDLE; // Multiplex audio/video on one port quickly
+            config.rtcpMuxPolicy = RTCRtcpMuxPolicy.REQUIRE; // Require RTCP Mux (standard, faster)
+                                                             // paths
+
             // Create peer connection
             peerConnection = factory.createPeerConnection(config, new PeerConnectionObserver() {
                 @Override
@@ -599,6 +604,12 @@ public class WebRTCClient {
                             System.out.println("[WebRTC] Offer created and set as local description");
                             String sdp = description.sdp;
 
+                            // ⚡ MINIMIZE SDP
+                            // Strip unused codecs/extensions for faster transmission
+                            String optimizedSdp = SDPUtils.mungeSDP(description.sdp);
+                            System.out.printf("[WebRTC] Optimized SDP from %d bytes to %d bytes%n",
+                                    description.sdp.length(), optimizedSdp.length());
+
                             // Log video codec info from SDP
                             logSdpVideoCodecs(sdp, "OFFER");
 
@@ -657,13 +668,20 @@ public class WebRTCClient {
                             System.out.println("[WebRTC] Answer created and set as local description");
                             String sdp = description.sdp;
 
+                            // ⚡ MINIMIZE SDP
+                            // Strip unused codecs/extensions for faster transmission
+                            String optimizedSdp = SDPUtils.mungeSDP(description.sdp);
+                            System.out.printf("[WebRTC] Optimized SDP from %d bytes to %d bytes%n",
+                                    description.sdp.length(), optimizedSdp.length());
+
                             // Log video codec info from SDP
-                            logSdpVideoCodecs(sdp, "ANSWER");
+                            logSdpVideoCodecs(optimizedSdp, "ANSWER");
 
                             if (onLocalSDPCallback != null) {
-                                onLocalSDPCallback.accept(sdp);
+                                onLocalSDPCallback.accept(optimizedSdp);
                             }
-                            future.complete(sdp);
+
+                            future.complete(optimizedSdp);
                         }
 
                         @Override
