@@ -42,6 +42,10 @@ public class WebRTCClient {
     private static volatile boolean playoutStarted = false;
     private static volatile boolean recordingStarted = false;
 
+    // Device Hot-Swap State
+    private static String currentMicName = "";
+    private static String currentSpeakerName = "";
+    private static volatile boolean isMonitoring = false;
     // Virtual Thread executor for async WebRTC operations (ICE, signaling,
     // DataChannel)
     private static ExecutorService webrtcExecutor;
@@ -103,7 +107,16 @@ public class WebRTCClient {
             // Initialize PeerConnectionFactory with audio module
             initPeerConnectionFactory();
 
+            // detect initial devices for monitoring
+            AudioDevice defaultMic = MediaDevices.getDefaultAudioCaptureDevice();
+            if (defaultMic != null)
+                currentMicName = defaultMic.getName();
+
+            AudioDevice defaultSpeaker = MediaDevices.getDefaultAudioRenderDevice();
+            if (defaultSpeaker != null)
+                currentSpeakerName = defaultSpeaker.getName();
             initialized = true;
+            startDeviceMonitor();
             System.out.println("[WebRTC] ═══════════════════════════════════════════════════════════");
             System.out.println("[WebRTC] WebRTC initialized successfully!");
             System.out.println("[WebRTC] ═══════════════════════════════════════════════════════════");
@@ -443,32 +456,22 @@ public class WebRTCClient {
             stunServer.urls.add("stun:stun.l.google.com:19302");
             stunServer.urls.add("stun:stun1.l.google.com:19302");
             stunServer.urls.add("stun:stun2.l.google.com:19302");
+            stunServer.urls.add("stun:stun3.l.google.com:19302");
+            stunServer.urls.add("stun:stun4.l.google.com:19302");
             iceServers.add(stunServer);
 
-            // TURN server (for symmetric NAT - REQUIRED for cross-network calls)
-            // Using free OpenRelay TURN servers
-            RTCIceServer turnServer = new RTCIceServer();
-            turnServer.urls.add("turn:openrelay.metered.ca:80");
-            turnServer.urls.add("turn:openrelay.metered.ca:443");
-            turnServer.urls.add("turn:openrelay.metered.ca:443?transport=tcp");
-            turnServer.username = "openrelayproject";
-            turnServer.password = "openrelayproject";
-            iceServers.add(turnServer);
-
-            // Alternative TURN (backup)
-            RTCIceServer turnServer2 = new RTCIceServer();
-            turnServer2.urls.add("turn:relay.metered.ca:80");
-            turnServer2.urls.add("turn:relay.metered.ca:443");
-            turnServer2.urls.add("turn:relay.metered.ca:443?transport=tcp");
-            turnServer2.username = "e8dd65b92c62d5e948d06b16";
-            turnServer2.password = "uWdWNmkhvyqTEj3I";
-            iceServers.add(turnServer2);
+            // ⚠️ TURN SERVERS REMOVED by request (Pure P2P Mode)
+            // Note: Communication between symmetric NATs will likely fail.
 
             System.out.printf("[WebRTC] Configured %d ICE servers (STUN + TURN)%n", iceServers.size());
 
             RTCConfiguration config = new RTCConfiguration();
             config.iceServers = iceServers;
 
+            // ⚡ FAST P2P OPTIMIZATIONS ⚡
+            config.bundlePolicy = RTCBundlePolicy.MAX_BUNDLE; // Multiplex audio/video on one port quickly
+            config.rtcpMuxPolicy = RTCRtcpMuxPolicy.REQUIRE; // Require RTCP Mux (standard, faster)
+                                                             // paths
             // Create peer connection
             peerConnection = factory.createPeerConnection(config, new PeerConnectionObserver() {
                 @Override
@@ -598,13 +601,24 @@ public class WebRTCClient {
                             System.out.println("[WebRTC] Offer created and set as local description");
                             String sdp = description.sdp;
 
+                            // ⚡ MINIMIZE SDP
+                            // Strip unused codecs/extensions for faster transmission
+                            String optimizedSdp = SDPUtils.mungeSDP(description.sdp);
+
+                            // ⚡ FIX ONE-WAY VIDEO RACE
+                            // Force 'sendrecv' even if track isn't fully attached yet (Early Offer)
+                            optimizedSdp = SDPUtils.enforceSendRecv(optimizedSdp, "video");
+
+                            System.out.printf("[WebRTC] Optimized SDP from %d bytes to %d bytes%n",
+                                    description.sdp.length(), optimizedSdp.length());
+
                             // Log video codec info from SDP
-                            logSdpVideoCodecs(sdp, "OFFER");
+                            logSdpVideoCodecs(optimizedSdp, "OFFER");
 
                             if (onLocalSDPCallback != null) {
-                                onLocalSDPCallback.accept(sdp);
+                                onLocalSDPCallback.accept(optimizedSdp);
                             }
-                            future.complete(sdp);
+                            future.complete(optimizedSdp);
                         }
 
                         @Override
@@ -656,13 +670,25 @@ public class WebRTCClient {
                             System.out.println("[WebRTC] Answer created and set as local description");
                             String sdp = description.sdp;
 
+                            // ⚡ MINIMIZE SDP
+                            // Strip unused codecs/extensions for faster transmission
+                            String optimizedSdp = SDPUtils.mungeSDP(description.sdp);
+
+                            // ⚡ FIX ONE-WAY VIDEO RACE
+                            // Force 'sendrecv' in Answer too
+                            optimizedSdp = SDPUtils.enforceSendRecv(optimizedSdp, "video");
+
+                            System.out.printf("[WebRTC] Optimized SDP from %d bytes to %d bytes%n",
+                                    description.sdp.length(), optimizedSdp.length());
+
                             // Log video codec info from SDP
-                            logSdpVideoCodecs(sdp, "ANSWER");
+                            logSdpVideoCodecs(optimizedSdp, "ANSWER");
 
                             if (onLocalSDPCallback != null) {
-                                onLocalSDPCallback.accept(sdp);
+                                onLocalSDPCallback.accept(optimizedSdp);
                             }
-                            future.complete(sdp);
+
+                            future.complete(optimizedSdp);
                         }
 
                         @Override
@@ -833,7 +859,6 @@ public class WebRTCClient {
                 System.err.printf("[WebRTC] Error stopping audio devices: %s%n", e.getMessage());
             }
         }
-
         System.out.println("[WebRTC] Connection closed");
     }
 
@@ -1419,5 +1444,122 @@ public class WebRTCClient {
         }
 
         System.out.printf("[WebRTC] ═══════════════════════════════════════════%n");
+    }
+
+    /**
+     * Start the device monitor loop (Hot-Swap)
+     */
+    private static void startDeviceMonitor() {
+        if (isMonitoring)
+            return;
+        isMonitoring = true;
+
+        Thread monitorThread = Thread.ofVirtual().name("webrtc-device-monitor").start(() -> {
+            System.out.println("[WebRTC] 🎧 Device monitor started (Hot-Swap enabled)");
+
+            while (initialized && isMonitoring) {
+                try {
+                    // Poll every 250ms (Quarter second - feels instant)
+                    Thread.sleep(250);
+
+                    // Check Microphone
+                    AudioDevice defaultMic = MediaDevices.getDefaultAudioCaptureDevice();
+                    if (defaultMic != null && !defaultMic.getName().equals(currentMicName)) {
+                        System.out.println("[WebRTC] ⚠️ Default microphone changed!");
+                        System.out.println("   Old: " + currentMicName);
+                        System.out.println("   New: " + defaultMic.getName());
+
+                        switchMicrophone(defaultMic);
+                    }
+
+                    // Check Speaker
+                    AudioDevice defaultSpeaker = MediaDevices.getDefaultAudioRenderDevice();
+                    if (defaultSpeaker != null && !defaultSpeaker.getName().equals(currentSpeakerName)) {
+                        System.out.println("[WebRTC] ⚠️ Default speaker changed!");
+                        System.out.println("   Old: " + currentSpeakerName);
+                        System.out.println("   New: " + defaultSpeaker.getName());
+
+                        switchSpeaker(defaultSpeaker);
+                    }
+
+                } catch (InterruptedException e) {
+                    break;
+                } catch (Exception e) {
+                    System.err.println("[WebRTC] Device monitor error: " + e.getMessage());
+                }
+            }
+            System.out.println("[WebRTC] Device monitor stopped");
+        });
+    }
+
+    /**
+     * Safely switches the microphone without restarting the entire peer connection.
+     */
+    private static synchronized void switchMicrophone(AudioDevice newDevice) {
+        if (audioDeviceModule == null)
+            return;
+
+        System.out.println("[WebRTC] 🔄 Switching microphone to: " + newDevice.getName());
+
+        try {
+            // 1. Stop recording if active (releases old device lock)
+            boolean wasRecording = recordingStarted;
+            if (wasRecording) {
+                audioDeviceModule.stopRecording();
+            }
+
+            // 2. Set new device
+            audioDeviceModule.setRecordingDevice(newDevice);
+            currentMicName = newDevice.getName();
+
+            // 3. Restart recording if it was active
+            if (wasRecording) {
+                audioDeviceModule.initRecording();
+                audioDeviceModule.startRecording();
+                System.out.println("[WebRTC] ✅ Microphone switched and restarted successfully");
+            } else {
+                System.out.println("[WebRTC] ✅ Microphone swapped (idle)");
+            }
+
+        } catch (Exception e) {
+            System.err.println("[WebRTC] ❌ Error switching microphone: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Safely switches the speaker/headphones without restarting the entire peer
+     * connection.
+     */
+    private static synchronized void switchSpeaker(AudioDevice newDevice) {
+        if (audioDeviceModule == null)
+            return;
+
+        System.out.println("[WebRTC] 🔄 Switching speaker to: " + newDevice.getName());
+
+        try {
+            // 1. Stop playout if active (releases old device lock)
+            boolean wasPlayout = playoutStarted;
+            if (wasPlayout) {
+                audioDeviceModule.stopPlayout();
+            }
+
+            // 2. Set new device
+            audioDeviceModule.setPlayoutDevice(newDevice);
+            currentSpeakerName = newDevice.getName();
+
+            // 3. Restart playout if it was active
+            if (wasPlayout) {
+                audioDeviceModule.initPlayout();
+                audioDeviceModule.startPlayout();
+                System.out.println("[WebRTC] ✅ Speaker switched and restarted successfully");
+            } else {
+                System.out.println("[WebRTC] ✅ Speaker swapped (idle)");
+            }
+
+        } catch (Exception e) {
+            System.err.println("[WebRTC] ❌ Error switching speaker: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }

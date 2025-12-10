@@ -1,6 +1,5 @@
 package com.saferoom.webrtc.screenshare;
 
-import com.saferoom.media.screenshare.LinuxScreenShareEngine;
 import com.saferoom.system.PlatformDetector;
 import dev.onvoid.webrtc.CreateSessionDescriptionObserver;
 import dev.onvoid.webrtc.PeerConnectionFactory;
@@ -8,7 +7,6 @@ import dev.onvoid.webrtc.RTCOfferOptions;
 import dev.onvoid.webrtc.RTCRtpSender;
 import dev.onvoid.webrtc.RTCSessionDescription;
 import dev.onvoid.webrtc.SetSessionDescriptionObserver;
-import dev.onvoid.webrtc.media.video.CustomVideoSource;
 import dev.onvoid.webrtc.media.video.VideoDesktopSource;
 import dev.onvoid.webrtc.media.video.VideoTrack;
 import dev.onvoid.webrtc.media.video.desktop.DesktopSource;
@@ -27,9 +25,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Platform-aware screen share orchestrator. Bridges the Linux-specific FFmpeg capture engine
- * with the dev.onvoid WebRTC bindings while keeping the Windows/macOS path on the native
- * ScreenCapturer.
+ * Platform-aware screen share orchestrator. Uses native dev.onvoid WebRTC 
+ * VideoDesktopSource for Windows/macOS. Linux screen share is currently disabled
+ * pending migration to a native capture solution.
+ * 
+ * NOTE: Linux screen share via FFmpeg has been removed to reduce dependency bloat.
  */
 public final class ScreenShareManager implements AutoCloseable {
 
@@ -45,10 +45,8 @@ public final class ScreenShareManager implements AutoCloseable {
 
     private volatile boolean sharing;
 
-    private CustomVideoSource customVideoSource;
     private VideoDesktopSource desktopSource;
     private VideoTrack screenTrack;
-    private LinuxScreenShareEngine linuxEngine;
     private RTCRtpSender screenSender;
     private RTCRtpSender cameraSender;
     private VideoTrack cameraTrack;
@@ -65,14 +63,30 @@ public final class ScreenShareManager implements AutoCloseable {
     }
 
     /**
-     * Starts screen sharing for the current platform. On Linux this wires our custom FFmpeg
-     * engine, otherwise it falls back to the native dev.onvoid desktop capturer.
+     * Starts screen sharing for the current platform.
+     * NOTE: Linux screen share is currently disabled. Only Windows/macOS are supported.
      */
     public CompletableFuture<Void> startScreenShare() {
         return startScreenShare(ScreenSourceOption.auto());
     }
 
+    /**
+     * Checks if screen sharing is supported on the current platform.
+     * @return true if supported (Windows/macOS), false if not (Linux)
+     */
+    public static boolean isScreenShareSupported() {
+        return !PlatformDetector.isLinux();
+    }
+
     public CompletableFuture<Void> startScreenShare(ScreenSourceOption sourceOption) {
+        // Linux screen share is disabled - reject early with clear message
+        if (PlatformDetector.isLinux()) {
+            LOGGER.warning("[ScreenShareManager] Screen sharing is temporarily disabled on Linux");
+            return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("Screen sharing is temporarily disabled on Linux. " +
+                    "This feature requires native capture support which is not yet available."));
+        }
+
         ScreenSourceOption effectiveOption = sourceOption != null ? sourceOption : ScreenSourceOption.auto();
         return CompletableFuture.supplyAsync(() -> {
             synchronized (stateLock) {
@@ -82,11 +96,7 @@ public final class ScreenShareManager implements AutoCloseable {
                 sharing = true;
             }
             try {
-                if (PlatformDetector.isLinux()) {
-                    startLinuxCapture(effectiveOption);
-                } else {
-                    startNativeCapture(effectiveOption);
-                }
+                startNativeCapture(effectiveOption);
             } catch (Exception ex) {
                 synchronized (stateLock) {
                     sharing = false;
@@ -118,24 +128,6 @@ public final class ScreenShareManager implements AutoCloseable {
 
     public boolean isScreenShareActive() {
         return sharing;
-    }
-
-    private void startLinuxCapture(ScreenSourceOption option) throws Exception {
-        ScreenSourceOption.Kind kind = option.kind();
-        if (!(kind == ScreenSourceOption.Kind.LINUX_ENTIRE_DESKTOP || kind == ScreenSourceOption.Kind.AUTO)) {
-            throw new IllegalArgumentException("Linux screen share only supports entire desktop selection");
-        }
-        LOGGER.info("[ScreenShareManager] Starting Linux capture pipeline");
-        customVideoSource = new CustomVideoSource();
-        linuxEngine = new LinuxScreenShareEngine(customVideoSource);
-
-        String trackId = "screen-share-linux-" + System.currentTimeMillis();
-        screenTrack = factory.createVideoTrack(trackId, customVideoSource);
-        screenTrack.setEnabled(true);
-
-        linuxEngine.start();
-        publishTrack(screenTrack);
-        LOGGER.info("[ScreenShareManager] Linux screen share track attached");
     }
 
     private void startNativeCapture(ScreenSourceOption option) throws Exception {
@@ -240,26 +232,6 @@ public final class ScreenShareManager implements AutoCloseable {
     }
 
     private void cleanupCapture() {
-        if (linuxEngine != null) {
-            try {
-                linuxEngine.close();
-            } catch (Exception ex) {
-                LOGGER.log(Level.WARNING, "[ScreenShareManager] Failed to stop Linux engine", ex);
-            } finally {
-                linuxEngine = null;
-            }
-        }
-
-        if (customVideoSource != null) {
-            try {
-                customVideoSource.dispose();
-            } catch (Exception ex) {
-                LOGGER.log(Level.WARNING, "[ScreenShareManager] Failed to dispose CustomVideoSource", ex);
-            } finally {
-                customVideoSource = null;
-            }
-        }
-
         if (desktopSource != null) {
             try {
                 desktopSource.stop();

@@ -8,7 +8,6 @@ import dev.onvoid.webrtc.media.video.desktop.DesktopSource;
 import dev.onvoid.webrtc.media.video.desktop.ScreenCapturer;
 import dev.onvoid.webrtc.media.video.desktop.WindowCapturer;
 import javafx.application.Platform;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
@@ -31,11 +30,7 @@ import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import org.bytedeco.javacv.FFmpegFrameGrabber;
-import org.bytedeco.javacv.Frame;
-import org.bytedeco.javacv.Java2DFrameConverter;
 
-import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -172,22 +167,11 @@ public final class ScreenSourcePickerDialog implements AutoCloseable {
         if (closed.get()) {
             return List.of();
         }
-        return PlatformDetector.isLinux() ? collectLinuxSources() : collectDesktopSources();
-    }
-
-    private List<SourceCandidate> collectLinuxSources() {
-        List<SourceCandidate> candidates = new ArrayList<>();
-        List<Screen> screens = Screen.getScreens();
-        if (screens.isEmpty()) {
-            screens = List.of(Screen.getPrimary());
+        // Linux screen share is disabled - return empty list
+        if (PlatformDetector.isLinux()) {
+            return List.of();
         }
-        for (int i = 0; i < screens.size(); i++) {
-            String subtitle = "Monitor " + (i + 1);
-            candidates.add(new SourceCandidate(ScreenSourceOption.linuxMonitor(subtitle, i), subtitle, i));
-        }
-        candidates.add(new SourceCandidate(ScreenSourceOption.linuxEntireDesktop("Entire Desktop"),
-            "All displays", -1));
-        return candidates;
+        return collectDesktopSources();
     }
 
     private List<SourceCandidate> collectDesktopSources() {
@@ -245,6 +229,24 @@ public final class ScreenSourcePickerDialog implements AutoCloseable {
 
     private void populateSources(List<SourceCandidate> candidates) {
         grid.getChildren().clear();
+        
+        // Show special message for Linux
+        if (PlatformDetector.isLinux()) {
+            statusLabel.setText("⚠️ Screen sharing is temporarily disabled on Linux.");
+            statusLabel.setStyle("-fx-text-fill: #f59e0b;"); // Warning color
+            shareButton.setDisable(true);
+            
+            Label infoLabel = new Label(
+                "Screen sharing on Linux requires native capture support\n" +
+                "which is not yet available. This feature will be enabled\n" +
+                "in a future update."
+            );
+            infoLabel.setStyle("-fx-text-fill: #94a1b2; -fx-font-size: 14px; -fx-text-alignment: center;");
+            infoLabel.setWrapText(true);
+            grid.getChildren().add(infoLabel);
+            return;
+        }
+        
         if (candidates.isEmpty()) {
             statusLabel.setText("No shareable sources were found.");
             return;
@@ -279,9 +281,6 @@ public final class ScreenSourcePickerDialog implements AutoCloseable {
     }
 
     private CompletableFuture<Image> captureThumbnailAsync(SourceCandidate candidate) {
-        if (PlatformDetector.isLinux() && candidate.monitorIndex() < 0) {
-            return scheduleOnExecutor(this::captureLinuxThumbnail);
-        }
         if (candidate.monitorIndex() >= 0) {
             return prepareBoundsAsync(candidate.monitorIndex()).thenCompose(this::captureWithRobot);
         }
@@ -343,53 +342,6 @@ public final class ScreenSourcePickerDialog implements AutoCloseable {
             fxRobot = new Robot();
         }
         return fxRobot;
-    }
-
-    private Image captureLinuxThumbnail() throws Exception {
-        FFmpegFrameGrabber grabber = createLinuxGrabber();
-        if (grabber == null) {
-            return null;
-        }
-        try (Java2DFrameConverter converter = new Java2DFrameConverter()) {
-            Frame frame = grabber.grabImage();
-            if (frame == null) {
-                return null;
-            }
-            BufferedImage bufferedImage = converter.getBufferedImage(frame);
-            return SwingFXUtils.toFXImage(bufferedImage, null);
-        } finally {
-            try {
-                grabber.stop();
-            } catch (Exception ignored) {
-            }
-            try {
-                grabber.release();
-            } catch (Exception ignored) {
-            }
-        }
-    }
-
-    private FFmpegFrameGrabber createLinuxGrabber() {
-        FFmpegFrameGrabber grabber = openGrabber("pipewire:", "pipewire");
-        if (grabber != null) {
-            return grabber;
-        }
-        return openGrabber(":0.0", "x11grab");
-    }
-
-    private FFmpegFrameGrabber openGrabber(String device, String format) {
-        try {
-            FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(device);
-            grabber.setFormat(format);
-            grabber.setImageWidth(640);
-            grabber.setImageHeight(360);
-            grabber.setFrameRate(5);
-            grabber.start();
-            return grabber;
-        } catch (Exception ex) {
-            LOGGER.log(Level.FINE, "Failed to start grabber for device " + device, ex);
-            return null;
-        }
     }
 
     private static Image createWindowPlaceholder() {

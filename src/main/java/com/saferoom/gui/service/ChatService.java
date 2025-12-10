@@ -9,16 +9,12 @@ import com.saferoom.gui.model.MessageType;
 import com.saferoom.gui.model.User;
 import com.saferoom.client.ClientMenu;
 import com.saferoom.p2p.FileTransferObserver;
-import java.awt.image.BufferedImage;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.application.Platform;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.rendering.PDFRenderer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -553,15 +549,14 @@ public class ChatService {
         return name.endsWith(".pdf");
     }
 
+    /**
+     * PDF thumbnail generation has been disabled to reduce dependencies.
+     * PDFs will show a generic document icon instead.
+     */
     private Image generatePdfThumbnail(Path pdfPath) {
-        try (PDDocument doc = PDDocument.load(pdfPath.toFile())) {
-            PDFRenderer renderer = new PDFRenderer(doc);
-            BufferedImage page = renderer.renderImageWithDPI(0, 96);
-            return SwingFXUtils.toFXImage(page, null);
-        } catch (Exception e) {
-            System.err.println("[Chat] PDF thumbnail failed: " + e.getMessage());
-            return null;
-        }
+        // PDF thumbnail via PDFBox has been removed to reduce dependencies.
+        // Return null to use default document icon.
+        return null;
     }
 
     // No dummy messages - start with clean slate

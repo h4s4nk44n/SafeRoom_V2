@@ -897,60 +897,14 @@ public class ChatViewController {
     }
     
     /**
-     * Open PDF in a viewer modal (like MessageCell does with PDFBox)
+     * Opens PDF with the system default application.
+     * In-app PDF rendering via PDFBox has been removed to reduce dependencies.
      */
     private void openPdfViewerModal(FileAttachment attachment) {
-        try {
-            java.nio.file.Path path = attachment.getLocalPath();
-            
-            javafx.stage.Stage stage = new javafx.stage.Stage();
-            stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
-            stage.setTitle(attachment.getFileName());
-            
-            VBox pages = new VBox(12);
-            pages.setStyle("-fx-padding: 16; -fx-background-color: #0f111a;");
-            
-            // Load PDF pages using PDFBox
-            try (org.apache.pdfbox.pdmodel.PDDocument doc = 
-                    org.apache.pdfbox.pdmodel.PDDocument.load(path.toFile())) {
-                
-                org.apache.pdfbox.rendering.PDFRenderer renderer = 
-                    new org.apache.pdfbox.rendering.PDFRenderer(doc);
-                
-                int maxPages = Math.min(doc.getNumberOfPages(), 20); // Limit to 20 pages
-                for (int i = 0; i < maxPages; i++) {
-                    java.awt.image.BufferedImage bimg = renderer.renderImageWithDPI(i, 100);
-                    Image fxImg = javafx.embed.swing.SwingFXUtils.toFXImage(bimg, null);
-                    ImageView iv = new ImageView(fxImg);
-                    iv.setPreserveRatio(true);
-                    iv.setFitWidth(600);
-                    pages.getChildren().add(iv);
-                }
-                
-                if (doc.getNumberOfPages() > 20) {
-                    Label moreLabel = new Label("... and " + (doc.getNumberOfPages() - 20) + " more pages");
-                    moreLabel.setStyle("-fx-text-fill: #94a1b2; -fx-font-size: 14px;");
-                    pages.getChildren().add(moreLabel);
-                }
-            }
-            
-            javafx.scene.control.ScrollPane scroll = new javafx.scene.control.ScrollPane(pages);
-            scroll.setFitToWidth(true);
-            scroll.setStyle("-fx-background: #0f111a; -fx-background-color: #0f111a;");
-            
-            javafx.scene.Scene scene = new javafx.scene.Scene(scroll, 650, 800);
-            scene.setOnKeyPressed(e -> {
-                if (e.getCode() == KeyCode.ESCAPE) {
-                    stage.close();
-                }
-            });
-            
-            stage.setScene(scene);
-            stage.show();
-        } catch (Exception e) {
-            System.err.println("[ChatView] Failed to open PDF viewer: " + e.getMessage());
-            openWithSystemApp(attachment.getLocalPath());
+        if (attachment == null || attachment.getLocalPath() == null) {
+            return;
         }
+        openWithSystemApp(attachment.getLocalPath());
     }
     
     /**
@@ -1656,11 +1610,29 @@ public class ChatViewController {
                 if (currentActiveCallDialog == null) {
                     currentActiveCallDialog = new ActiveCallDialog(currentChannelId, callId, currentCallVideoEnabled, callManager);
                     currentActiveCallDialog.show();
+                    
+                    // 🎥 For CALLER: Tracks are ALREADY added in startCall()
+                    // So we attach local video immediately here
                     if (currentCallVideoEnabled) {
                         VideoTrack localVideo = callManager.getLocalVideoTrack();
                         if (localVideo != null) {
+                            System.out.println("[ChatViewController] 🎥 Attaching local video (CALLER - tracks already ready)");
                             currentActiveCallDialog.attachLocalVideo(localVideo);
                         }
+                    }
+                }
+            });
+        });
+        
+        // 🎥 For CALLEE: Attach local video when tracks are actually ready
+        // (tracks are added in handleOffer() AFTER dialog is created)
+        callManager.setOnLocalTracksReadyCallback(() -> {
+            Platform.runLater(() -> {
+                if (currentActiveCallDialog != null && currentCallVideoEnabled) {
+                    VideoTrack localVideo = callManager.getLocalVideoTrack();
+                    if (localVideo != null) {
+                        System.out.println("[ChatViewController] 🎥 Attaching local video (CALLEE - tracks now ready)");
+                        currentActiveCallDialog.attachLocalVideo(localVideo);
                     }
                 }
             });

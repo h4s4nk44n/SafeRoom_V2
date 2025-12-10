@@ -718,12 +718,8 @@ public class MainController {
                                         callInfo.callerUsername, callInfo.callId, callInfo.videoEnabled, callManager
                                 );
                                 currentActiveCallDialog.show();
-                                if (callInfo.videoEnabled) {
-                                    dev.onvoid.webrtc.media.video.VideoTrack localVideo = callManager.getLocalVideoTrack();
-                                    if (localVideo != null) {
-                                        currentActiveCallDialog.attachLocalVideo(localVideo);
-                                    }
-                                }
+                                // NOTE: Local video will be attached via onLocalTracksReadyCallback
+                                // because tracks are added AFTER offer is received (deferred)
                             });
                         } else {
                             callManager.rejectCall(callInfo.callId);
@@ -734,6 +730,20 @@ public class MainController {
                 }
             });
         });
+        
+        // 🎥 Attach local video when tracks are actually ready
+        callManager.setOnLocalTracksReadyCallback(() -> {
+            Platform.runLater(() -> {
+                if (currentActiveCallDialog != null) {
+                    dev.onvoid.webrtc.media.video.VideoTrack localVideo = callManager.getLocalVideoTrack();
+                    if (localVideo != null) {
+                        System.out.println("[MainController] 🎥 Attaching local video (tracks now ready)");
+                        currentActiveCallDialog.attachLocalVideo(localVideo);
+                    }
+                }
+            });
+        });
+        
         callManager.setOnCallEndedCallback(callId -> {
             Platform.runLater(() -> {
                 if (currentActiveCallDialog != null) {

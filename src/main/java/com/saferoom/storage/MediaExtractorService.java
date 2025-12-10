@@ -1,12 +1,9 @@
 package com.saferoom.storage;
 
 import javafx.scene.image.Image;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.rendering.PDFRenderer;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -50,37 +47,16 @@ public class MediaExtractorService {
     }
     
     /**
-     * Extract thumbnail from PDF document
-     * Returns first page as JPEG image
+     * PDF thumbnail extraction has been disabled to reduce dependencies.
+     * Returns null - PDFs will show a generic document icon instead.
      * 
      * @param pdfPath Path to PDF file
-     * @return CompletableFuture<Image> JavaFX Image of first page
+     * @return CompletableFuture<Image> Always returns null
      */
     public CompletableFuture<Image> extractPdfThumbnailAsync(Path pdfPath) {
-        return CompletableFuture.supplyAsync(() -> {
-            try (PDDocument document = PDDocument.load(pdfPath.toFile())) {
-                if (document.getNumberOfPages() == 0) {
-                    LOGGER.warning("PDF has no pages: " + pdfPath);
-                    return null;
-                }
-                
-                PDFRenderer renderer = new PDFRenderer(document);
-                BufferedImage buffered = renderer.renderImageWithDPI(0, 150);
-                
-                // Scale down to thumbnail size
-                BufferedImage scaled = scaleImage(buffered, THUMBNAIL_SIZE);
-                
-                // Convert to JavaFX Image
-                Image fxImage = javafx.embed.swing.SwingFXUtils.toFXImage(scaled, null);
-                
-                LOGGER.fine("PDF thumbnail extracted: " + pdfPath.getFileName());
-                return fxImage;
-                
-            } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Failed to extract PDF thumbnail: " + pdfPath, e);
-                return null;
-            }
-        }, executor);
+        // PDF thumbnail via PDFBox has been removed to reduce dependencies.
+        // Return null to use default document icon.
+        return CompletableFuture.completedFuture(null);
     }
     
     /**
