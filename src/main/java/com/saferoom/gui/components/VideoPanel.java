@@ -13,7 +13,7 @@ import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 
-import java.nio.IntBuffer;
+import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -25,7 +25,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * <li><b>Frame Rate Throttling:</b> 30 FPS cap ile gereksiz paint önlenir</li>
  * <li><b>Reusable WritableImage:</b> Resolution değişmedikçe yeni allocation
  * yok</li>
- * <li><b>IntBuffer Direct Write:</b> int[] → IntBuffer wrap (zero-copy)</li>
+ * <li><b>DirectByteBuffer:</b> Zero-copy pixel transfer from
+ * FrameProcessor</li>
  * <li><b>Cached Dimensions:</b> Resolution change detection optimize
  * edildi</li>
  * </ul>
@@ -34,8 +35,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * 
  * <pre>
  * WritableImage: ~1.2 MB (reused)
- * int[] buffer: ~1.2 MB (pooled by FrameRenderResult)
- * IntBuffer wrapper: ~48 bytes (object header only, wraps existing array)
+ * DirectByteBuffer: ~1.2 MB (pooled by FrameRenderResult)
+ * No heap int[] allocation for pixels.
  * </pre>
  */
 public class VideoPanel extends Canvas {
@@ -43,7 +44,10 @@ public class VideoPanel extends Canvas {
     // ═══════════════════════════════════════════════════════════════════════════════
     // CONSTANTS
     // ═══════════════════════════════════════════════════════════════════════════════
-    private static final PixelFormat<IntBuffer> ARGB_FORMAT = PixelFormat.getIntArgbPreInstance();
+    // Use ByteBgraPreInstance for ByteBuffer compatibility.
+    // Memory layout of 'int ARGB' on Little Endian is B-G-R-A, which matches
+    // ByteBgra.
+    private static final PixelFormat<ByteBuffer> ARGB_FORMAT = PixelFormat.getByteBgraPreInstance();
 
     /** Target frame rate for rendering (30 FPS = smooth playback with low CPU) */
     private static final int TARGET_FPS = 30;
@@ -62,9 +66,6 @@ public class VideoPanel extends Canvas {
     private WritableImage videoImage;
     private int cachedImageWidth = -1;
     private int cachedImageHeight = -1;
-
-    /** IntBuffer wrapper for zero-copy pixel transfer */
-    private IntBuffer pixelBufferWrapper;
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // VIDEO TRACK STATE
@@ -228,16 +229,18 @@ public class VideoPanel extends Canvas {
         // ✅ OPTIMIZATION: Reuse WritableImage when dimensions match
         ensureVideoImage(width, height);
 
-        // ✅ OPTIMIZATION: Wrap existing array instead of copying
-        int[] pixels = frame.getArgbPixels();
-        ensurePixelBuffer(pixels.length);
-        pixelBufferWrapper.clear();
-        pixelBufferWrapper.put(pixels);
-        pixelBufferWrapper.flip();
+        // ✅ OPTIMIZATION: Zero-copy pixel upload
+        // PixelWriter supports writing directly from a ByteBuffer
+        // The buffer is already populated with ARGB ints by FrameRenderResult
+        ByteBuffer buffer = frame.getBuffer();
 
         // Write pixels to image
         PixelWriter pixelWriter = videoImage.getPixelWriter();
-        pixelWriter.setPixels(0, 0, width, height, ARGB_FORMAT, pixelBufferWrapper, width);
+
+        // NOTE: We are using getIntArgbPreInstance logic, but verifying the buffer
+        // format from FrameRenderResult
+        pixelWriter.setPixels(0, 0, width, height, ARGB_FORMAT, buffer, width * 4); // scanlineStride in bytes for
+                                                                                    // IntArgb is width * 4
 
         // Clear background and draw
         gc.setFill(Color.BLACK);
@@ -280,16 +283,6 @@ public class VideoPanel extends Canvas {
             cachedImageHeight = height;
             System.out.printf("[VideoPanel] 📐 New WritableImage: %dx%d (%.2f MB)%n",
                     width, height, (width * height * 4) / (1024.0 * 1024.0));
-        }
-    }
-
-    /**
-     * Ensure IntBuffer has sufficient capacity.
-     * Allocates only when current buffer is too small.
-     */
-    private void ensurePixelBuffer(int requiredSize) {
-        if (pixelBufferWrapper == null || pixelBufferWrapper.capacity() < requiredSize) {
-            pixelBufferWrapper = IntBuffer.allocate(requiredSize);
         }
     }
 
