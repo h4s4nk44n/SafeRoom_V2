@@ -36,12 +36,12 @@ final class ArgbBufferPool {
     /**
      * Buffer limit per resolution.
      */
-    private static final int DEFAULT_PER_RESOLUTION_LIMIT = 8;
+    private static final int DEFAULT_PER_RESOLUTION_LIMIT = 32;
 
     /**
      * Maximum total buffers across all resolutions.
      */
-    private static final int MAX_TOTAL_BUFFERS = 32;
+    private static final int MAX_TOTAL_BUFFERS = 64;
 
     private final Map<Long, ArrayBlockingQueue<ByteBuffer>> pools = new ConcurrentHashMap<>();
     private final int perResolutionLimit;
