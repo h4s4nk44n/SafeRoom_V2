@@ -246,7 +246,7 @@ public class VideoPanel extends Canvas {
         // Calculate aspect-correct draw dimensions
         double canvasWidth = getWidth();
         double canvasHeight = getHeight();
-        double videoAspect = (double) width / height;
+        double videoAspect = (double) width / height;a
         double canvasAspect = canvasWidth / canvasHeight;
 
         double drawWidth;
@@ -365,10 +365,15 @@ public class VideoPanel extends Canvas {
             if (framesSetToLatest % 100 == 0) {
                 System.out.printf("[VideoPanel] 📦 Set %d frames to latestFrame%n", framesSetToLatest);
             }
-            // ✅ MEMORY LEAK FIX: Release previous frame if dropped!
-            FrameRenderResult oldFrame = latestFrame.getAndSet(result);
-            if (oldFrame != null) {
-                oldFrame.release();
+
+            // 🛑 LEAK FIX: Release the previous frame if it wasn't rendered!
+            // FrameProcessor pushes faster than AnimationTimer polls (30 FPS vs ~60+
+            // incoming).
+            // If we overwrite a frame that hasn't been painted, we MUST release it back to
+            // the pool.
+            FrameRenderResult dropped = latestFrame.getAndSet(result);
+            if (dropped != null) {
+                dropped.release();
             }
         });
     }

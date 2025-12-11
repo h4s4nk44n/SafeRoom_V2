@@ -2,55 +2,70 @@
    1. GENEL STİLLER VE KAYDIRMA ÇUBUĞU
    ================================================================= */
 .main-pane {
-  -fx-background-color: #1e2b3b; /* slate-800 */
-  -fx-background-radius: 12px; /* Rounded corners */
+  -fx-background-color: #1e2b3b;
+  /* slate-800 */
+  -fx-background-radius: 12px;
+  /* Rounded corners */
   -fx-border-radius: 12px;
-  -fx-effect: dropshadow(
-          gaussian,
-          rgba(0, 0, 0, 0.3),
-          15,
-          0,
-          0,
-          5
-  ); /* Subtle shadow */
+  -fx-effect: dropshadow(gaussian,
+      rgba(0, 0, 0, 0.3),
+      15,
+      0,
+      0,
+      5);
+  /* Subtle shadow */
 }
+
 .page-container {
   -fx-padding: 32px;
 }
+
 .section-title {
   -fx-font-size: 20px;
   -fx-font-family: "System Bold";
   -fx-text-fill: white;
 }
+
 .scroll-bar {
   -fx-background-color: transparent;
 }
+
 .scroll-bar:vertical {
   -fx-pref-width: 10px;
 }
+
 .scroll-bar:horizontal {
   -fx-pref-height: 10px;
 }
+
 .scroll-bar .thumb {
-  -fx-background-color: #475569; /* Muted Gri */
+  -fx-background-color: #475569;
+  /* Muted Gri */
   -fx-background-radius: 5px;
 }
+
 .scroll-bar .thumb:hover {
-  -fx-background-color: #60a5fa; /* Açık Mavi */
+  -fx-background-color: #60a5fa;
+  /* Açık Mavi */
 }
+
 .scroll-bar .track {
-  -fx-background-color: #1e2b3b; /* Ana içerik arkaplanı */
+  -fx-background-color: #1e2b3b;
+  /* Ana içerik arkaplanı */
   -fx-background-radius: 5px;
   -fx-border-radius: 5px;
 }
+
 .scroll-bar .increment-button,
 .scroll-bar .decrement-button {
   -fx-background-color: transparent;
   -fx-padding: 0;
 }
+
 .scroll-bar .increment-arrow,
 .scroll-bar .decrement-arrow {
-  -fx-shape: " "; /* Okları gizle */
+  -fx-shape: " ";
+  /* Okları gizle */
   -fx-padding: 0;
 }
 
@@ -59,28 +74,35 @@
    ================================================================= */
 .login-background {
   -fx-background-color: #0f172a;
-  -fx-background-radius: 12px; /* Rounded corners for login screen */
+  -fx-background-radius: 12px;
+  /* Rounded corners for login screen */
 }
+
 .login-pane {
   -fx-background-color: rgba(15, 23, 42, 0.5);
   -fx-background-radius: 20px;
   -fx-border-radius: 20px;
-  -fx-effect: dropshadow(gaussian, rgba(147, 51, 234, 0.1), 12, 0, 0, 0); /* PERF: reduced from 30 */
+  -fx-effect: dropshadow(gaussian, rgba(147, 51, 234, 0.1), 12, 0, 0, 0);
+  /* PERF: reduced from 30 */
 }
+
 .logo-icon {
   -fx-fill: #22d3ee;
   -fx-stroke: #22d3ee;
   -fx-stroke-width: 0.5;
 }
+
 .title-label {
   -fx-font-family: "System Bold";
   -fx-font-size: 36px;
   -fx-text-fill: linear-gradient(from 0% 0% to 100% 0%, #3b82f6 0%, #a855f7 100%);
 }
+
 .subtitle-label {
   -fx-font-size: 14px;
   -fx-text-fill: #94a3b8;
 }
+
 .input-field {
   -fx-background-color: rgba(30, 41, 59, 0.5);
   -fx-background-radius: 8px;
@@ -91,9 +113,11 @@
   -fx-font-size: 16px;
   -fx-padding: 15px;
 }
+
 .input-field:focused {
   -fx-border-color: #22d3ee;
 }
+
 .login-button {
   -fx-background-color: linear-gradient(from 0% 0% to 100% 0%, rgba(59, 130, 246, 0.8) 0%, rgba(168, 85, 247, 0.8) 100%);
   -fx-background-radius: 8px;
@@ -102,25 +126,31 @@
   -fx-font-weight: bold;
   -fx-cursor: hand;
 }
+
 .login-button:hover {
   -fx-background-color: linear-gradient(from 0% 0% to 100% 0%, rgba(96, 165, 250, 0.9) 0%, rgba(192, 132, 252, 0.9) 100%);
 }
+
 .footer-label {
   -fx-text-fill: #64748b;
 }
+
 .signup-link,
 .forgot-password {
   -fx-text-fill: #22d3ee;
   -fx-border-color: transparent;
   -fx-underline: false;
 }
+
 .signup-link:hover,
 .forgot-password:hover {
   -fx-underline: true;
 }
+
 .remember-checkbox .text {
   -fx-fill: #94a3b8;
 }
+
 .remember-checkbox {
   -jfx-checked-color: #22d3ee;
   -jfx-unchecked-color: #475569;
@@ -130,10 +160,12 @@
   -fx-text-fill: #64748b;
   -fx-font-weight: bold;
 }
+
 .separator .line {
   -fx-border-color: #475569;
   -fx-border-width: 1 0 0 0;
 }
+
 .social-button {
   -fx-background-color: rgba(30, 41, 59, 0.5);
   -fx-background-radius: 8px;
@@ -146,12 +178,15 @@
   -fx-graphic-text-gap: 20px;
   -fx-cursor: hand;
 }
+
 .social-button:hover {
   -fx-border-color: #22d3ee;
 }
+
 .jfx-button {
   -jfx-rippler-fill: #22d3ee;
 }
+
 .otp-field {
   -fx-background-color: rgba(30, 41, 59, 0.5);
   -fx-background-radius: 8px;
@@ -164,6 +199,7 @@
   -fx-pref-width: 55px;
   -fx-pref-height: 65px;
 }
+
 .otp-field:focused {
   -fx-border-color: #22d3ee;
   -fx-border-width: 2px;
@@ -174,21 +210,26 @@
    ================================================================= */
 .sidebar {
   -fx-background-color: #0f172a;
-  -fx-background-radius: 0px 0px 0px 0px; /* Rounded corners on left side only */
+  -fx-background-radius: 0px 0px 0px 0px;
+  /* Rounded corners on left side only */
 }
+
 .sidebar-header {
   -fx-border-color: #334155;
   -fx-border-width: 0 0 1px 0;
 }
+
 .sidebar-logo-icon {
   -fx-stroke: #2563eb;
   -fx-stroke-width: 1.5;
 }
+
 .sidebar-title {
   -fx-font-size: 20px;
   -fx-font-weight: bold;
   -fx-text-fill: white;
 }
+
 .sidebar-nav {
   -fx-padding: 16px;
   -fx-spacing: 8px;
@@ -200,12 +241,14 @@
   -fx-text-fill: #a0a0a0;
   -fx-font-size: 16px;
   -fx-font-weight: 600;
-  -fx-padding: 14px 20px 14px 23px; /* Sol boşluk 3px arttı */
+  -fx-padding: 14px 20px 14px 23px;
+  /* Sol boşluk 3px arttı */
   -fx-alignment: center-left;
   -fx-cursor: hand;
   -fx-background-radius: 0 12px 12px 0;
   -fx-graphic-text-gap: 16px;
 }
+
 .nav-icon {
   -fx-icon-size: 18px;
   -fx-icon-color: #94a3b8;
@@ -227,7 +270,8 @@
   -fx-min-height: 18px;
   -fx-max-width: 18px;
   -fx-max-height: 18px;
-  -fx-scale-shape: true; /* scale the shape to the region's size */
+  -fx-scale-shape: true;
+  /* scale the shape to the region's size */
   -fx-shape: "m398.5 165.1c19-0.1 26.4 0.3 42.5 2.4 10.7 1.3 25.4 3.6 32.5 5.1 7.1 1.4 18.2 4.1 24.5 5.9 6.3 1.9 17.6 5.5 25 8.1 7.4 2.6 20.5 7.8 29 11.6 8.5 3.8 19.3 9 24 11.5 4.7 2.6 13.7 7.7 20 11.4 6.3 3.7 17.7 11 25.2 16.1 7.5 5.1 19.2 13.6 25.9 18.8 6.8 5.2 17.9 14.4 24.8 20.4 6.9 6.1 19.4 17.8 27.6 26 8.3 8.3 20.1 21 26.4 28.1 6.2 7.1 15.9 18.8 21.5 25.8 5.5 7 13.8 18.1 18.3 24.5 4.5 6.4 9.2 13.5 12.6 19.7l-6.3 9.5c-3.5 5.2-8.8 12.9-11.9 17-3 4.1-9.1 12-13.5 17.5-4.4 5.5-12 14.7-17 20.5-4.9 5.8-18.2 19.7-29.5 31.1-11.3 11.3-26.2 25.3-33.1 31.2-6.9 5.8-18.6 15.2-26 20.8-7.4 5.6-19.1 13.8-26 18.3-6.9 4.5-16.8 10.7-22 13.8-5.2 3.1-15.8 8.7-23.5 12.6-7.7 3.8-18.7 9-24.5 11.5-5.8 2.4-17.2 6.8-25.5 9.6-8.2 2.9-22 7-30.5 9.1-8.5 2.1-22.5 5-31 6.4-8.5 1.4-22.5 3.2-31 4.1-8.5 0.8-20.7 1.5-27 1.5-6.3 0-18.5-0.7-27-1.6-8.5-0.8-20-2.2-25.5-3-5.5-0.8-14.5-2.4-20-3.5-5.5-1.1-14.9-3.3-21-4.9-6.1-1.6-17.7-5.2-26-8.1-8.2-2.8-19.7-7.2-25.5-9.6-5.8-2.5-16.7-7.6-24.2-11.4-7.6-3.8-18.9-9.9-25-13.6-6.2-3.6-16.7-10.2-23.3-14.6-6.6-4.4-17.6-12.3-24.5-17.5-6.9-5.2-18.6-14.7-26-21.1-7.4-6.4-21.6-19.7-31.6-29.6-9.9-9.9-23.2-24.1-29.5-31.5-6.4-7.4-14.9-17.8-19-23-4.1-5.2-9.7-12.6-12.5-16.5-2.8-3.9-7.9-11.3-17.7-26l1.8-3c1-1.6 6.4-9.5 12.1-17.5 5.7-8 15.1-20.4 20.9-27.5 5.9-7.1 15.1-17.9 20.5-24 5.4-6.1 18.3-19.4 28.7-29.6 10.3-10.2 24.2-23 30.8-28.5 6.6-5.5 15.6-12.7 20-16 4.4-3.3 13.4-9.8 20-14.4 6.6-4.6 18.3-12.1 26-16.7 7.7-4.6 19.6-11.3 26.5-14.7 6.9-3.5 17.9-8.7 24.5-11.6 6.6-2.9 19.2-7.7 28-10.7 8.8-3 21.9-6.9 29-8.8 7.1-1.8 16.6-4.1 21-5 4.4-0.8 16.1-2.6 26-3.9 13.9-1.8 23.3-2.4 41-2.5zm-27 81.5c-4.4 0.8-12.5 2.9-18 4.5-5.5 1.7-14.5 5.2-20 7.8-5.5 2.6-14.9 8-20.9 12.1-6.1 4.1-14.6 10.9-18.9 15-4.4 4.1-10.6 10.6-13.7 14.5-3.1 3.9-8.1 10.6-11 15-2.8 4.4-7.1 12.1-9.5 17-2.4 4.9-5.6 12.6-7 17-1.5 4.4-3.5 11.8-4.6 16.5-1 4.7-2.3 13.4-3 19.5-0.8 8.3-0.8 14.4 0 25 0.7 7.7 2 17.8 3 22.5 1.1 4.7 3.1 12.1 4.5 16.5 1.5 4.4 5.3 13.4 8.6 20 3.3 6.6 9 16.3 12.7 21.5 3.8 5.2 11.1 13.7 16.4 19 5.3 5.2 13.8 12.5 19 16.2 5.2 3.8 14.1 9.2 19.9 12.2 5.8 3 15.2 7 21 8.9 5.8 1.9 15.2 4.4 21 5.5 5.8 1.1 15.2 2.3 21 2.7 5.8 0.3 15.2 0.2 21-0.4 5.8-0.5 14.1-1.7 18.5-2.6 4.4-0.9 12.7-3.2 18.5-5.1 5.8-1.9 14.1-5.2 18.5-7.3 4.4-2.1 12.7-7 18.5-10.9 5.8-3.8 15-11.2 20.4-16.3 5.4-5.2 13.4-14.1 17.8-19.9 4.8-6.4 10.4-15.5 14.3-23.5 3.6-7.1 7.6-16.6 9.1-21 1.4-4.4 3.5-12.1 4.5-17 1.2-5.4 2.2-15 2.6-24 0.3-8.9 0.1-19-0.6-25-0.6-5.5-2.3-14.7-3.7-20.5-1.4-5.8-4.1-14.6-6.1-19.5-1.9-4.9-5.8-13.1-8.5-18-2.8-4.9-8.2-13.3-12.1-18.5-3.8-5.2-10.9-13.3-15.6-17.9-4.7-4.6-13.1-11.6-18.6-15.5-5.5-3.9-14.7-9.4-20.5-12.2-5.8-2.8-13.6-6.3-17.5-7.7-3.9-1.3-12.4-3.7-19-5.2-10.3-2.4-14.5-2.8-30-3.1-9.9-0.1-19.4 0-21 0.2-1.6 0.3-6.6 1.1-11 2z M388 324.8c-3 1-7.1 2.7-9 3.9-1.9 1.2-5.5 4.3-8 7-2.4 2.6-5.6 7.3-7 10.3-2.1 4.7-2.5 6.9-2.5 15 0 8 0.4 10.4 2.6 15 1.4 3 4.5 7.7 6.9 10.4 2.5 2.7 6.6 6 9.1 7.5l4.6 2.6-22.5 81c58.6 0.4 75.9 0.4 76.2 0.3 0.3-0.2-4.3-18.9-10.2-41.6l-10.7-41.2c7.7-6.7 11.4-10.9 13.2-13.6 1.7-2.7 3.9-7.6 4.9-10.9 1.1-4.1 1.5-7.9 1.1-12-0.3-3.3-1.6-8.7-2.8-12-1.7-4.4-3.9-7.6-8.3-12.1-4.4-4.3-7.8-6.7-12.1-8.3-3.5-1.4-8.9-2.5-13-2.7-4.9-0.3-8.6 0.1-12.5 1.4z";
 }
 
@@ -241,13 +285,17 @@
 .nav-button.active {
   -fx-text-fill: white;
   -fx-background-color:
-    /* Katman 1: Gradient Çizgi */ linear-gradient(from 0% 0% to 0% 100%, #3b82f6 0%, #a855f7 100%),
+    /* Katman 1: Gradient Çizgi */
+    linear-gradient(from 0% 0% to 0% 100%, #3b82f6 0%, #a855f7 100%),
     /* Katman 2: Yarı saydam arkaplan */
-  linear-gradient(from 0% 0% to 100% 0%, rgba(59, 130, 246, 0.4) 0%, rgba(168, 85, 247, 0.4) 100%);
+    linear-gradient(from 0% 0% to 100% 0%, rgba(59, 130, 246, 0.4) 0%, rgba(168, 85, 247, 0.4) 100%);
 
-  -fx-background-insets: 0, 0 0 0 3px; /* 2. arkaplan soldan 3px içeriden başlar */
-  -fx-background-radius: 0 12px 12px 0, 0 12px 12px 0; /* İki katman da aynı şekle sahip */
+  -fx-background-insets: 0, 0 0 0 3px;
+  /* 2. arkaplan soldan 3px içeriden başlar */
+  -fx-background-radius: 0 12px 12px 0, 0 12px 12px 0;
+  /* İki katman da aynı şekle sahip */
 }
+
 .nav-button:hover .nav-icon,
 .nav-button.active .nav-icon {
   -fx-icon-color: white;
@@ -265,56 +313,79 @@
   -fx-border-color: #1e2b3b;
   -fx-border-width: 1px 0 0 0;
 }
+
 .user-avatar {
   -fx-background-color: #a855f7;
-  -fx-background-radius: 50%; /* Fully rounded circle */
-  -fx-pref-width: 34px; /* Slightly larger for better visibility */
-  -fx-pref-height: 34px; /* Slightly larger for better visibility */
-  -fx-min-width: 34px; /* Ensure consistent size */
-  -fx-min-height: 34px; /* Ensure consistent size */
-  -fx-max-width: 34px; /* Ensure consistent size */
-  -fx-max-height: 34px; /* Ensure consistent size */
+  -fx-background-radius: 50%;
+  /* Fully rounded circle */
+  -fx-pref-width: 34px;
+  /* Slightly larger for better visibility */
+  -fx-pref-height: 34px;
+  /* Slightly larger for better visibility */
+  -fx-min-width: 34px;
+  /* Ensure consistent size */
+  -fx-min-height: 34px;
+  /* Ensure consistent size */
+  -fx-max-width: 34px;
+  /* Ensure consistent size */
+  -fx-max-height: 34px;
+  /* Ensure consistent size */
   -fx-text-fill: white;
-  -fx-font-size: 14px; /* Slightly larger font */
+  -fx-font-size: 14px;
+  /* Slightly larger font */
   -fx-font-weight: bold;
   -fx-alignment: center;
 }
+
 .user-name {
   -fx-font-weight: bold;
   -fx-text-fill: white;
 }
+
 .user-status {
   -fx-font-size: 12px;
   -fx-text-fill: #4ade80;
 }
+
 .content-pane {
   -fx-background-color: #1e2b3b;
-  -fx-background-radius: 0px 12px 12px 0px; /* Rounded corners on right side only */
+  -fx-background-radius: 0px 12px 12px 0px;
+  /* Rounded corners on right side only */
 }
+
 .header-bar {
   -fx-background-color: #0f172a;
   -fx-border-color: #334155;
   -fx-border-width: 0 0 0px 0;
-  -fx-background-radius: 12px 12px 0px 0px; /* Rounded corner on top-right only */
+  -fx-background-radius: 12px 12px 0px 0px;
+  /* Rounded corner on top-right only */
 }
+
 .view-title {
   -fx-font-size: 20px;
   -fx-font-weight: bold;
   -fx-text-fill: white;
 }
+
 .search-field {
   -fx-background-color: #334155;
   -fx-text-fill: white;
   -fx-prompt-text-fill: #64748b;
-  -fx-background-radius: 5px; /* Kenarları biraz daha yuvarlak yapar */
+  -fx-background-radius: 5px;
+  /* Kenarları biraz daha yuvarlak yapar */
   -fx-border-color: transparent;
   -fx-border-radius: 5px;
-  -fx-padding: 5px 10px; /* <-- İç boşluğu artırarak daha dolgun yapar */
-  -fx-font-size: 14px; /* <-- Yazı boyutunu büyütür */
-  -fx-max-width: 680px; /* <-- Maksimum genişliğini sınırlar */
+  -fx-padding: 5px 10px;
+  /* <-- İç boşluğu artırarak daha dolgun yapar */
+  -fx-font-size: 14px;
+  /* <-- Yazı boyutunu büyütür */
+  -fx-max-width: 680px;
+  /* <-- Maksimum genişliğini sınırlar */
 }
+
 .search-field:focused {
-  -fx-border-color: #22d3ee; /* Tıklanınca turkuaz renkli çerçeve */
+  -fx-border-color: #22d3ee;
+  /* Tıklanınca turkuaz renkli çerçeve */
 }
 
 /* Search Results List */
@@ -325,7 +396,7 @@
   -fx-border-radius: 5px;
   -fx-background-radius: 5px;
   -fx-padding: 0;
-  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 10, 0, 0, 2);
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 10, 0, 0, 2);
 }
 
 .search-results-list .list-cell {
@@ -379,17 +450,21 @@
 .search-add-button:hover {
   -fx-background-color: #0891b2;
 }
+
 .icon-button {
   -fx-background-color: transparent;
   -fx-cursor: hand;
 }
+
 .header-icon {
   -fx-icon-size: 18px;
   -fx-icon-color: #94a3b8;
 }
+
 .icon-button:hover .header-icon {
   -fx-icon-color: white;
 }
+
 .action-button {
   -fx-background-color: #2563eb;
   -fx-text-fill: white;
@@ -400,15 +475,18 @@
   -fx-cursor: hand;
   -fx-pref-height: 40px;
 }
+
 .action-button-icon {
   -fx-icon-size: 14px;
   -fx-icon-color: white;
 }
+
 .action-button:hover {
   -fx-background-color: #3b82f6;
 }
+
 .content-scroll-pane,
-.content-scroll-pane > .viewport {
+.content-scroll-pane>.viewport {
   -fx-background-color: transparent;
 }
 
@@ -423,8 +501,8 @@
 
 .top-bar-modern {
   -fx-background-color: linear-gradient(from 0% 0% to 100% 100%,
-  rgba(15, 23, 42, 1.0) 0%,
-  rgba(30, 43, 59, 0.95) 100%);
+      rgba(15, 23, 42, 1.0) 0%,
+      rgba(30, 43, 59, 0.95) 100%);
   -fx-background-radius: 20px;
   -fx-padding: 32px;
   -fx-border-color: #334155;
@@ -485,8 +563,8 @@
 
 .top-bar-modern {
   -fx-background-color: linear-gradient(from 0% 0% to 100% 100%,
-  rgba(15, 23, 42, 1.0) 0%,
-  rgba(30, 43, 59, 0.95) 100%);
+      rgba(15, 23, 42, 1.0) 0%,
+      rgba(30, 43, 59, 0.95) 100%);
   -fx-background-radius: 20px;
   -fx-padding: 32px;
   -fx-border-color: #334155;
@@ -567,29 +645,29 @@
 
 .action-card-blue {
   -fx-background-color: linear-gradient(from 0% 0% to 100% 100%,
-  rgba(15, 23, 42, 0.95) 0%,
-  rgba(30, 58, 138, 0.2) 100%);
+      rgba(15, 23, 42, 0.95) 0%,
+      rgba(30, 58, 138, 0.2) 100%);
   -fx-border-color: rgba(59, 130, 246, 0.3);
 }
 
 .action-card-green {
   -fx-background-color: linear-gradient(from 0% 0% to 100% 100%,
-  rgba(15, 23, 42, 0.95) 0%,
-  rgba(5, 122, 85, 0.2) 100%);
+      rgba(15, 23, 42, 0.95) 0%,
+      rgba(5, 122, 85, 0.2) 100%);
   -fx-border-color: rgba(16, 185, 129, 0.3);
 }
 
 .action-card-orange {
   -fx-background-color: linear-gradient(from 0% 0% to 100% 100%,
-  rgba(15, 23, 42, 0.95) 0%,
-  rgba(180, 83, 9, 0.2) 100%);
+      rgba(15, 23, 42, 0.95) 0%,
+      rgba(180, 83, 9, 0.2) 100%);
   -fx-border-color: rgba(245, 158, 11, 0.3);
 }
 
 .action-card-purple {
   -fx-background-color: linear-gradient(from 0% 0% to 100% 100%,
-  rgba(15, 23, 42, 0.95) 0%,
-  rgba(109, 40, 217, 0.2) 100%);
+      rgba(15, 23, 42, 0.95) 0%,
+      rgba(109, 40, 217, 0.2) 100%);
   -fx-border-color: rgba(139, 92, 246, 0.3);
 }
 
@@ -729,8 +807,8 @@
 
 .event-card {
   -fx-background-color: linear-gradient(from 0% 0% to 100% 100%,
-  rgba(26, 41, 66, 0.8) 0%,
-  rgba(15, 30, 53, 0.9) 100%);
+      rgba(26, 41, 66, 0.8) 0%,
+      rgba(15, 30, 53, 0.9) 100%);
   -fx-background-radius: 14px;
   -fx-padding: 16px;
   -fx-border-color: #334155;
@@ -793,8 +871,8 @@
 
 .no-events-card {
   -fx-background-color: linear-gradient(from 0% 0% to 100% 100%,
-  rgba(26, 41, 66, 0.5) 0%,
-  rgba(15, 30, 53, 0.6) 100%);
+      rgba(26, 41, 66, 0.5) 0%,
+      rgba(15, 30, 53, 0.6) 100%);
   -fx-background-radius: 16px;
   -fx-padding: 60px 20px;
   -fx-border-color: #334155;
@@ -931,6 +1009,7 @@
 }
 
 @media screen and (max-width: 800px) {
+
   /* Events section'ı gizle */
   .events-section-aligned {
     -fx-min-width: 0;
@@ -951,8 +1030,8 @@
 /* Eski stiller (geriye dönük uyumluluk) */
 .welcome-banner {
   -fx-background-color: linear-gradient(from 0% 0% to 100% 100%,
-  rgba(15, 23, 42, 1.0) 0%,
-  rgba(30, 43, 59, 0.95) 100%);
+      rgba(15, 23, 42, 1.0) 0%,
+      rgba(30, 43, 59, 0.95) 100%);
   -fx-background-radius: 20px;
   -fx-padding: 32px;
   -fx-border-color: #334155;
@@ -1080,6 +1159,7 @@
   -fx-icon-size: 20px;
   -fx-icon-color: #64748b;
 }
+
 /* =================================================================
    5. MESSAGES
    ================================================================= */
@@ -1088,13 +1168,14 @@
 }
 
 /* 2. Ayırıcı Çizgi (Divider) - O beyaz çizgiyi yok ediyoruz */
-.messages-container > .split-pane-divider {
+.messages-container>.split-pane-divider {
   /* Rengi uygulamanın ana arka plan rengi (#0f172a) yapıyoruz */
   /* Böylece arada beyaz bir çizgi değil, sadece boşluk varmış gibi durur */
   -fx-background-color: #0f172a;
 
   /* Çizginin kalınlığı (Sürükleme alanı) */
-  -fx-padding: 0 0px; /* 2px genişliğinde bir boşluk */
+  -fx-padding: 0 0px;
+  /* 2px genişliğinde bir boşluk */
 
   /* Varsayılan kenarlıkları kaldır */
   -fx-border-color: transparent;
@@ -1102,36 +1183,44 @@
 }
 
 /* 3. Tutamaç (Grabber) - Ortadaki noktaları gizle */
-.messages-container > .split-pane-divider > .horizontal-grabber {
-  -fx-background-color: transparent; /* Görünmez yap */
+.messages-container>.split-pane-divider>.horizontal-grabber {
+  -fx-background-color: transparent;
+  /* Görünmez yap */
   -fx-padding: 0;
-  -fx-shape: " "; /* Şekli tamamen kaldır */
+  -fx-shape: " ";
+  /* Şekli tamamen kaldır */
 }
 
 /* 4. (Opsiyonel) Mouse üzerine gelince hafif renk değişimi */
 /* Kullanıcı oranın sürüklenebilir olduğunu anlasın diye */
-.messages-container > .split-pane-divider:hover {
-  -fx-background-color: #1e293b; /* Çok hafif aydınlat */
-  -fx-cursor: h-resize; /* Mouse imlecini değiştir */
+.messages-container>.split-pane-divider:hover {
+  -fx-background-color: #1e293b;
+  /* Çok hafif aydınlat */
+  -fx-cursor: h-resize;
+  /* Mouse imlecini değiştir */
 }
 
 /* Sol Panel Arka Planı */
 .contact-list-pane {
-  -fx-background-color: #0f172a; /* Ana koyu renk */
-  -fx-border-color: transparent #334155 transparent transparent; /* Sağda ince çizgi */
+  -fx-background-color: #0f172a;
+  /* Ana koyu renk */
+  -fx-border-color: transparent #334155 transparent transparent;
+  /* Sağda ince çizgi */
   -fx-border-width: 0 1 0 0;
 }
 
 /* Liste Genel Ayarları */
 .contact-list-view {
   -fx-background-color: transparent;
-  -fx-padding: 10px; /* Kenarlardan boşluk */
+  -fx-padding: 10px;
+  /* Kenarlardan boşluk */
 }
 
 /* --- HÜCRE (KİŞİ) GENEL YAPISI --- */
 .contact-list-view .list-cell {
   -fx-background-color: transparent;
-  -fx-padding: 10px 12px; /* İçerik ile kenar arasındaki mesafe */
+  -fx-padding: 10px 12px;
+  /* İçerik ile kenar arasındaki mesafe */
 
   /* ÖNEMLİ: Kart görünümü ve Kenar Boşluğu */
   /* Üst:0, Sağ:8px, Alt:8px, Sol:8px -> Böylece sağa sola yapışmaz */
@@ -1142,7 +1231,8 @@
   -fx-border-radius: 12px;
   -fx-border-width: 1px;
   -fx-border-color: transparent;
-  -fx-border-insets: 0 8px 8px 8px; /* Border da inset ile aynı olmalı */
+  -fx-border-insets: 0 8px 8px 8px;
+  /* Border da inset ile aynı olmalı */
 
   -fx-cursor: hand;
 }
@@ -1157,10 +1247,12 @@
 .contact-list-view .list-cell:filled:selected {
   /* Hafif gradyanlı seçim rengi */
   -fx-background-color: linear-gradient(to right, rgba(127, 90, 240, 0.20), rgba(44, 182, 125, 0.05));
-  -fx-border-color: rgba(127, 90, 240, 0.4); /* Çerçeve rengi */
+  -fx-border-color: rgba(127, 90, 240, 0.4);
+  /* Çerçeve rengi */
 
   /* Neon Parlama */
-  -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.12), 8, 0, 0, 0); /* PERF: gaussian faster than three-pass-box */
+  -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.12), 8, 0, 0, 0);
+  /* PERF: gaussian faster than three-pass-box */
 }
 
 /* --- METİN DARALMA (3 NOKTA) AYARLARI --- */
@@ -1173,7 +1265,8 @@
 
   /* Bu ayarlar daralmayı sağlar */
   -fx-min-width: 0;
-  -fx-pref-width: 100px; /* Varsayılan bir değer */
+  -fx-pref-width: 100px;
+  /* Varsayılan bir değer */
   -fx-max-width: Infinity;
 }
 
@@ -1191,9 +1284,11 @@
 .contact-list-view .list-cell:filled:selected .contact-name {
   -fx-text-fill: white;
 }
+
 .contact-list-view .list-cell:filled:selected .contact-last-message {
   -fx-text-fill: #cbd5e1;
 }
+
 /* --- AVATAR TASARIMI (GRADYANKLI) --- */
 .contact-avatar {
   /* Logodaki Mor'dan Yeşile geçiş */
@@ -1206,33 +1301,38 @@
   /* İçindeki harf */
   -fx-text-fill: white;
   -fx-font-size: 18px;
-  -fx-font-weight: 800; /* Extra Bold */
+  -fx-font-weight: 800;
+  /* Extra Bold */
   -fx-alignment: center;
 
   /* Avatarın kendisine hafif gölge */
-  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 5, 0, 0, 2);
 }
 
 /* --- DİĞER METİN STİLLERİ --- */
 .contact-name {
   -fx-font-size: 15px;
   -fx-font-weight: bold;
-  -fx-text-fill: #e2e8f0; /* Hafif kırık beyaz */
+  -fx-text-fill: #e2e8f0;
+  /* Hafif kırık beyaz */
 }
 
 .contact-last-message {
   -fx-font-size: 13px;
-  -fx-text-fill: #94a3b8; /* Slate gri */
+  -fx-text-fill: #94a3b8;
+  /* Slate gri */
 }
 
 .contact-time {
   -fx-font-size: 11px;
-  -fx-text-fill: #64748b; /* Koyu gri */
+  -fx-text-fill: #64748b;
+  /* Koyu gri */
 }
 
 /* Okunmamış Mesaj Rozeti */
 .unread-badge {
-  -fx-background-color: #ef4444; /* Dikkat çekici kırmızı/pembe */
+  -fx-background-color: #ef4444;
+  /* Dikkat çekici kırmızı/pembe */
   -fx-background-radius: 10px;
   -fx-text-fill: white;
   -fx-font-size: 10px;
@@ -1247,31 +1347,46 @@
   -fx-font-weight: bold;
   -fx-text-fill: white;
 }
+
 .status-online {
-  -fx-text-fill: #22c55e; /* Green text for online */
-  -fx-background-color: transparent; /* No background */
+  -fx-text-fill: #22c55e;
+  /* Green text for online */
+  -fx-background-color: transparent;
+  /* No background */
 }
+
 .status-idle {
-  -fx-text-fill: #fbbf24; /* Yellow text for idle */
-  -fx-background-color: transparent; /* No background */
+  -fx-text-fill: #fbbf24;
+  /* Yellow text for idle */
+  -fx-background-color: transparent;
+  /* No background */
 }
+
 .status-dnd,
 .status-busy {
-  -fx-text-fill: #ef4444; /* Red text for DND/Busy */
-  -fx-background-color: transparent; /* No background */
+  -fx-text-fill: #ef4444;
+  /* Red text for DND/Busy */
+  -fx-background-color: transparent;
+  /* No background */
 }
+
 .status-offline {
-  -fx-text-fill: #6b7280; /* Gray text for offline */
-  -fx-background-color: transparent; /* No background */
+  -fx-text-fill: #6b7280;
+  /* Gray text for offline */
+  -fx-background-color: transparent;
+  /* No background */
 }
+
 .message-list-view {
   -fx-background-color: transparent;
   -fx-padding: 0px 5px 0px 24px;
 }
+
 .message-list-view .list-cell {
   -fx-padding: 4px 0;
   -fx-background-color: transparent;
 }
+
 .empty-chat-placeholder {
   -fx-alignment: center;
   -fx-spacing: 20px;
@@ -1280,31 +1395,36 @@
 
 /* --- SOL PANEL AKSİYON BUTONU (YENİ İSİM) --- */
 .primary-soft-btn {
-  -fx-background-color: #3E3454; /* Belirlediğimiz Mat Mor */
+  -fx-background-color: #3E3454;
+  /* Belirlediğimiz Mat Mor */
   -fx-text-fill: white;
   -fx-font-weight: 600;
   -fx-font-size: 10px;
   -fx-padding: 8 20;
-  -fx-background-radius: 8px; /* Mesaj balonlarıyla uyumlu */
+  -fx-background-radius: 8px;
+  /* Mesaj balonlarıyla uyumlu */
   -fx-cursor: hand;
 
   /* Hafif bir çerçeve, koyu temada derinlik katar */
-  -fx-border-color: rgba(255,255,255,0.1);
+  -fx-border-color: rgba(255, 255, 255, 0.1);
   -fx-border-radius: 8px;
 
   /* Hafif gölge */
-  -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 1);
+  -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.2), 5, 0, 0, 1);
 }
 
 .primary-soft-btn:hover {
-  -fx-background-color: #4f436b; /* Üzerine gelince hafif açılma */
+  -fx-background-color: #4f436b;
+  /* Üzerine gelince hafif açılma */
   /* Glow efekti artar */
   -fx-effect: dropshadow(three-pass-box, rgba(127, 90, 240, 0.4), 10, 0, 0, 0);
 }
 
 .primary-soft-btn:pressed {
-  -fx-background-color: #2d263d; /* Tıklayınca koyulaşma */
-  -fx-effect: none; /* Gölgeyi kaldır */
+  -fx-background-color: #2d263d;
+  /* Tıklayınca koyulaşma */
+  -fx-effect: none;
+  /* Gölgeyi kaldır */
 }
 
 /* =================================================================
@@ -1313,7 +1433,8 @@
 
 /* Panelin Ana Kutusu */
 .user-info-sidebar {
-  -fx-background-color: #0f172a; /* Uygulamanın ana arka plan rengi */
+  -fx-background-color: #0f172a;
+  /* Uygulamanın ana arka plan rengi */
 
   /* PERF: Reduced shadow radius from 25 to 10 */
   -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.4), 10, 0.1, -3, 0);
@@ -1325,10 +1446,13 @@
 
 /* Panelin Başlığı (Header) */
 .info-sidebar-header {
-  -fx-padding: 0 20px; /* İç boşluk */
-  -fx-pref-height: 80px; /* Ana Chat Header ile aynı yükseklik (Hizalama için) */
+  -fx-padding: 0 20px;
+  /* İç boşluk */
+  -fx-pref-height: 80px;
+  /* Ana Chat Header ile aynı yükseklik (Hizalama için) */
   -fx-min-height: 80px;
-  -fx-border-color: transparent transparent #334155 transparent; /* Alt çizgi */
+  -fx-border-color: transparent transparent #334155 transparent;
+  /* Alt çizgi */
   -fx-border-width: 0 0 1px 0;
   -fx-alignment: center-left;
 }
@@ -1346,6 +1470,7 @@
   -fx-background: transparent;
   -fx-padding: 0;
 }
+
 .info-scroll-pane .viewport {
   -fx-background-color: transparent;
 }
@@ -1354,7 +1479,8 @@
 .info-content {
   -fx-padding: 30px 20px;
   -fx-background-color: transparent;
-  -fx-spacing: 25px; /* Elemanlar arası boşluk */
+  -fx-spacing: 25px;
+  /* Elemanlar arası boşluk */
 }
 
 /* --- PROFİL DETAYLARI --- */
@@ -1377,7 +1503,8 @@
   -fx-alignment: center;
 
   /* Hafif parlama */
-  -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.3), 10, 0, 0, 3); /* PERF: reduced from 20 */
+  -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.3), 10, 0, 0, 3);
+  /* PERF: reduced from 20 */
 }
 
 .info-name {
@@ -1388,7 +1515,8 @@
 }
 
 .info-status {
-  -fx-text-fill: #94a3b8; /* Slate Gri */
+  -fx-text-fill: #94a3b8;
+  /* Slate Gri */
   -fx-font-size: 14px;
   -fx-font-weight: 500;
 }
@@ -1399,7 +1527,8 @@
 }
 
 .action-circle-btn {
-  -fx-background-color: #1e293b; /* Koyu gri zemin */
+  -fx-background-color: #1e293b;
+  /* Koyu gri zemin */
   -fx-background-radius: 50%;
   -fx-min-width: 48px;
   -fx-min-height: 48px;
@@ -1415,7 +1544,8 @@
 
 .action-circle-btn:hover {
   -fx-background-color: #334155;
-  -fx-border-color: #7F5AF0; /* Üzerine gelince mor çerçeve */
+  -fx-border-color: #7F5AF0;
+  /* Üzerine gelince mor çerçeve */
   -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.4), 10, 0, 0, 0);
 }
 
@@ -1455,6 +1585,7 @@
   -fx-cursor: hand;
   -fx-alignment: center;
 }
+
 .media-placeholder:hover {
   -fx-border-color: #7F5AF0;
   -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.3), 8, 0, 0, 0);
@@ -1476,6 +1607,7 @@
   -fx-cursor: hand;
   -fx-padding: 8px 0;
 }
+
 .view-all-btn:hover {
   -fx-text-fill: #9F7AEA;
   -fx-underline: true;
@@ -1484,7 +1616,8 @@
 /* Tehlikeli Butonlar (Engelle / Sil) */
 .danger-text-btn {
   -fx-background-color: transparent;
-  -fx-text-fill: #ef4444; /* Kırmızı */
+  -fx-text-fill: #ef4444;
+  /* Kırmızı */
   -fx-font-size: 14px;
   -fx-font-weight: 600;
   -fx-alignment: center-left;
@@ -1494,7 +1627,8 @@
 }
 
 .danger-text-btn:hover {
-  -fx-background-color: rgba(239, 68, 68, 0.1); /* Hafif kırmızı zemin */
+  -fx-background-color: rgba(239, 68, 68, 0.1);
+  /* Hafif kırmızı zemin */
 }
 
 
@@ -1554,16 +1688,20 @@
 
 /* Merkezi İkonun Arkasındaki Parlayan Daire */
 .welcome-glow-circle {
-  -fx-fill: linear-gradient(to bottom right, #7F5AF0, #2CB67D); /* Mor'dan Yeşile modern geçiş */
-  -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.4), 12, 0.3, 0, 0); /* PERF: reduced from 30 */
-  -fx-opacity: 0.2; /* Çok baskın olmasın, arkada süzülsün */
+  -fx-fill: linear-gradient(to bottom right, #7F5AF0, #2CB67D);
+  /* Mor'dan Yeşile modern geçiş */
+  -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.4), 12, 0.3, 0, 0);
+  /* PERF: reduced from 30 */
+  -fx-opacity: 0.2;
+  /* Çok baskın olmasın, arkada süzülsün */
 }
 
 /* Merkezi Kalkan İkonu */
 .welcome-main-icon {
-  -fx-icon-color: #ffffffe0; /* Hafif transparan beyaz */
+  -fx-icon-color: #ffffffe0;
+  /* Hafif transparan beyaz */
   -fx-icon-size: 64;
-  -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 10, 0, 0, 4);
+  -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.4), 10, 0, 0, 4);
 }
 
 /* Ana Başlık */
@@ -1572,12 +1710,13 @@
   -fx-font-size: 24px;
   -fx-font-weight: 700;
   -fx-font-family: "Segoe UI", "Helvetica", sans-serif;
-  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 5, 0, 0, 2);
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 5, 0, 0, 2);
 }
 
 /* Alt Açıklama Metni */
 .welcome-subtitle {
-  -fx-text-fill: #94a1b2; /* Gri/Mavi tonu - göz yormaz */
+  -fx-text-fill: #94a1b2;
+  /* Gri/Mavi tonu - göz yormaz */
   -fx-font-size: 14px;
   -fx-font-family: "Segoe UI", sans-serif;
 }
@@ -1589,7 +1728,8 @@
 
 /* Özellik İkonları */
 .feature-icon-modern {
-  -fx-icon-color: #7F5AF0; /* Tema rengi */
+  -fx-icon-color: #7F5AF0;
+  /* Tema rengi */
   -fx-icon-size: 18;
 }
 
@@ -1602,7 +1742,8 @@
 
 /* Özellik Kutucukları (Her bir özellik grubu) */
 .feature-item {
-  -fx-background-color: rgba(255, 255, 255, 0.03); /* Çok hafif bir kutu */
+  -fx-background-color: rgba(255, 255, 255, 0.03);
+  /* Çok hafif bir kutu */
   -fx-background-radius: 8;
   -fx-padding: 8 12;
   -fx-spacing: 8;
@@ -1614,17 +1755,21 @@
 
 /* Arkadaki Glow Efekti (Sade ve şık) */
 .chat-empty-glow-simple {
-  -fx-fill: linear-gradient(to bottom right, #2CB67D, #7F5AF0); /* Yeşil-Mor */
+  -fx-fill: linear-gradient(to bottom right, #2CB67D, #7F5AF0);
+  /* Yeşil-Mor */
   -fx-effect: dropshadow(gaussian, rgba(44, 182, 125, 0.4), 40, 0.3, 0, 0);
-  -fx-opacity: 0.12; /* Çok hafif, göz yormaz */
+  -fx-opacity: 0.12;
+  /* Çok hafif, göz yormaz */
 }
 
 /* Keskin Hatlı İkon (Senin istediğin ikon) */
 .chat-empty-icon-sharp {
-  -fx-icon-color: #94a1b2; /* Çok parlak beyaz değil, kaliteli gri */
+  -fx-icon-color: #94a1b2;
+  /* Çok parlak beyaz değil, kaliteli gri */
   -fx-icon-size: 50;
   /* Hafif bir mor yansıma */
-  -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.25), 8, 0, 0, 0); /* PERF: reduced from 15 */
+  -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.25), 8, 0, 0, 0);
+  /* PERF: reduced from 15 */
 }
 
 /* Başlık (Temiz ve Modern) */
@@ -1641,38 +1786,62 @@
   -fx-font-size: 14px;
   -fx-font-family: "Segoe UI", sans-serif;
 }
+
 /* --- MESAJ BALONCUKLARI (GENEL) --- */
-.message-bubble {
-  -fx-padding: 12px 16px;
-  -fx-text-fill: white;
-  -fx-max-width: 70%;
+.message-bubble-text {
+  -fx-padding: 10px 14px;
+  -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.4), 3, 0, 0, 1);
   -fx-font-size: 14px;
-  -fx-font-family: "Segoe UI", sans-serif;
-
-  /* Hafif bir gölge ekleyerek derinlik katalım */
-  -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 3, 0, 0, 1);
+  -fx-font-family: "Segoe UI", "Helvetica", sans-serif;
 }
 
+.message-text {
+  -fx-font-smoothing_type: lcd;
+}
 
-
-.message-bubble-sent,
-.file-message-bubble.file-bubble-sent {
+.message-bubble-sent {
   -fx-background-color: linear-gradient(to bottom right, #4b3a63 0%, #342943 100%);
-  -fx-background-radius: 10px 10px 0px 10px;
+  -fx-background-radius: 10px 0px 10px 10px;
 }
 
-.message-bubble-received,
-.file-message-bubble.file-bubble-received {
-  -fx-background-color: linear-gradient(to bottom right, #1f1b28 0%, #16131c 100%);
-  -fx-background-radius: 10px 10px 10px 0px;
+.message-bubble-sent .message-text {
+  -fx-fill: white;
 }
+
+.message-bubble-received {
+  -fx-background-color: linear-gradient(to bottom right, #1f1b28 0%, #16131c 100%);
+  -fx-background-radius: 0px 10px 10px 10px;
+}
+
+.message-bubble-received .message-text {
+  -fx-fill: #e5e5e5;
+}
+
+
+/* =============================================================================
+   3. DOSYA MESAJI BALONLARI
+   ============================================================================= */
 
 .file-message-bubble {
   -fx-padding: 12px;
-  -fx-background-radius: 14px;
   -fx-spacing: 6px;
-  -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.35), 6, 0, 0, 2);
+  -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.35), 6, 0, 0, 2);
 }
+
+.file-bubble-sent {
+  -fx-background-color: linear-gradient(to bottom right, #4b3a63 0%, #342943 100%);
+  -fx-background-radius: 10px 0px 10px 10px;
+
+}
+
+.file-bubble-received {
+  -fx-background-color: linear-gradient(to bottom right, #1f1b28 0%, #16131c 100%);
+  -fx-background-radius: 0px 10px 10px 10px;
+}
+
+/* =============================================================================
+   4. DOSYA İÇERİK DETAYLARI
+   ============================================================================= */
 
 .file-thumbnail,
 .file-generic-thumb {
@@ -1688,33 +1857,33 @@
 }
 
 .file-card-icon {
-  -fx-font-size: 20px;
+  -fx-font-size: 24px;
   -fx-text-fill: #f8fafc;
 }
 
 .file-name {
   -fx-text-fill: white;
-  -fx-font-weight: 600;
+  -fx-font-weight: bold;
+  -fx-font-size: 13px;
 }
 
-.file-size {
-  -fx-text-fill: #94a3b8;
-  -fx-font-size: 12px;
-}
-
+.file-size,
 .file-status {
   -fx-text-fill: #94a3b8;
-  -fx-font-size: 12px;
+  -fx-font-size: 11px;
 }
+
 
 .image-overlay {
   -fx-alignment: center;
+  -fx-background-radius: 12px;
 }
 
 .image-overlay-text {
   -fx-text-fill: white;
   -fx-font-weight: bold;
   -fx-font-size: 16px;
+  -fx-effect: dropshadow(one-pass-box, black, 2, 1.0, 0, 0);
 }
 
 .interactive-thumb {
@@ -1724,21 +1893,25 @@
 /* --- KİŞİ AVATARI (LİSTE İÇİN) --- */
 /* Üst kısımdaki avatara dokunmuyoruz, burası listedeki küçükler için kalabilir */
 .message-avatar {
-  -fx-background-color: #3E3454; /* Mavi yerine uyumlu mor yaptık */
+  -fx-background-color: #3E3454;
+  /* Mavi yerine uyumlu mor yaptık */
   -fx-background-radius: 50%;
   -fx-pref-width: 32px;
   -fx-pref-height: 32px;
-  -fx-text-fill: white; /* Yazı rengi */
+  -fx-text-fill: white;
+  /* Yazı rengi */
   -fx-font-size: 12px;
   -fx-font-weight: bold;
   -fx-alignment: center;
 }
+
 .chat-input-area {
   -fx-padding: 12px 24px;
   -fx-spacing: 12px;
   -fx-border-color: #334155 transparent transparent transparent;
   -fx-background-color: #0f172a;
 }
+
 .chat-input-field-container {
   -fx-background-color: #1e2b3b;
   -fx-background-radius: 20px;
@@ -1746,9 +1919,11 @@
   -fx-border-radius: 20px;
   -fx-padding: 0px 4px 0px 0px;
 }
+
 .chat-input-field-container:focused-within {
   -fx-border-color: #22d3ee;
 }
+
 .chat-input-field {
   -fx-background-color: transparent;
   -fx-border-color: transparent;
@@ -1757,18 +1932,22 @@
   -fx-font-size: 14px;
   -fx-padding: 12px 20px;
 }
+
 .input-area-icon {
   -fx-icon-color: #94a3b8;
   -fx-icon-size: 20px;
 }
+
 .send-button {
   -fx-background-color: #7F5AF0;
   -fx-background-radius: 50%;
   -fx-padding: 10px;
 }
+
 .send-button:hover {
   -fx-background-color: #3E3454;
 }
+
 .send-icon {
   -fx-icon-color: white;
   -fx-icon-size: 16px;
@@ -2235,7 +2414,8 @@
   -fx-icon-size: 80px;
   -fx-icon-color: linear-gradient(to bottom right, #7F5AF0, #2CB67D);
   -fx-opacity: 0.25;
-  -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.5), 10, 0.3, 0, 0); /* PERF: reduced from 20 */
+  -fx-effect: dropshadow(gaussian, rgba(127, 90, 240, 0.5), 10, 0.3, 0, 0);
+  /* PERF: reduced from 20 */
 }
 
 
@@ -2243,8 +2423,10 @@
   -fx-focus-color: transparent;
   -fx-border-color: transparent;
   -fx-icon-size: 65px;
-  -fx-icon-color: #E2E8F0; /* Kırık beyaz */
-  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 5, 0.0, 0, 1); /* Hafif gölge ile öne çıkar */
+  -fx-icon-color: #E2E8F0;
+  /* Kırık beyaz */
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 5, 0.0, 0, 1);
+  /* Hafif gölge ile öne çıkar */
 }
 
 .empty-title-modern {
@@ -2270,18 +2452,41 @@
 
 /* ========== ANIMATIONS ========== */
 @keyframes fadeIn {
-  from { -fx-opacity: 0; -fx-translate-y: -10px; }
-  to { -fx-opacity: 1; -fx-translate-y: 0; }
+  from {
+    -fx-opacity: 0;
+    -fx-translate-y: -10px;
+  }
+
+  to {
+    -fx-opacity: 1;
+    -fx-translate-y: 0;
+  }
 }
 
 @keyframes slideIn {
-  from { -fx-translate-x: -20px; -fx-opacity: 0; }
-  to { -fx-translate-x: 0; -fx-opacity: 1; }
+  from {
+    -fx-translate-x: -20px;
+    -fx-opacity: 0;
+  }
+
+  to {
+    -fx-translate-x: 0;
+    -fx-opacity: 1;
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { -fx-scale-x: 1; -fx-scale-y: 1; }
-  50% { -fx-scale-x: 1.05; -fx-scale-y: 1.05; }
+
+  0%,
+  100% {
+    -fx-scale-x: 1;
+    -fx-scale-y: 1;
+  }
+
+  50% {
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+  }
 }
 
 /* =================================================================
@@ -2296,25 +2501,30 @@
   -fx-border-radius: 16px;
   -fx-padding: 40px;
 }
+
 .drop-zone-icon {
   -fx-icon-color: #94a3b8;
   -fx-icon-size: 65px;
 }
+
 .drop-zone-title {
   -fx-font-size: 18px;
   -fx-font-weight: bold;
   -fx-text-fill: white;
 }
+
 .drop-zone-subtitle {
   -fx-font-size: 14px;
   -fx-text-fill: #22d3ee;
   -fx-cursor: hand;
   -fx-underline: true;
 }
+
 .drop-zone-info {
   -fx-font-size: 12px;
   -fx-text-fill: #64748b;
 }
+
 .file-card {
   -fx-background-color: #0f172a;
   -fx-background-radius: 12px;
@@ -2325,35 +2535,43 @@
   -fx-pref-width: 250px;
   -fx-transition: -fx-translate-y 200ms, -fx-effect 200ms;
 }
+
 .file-card:hover {
   -fx-translate-y: -4px;
   -fx-effect: dropshadow(gaussian, rgba(34, 211, 238, 0.2), 20, 0, 0, 0);
 }
+
 .file-icon {
   -fx-icon-color: #60a5fa;
   -fx-icon-size: 32px;
 }
+
 .file-name {
   -fx-font-size: 14px;
   -fx-font-weight: bold;
   -fx-text-fill: white;
 }
+
 .file-meta {
   -fx-font-size: 12px;
   -fx-text-fill: #94a3b8;
 }
+
 .file-action-button {
   -fx-background-color: transparent;
   -fx-padding: 4px;
   -fx-cursor: hand;
 }
+
 .file-action-button .ikonli-font-icon {
   -fx-icon-color: #94a3b8;
   -fx-icon-size: 14px;
 }
+
 .file-card:hover .file-action-button .ikonli-font-icon {
   -fx-icon-color: white;
 }
+
 #fileGrid {
   -fx-padding: 10px;
 }
@@ -2363,6 +2581,7 @@
   -fx-background-color: #0f172a;
   -fx-background-radius: 12px;
 }
+
 .file-filter-button {
   -fx-background-color: transparent;
   -fx-text-fill: #94a3b8;
@@ -2373,6 +2592,7 @@
 
   -fx-cursor: hand;
 }
+
 .file-filter-button:hover,
 .file-filter-button.active {
   -fx-background-color: linear-gradient(from 0% 0% to 100% 0%, rgba(59, 130, 246, 0.4) 0%, rgba(168, 85, 247, 0.4) 100%);
@@ -2466,7 +2686,7 @@
   -fx-background: transparent;
 }
 
-.vault-scroll-pane > .viewport {
+.vault-scroll-pane>.viewport {
   -fx-background-color: transparent;
 }
 
@@ -2717,38 +2937,47 @@
   -fx-text-fill: white;
   -fx-padding: 0 0 5px 0;
 }
+
 .settings-section-title-danger {
   -fx-font-size: 18px;
   -fx-font-weight: bold;
   -fx-text-fill: #ef4444;
   -fx-padding: 0 0 5px 0;
 }
+
 .setting-row {
   -fx-padding: 15px 0;
 }
+
 .setting-title {
   -fx-font-size: 14px;
   -fx-font-weight: bold;
   -fx-text-fill: #e2e8f0;
 }
+
 .setting-description {
   -fx-font-size: 12px;
   -fx-text-fill: #94a3b8;
 }
+
 .settings-separator {
   -fx-border-color: #334155;
   -fx-border-width: 1 0 0 0;
 }
+
 .settings-toggle {
   -jfx-toggle-color: #4ade80;
   -jfx-untoggle-color: #475569;
 }
+
 .settings-slider .track {
   -fx-background-color: #475569;
 }
+
 .settings-slider .thumb {
   -fx-background-color: #4ade80;
 }
+
 .danger-button {
   -fx-background-color: transparent;
   -fx-text-fill: #ef4444;
@@ -2760,6 +2989,7 @@
   -fx-padding: 8px 16px;
   -fx-cursor: hand;
 }
+
 .danger-button:hover {
   -fx-background-color: #ef4444;
   -fx-text-fill: white;
@@ -2781,15 +3011,18 @@
   -fx-background-radius: 8px;
   -fx-border-radius: 8px;
 }
+
 .close-icon {
   -fx-icon-color: #64748b;
   -fx-icon-size: 14px;
 }
+
 .close-button:hover {
   -fx-background-color: #ef4444;
   -fx-text-fill: white;
   -fx-border-color: #ef4444;
 }
+
 .close-button:hover .close-icon {
   -fx-icon-color: white;
 }
@@ -2800,6 +3033,7 @@
 .secure-room-container {
   -fx-background-color: #1e2b3b;
 }
+
 .camera-view {
   -fx-background-color: #0f172a;
   -fx-background-radius: 16px;
@@ -2807,10 +3041,12 @@
   -fx-border-radius: 16px;
   -fx-border-width: 1px;
 }
+
 .camera-disabled-icon {
   -fx-icon-color: #94a3b8;
   -fx-icon-size: 48px;
 }
+
 .settings-card {
   -fx-background-color: #0f172a;
   -fx-background-radius: 12px;
@@ -2819,10 +3055,12 @@
   -fx-border-radius: 12px;
   -fx-border-width: 1px;
 }
+
 .setting-icon {
   -fx-icon-color: #94a3b8;
   -fx-icon-size: 18px;
 }
+
 .room-id-box {
   -fx-background-color: #1e2b3b;
   -fx-background-radius: 8px;
@@ -2831,21 +3069,25 @@
   -fx-border-radius: 8px;
   -fx-border-width: 1px;
 }
+
 .room-id-box .text-field {
   -fx-background-color: transparent;
   -fx-text-fill: white;
   -fx-font-size: 14px;
   -fx-font-weight: bold;
 }
+
 .policy-checkbox .text {
   -fx-fill: #e2e8f0;
   -fx-font-size: 14px;
   -fx-font-weight: bold;
 }
+
 .policy-checkbox {
   -jfx-checked-color: #a855f7;
   -jfx-unchecked-color: #475569;
 }
+
 .back-button {
   -fx-background-color: transparent;
   -fx-text-fill: #94a3b8;
@@ -2855,13 +3097,16 @@
   -fx-background-radius: 8px;
   -fx-padding: 8px 16px;
 }
+
 .back-button:hover {
   -fx-background-color: linear-gradient(from 0% 0% to 100% 0%, rgba(59, 130, 246, 0.4) 0%, rgba(168, 85, 247, 0.4) 100%);
   -fx-text-fill: white;
 }
+
 .back-button:hover .header-icon {
   -fx-icon-color: white;
 }
+
 .settings-combo-box {
   -fx-background-color: #1e2b3b;
   -fx-border-color: #475569;
@@ -2871,6 +3116,7 @@
   -jfx-focus-color: transparent;
   -jfx-unfocus-color: transparent;
 }
+
 .jfx-combo-box-popup .list-view {
   -fx-background-color: #1e2b3b;
   -fx-background-radius: 8px;
@@ -2878,31 +3124,38 @@
   -fx-border-color: #475569;
   -fx-border-radius: 8px;
 }
+
 .jfx-combo-box-popup .list-cell {
   -fx-background-color: transparent;
   -fx-text-fill: white;
   -fx-padding: 10px;
   -fx-background-radius: 6px;
 }
+
 .jfx-combo-box-popup .list-cell:hover {
   -fx-background-color: #334155;
 }
+
 .jfx-combo-box-popup .list-cell:selected {
   -fx-background-color: #2563eb;
 }
+
 .mic-test-bar {
   -fx-pref-height: 8px;
 }
+
 .mic-test-bar .track {
   -fx-background-color: #475569;
   -fx-background-radius: 4px;
 }
+
 .mic-test-bar .bar {
   -fx-background-color: #4ade80;
   -fx-background-radius: 4px;
   -fx-background-insets: 0;
   -fx-padding: 0;
 }
+
 .hub-item {
   -fx-padding: 15px;
   -fx-border-color: #475569;
@@ -2912,18 +3165,22 @@
   -fx-background-radius: 5px;
   -fx-cursor: hand;
 }
+
 .hub-item:hover {
   -fx-background-color: #334155;
   -fx-border-color: #60a5fa;
 }
+
 .hub-icon {
   -fx-font-size: 24px;
   -fx-text-fill: #94a3b8;
 }
+
 .hub-name {
   -fx-font-size: 18px;
   -fx-text-fill: #e2e8f0;
 }
+
 .hub-members {
   -fx-font-size: 14px;
   -fx-text-fill: #94a3b8;
@@ -3110,6 +3367,7 @@
 .rooms-scroll-pane .viewport {
   -fx-background-color: transparent;
 }
+
 .search-container .input-field {
   -fx-font-size: 16px;
   -fx-padding: 8px 12px;
@@ -3119,6 +3377,7 @@
   -fx-text-fill: white;
   -fx-prompt-text-fill: #64748b;
 }
+
 .search-container .action-button {
   -fx-alignment: center-right;
   -fx-background-color: #2563eb;
@@ -3138,11 +3397,13 @@
   -fx-border-color: #334155;
   -fx-border-width: 0 0 1px 0;
 }
+
 .meeting-title-label {
   -fx-font-size: 16px;
   -fx-font-weight: bold;
   -fx-text-fill: #e2e8f0;
 }
+
 .timer-label {
   -fx-font-size: 14px;
   -fx-text-fill: #94a3b8;
@@ -3150,25 +3411,31 @@
   -fx-padding: 6px 12px;
   -fx-background-radius: 6px;
 }
+
 .top-bar-icon {
   -fx-icon-color: #94a3b8;
   -fx-icon-size: 16px;
 }
+
 .top-bar-button {
   -fx-background-color: #3b82f6;
   -fx-text-fill: white;
   -fx-background-radius: 6px;
   -fx-font-size: 13px;
 }
+
 .top-bar-button:hover {
   -fx-background-color: #2563eb;
 }
+
 .top-bar-button .top-bar-icon {
   -fx-icon-color: white;
 }
+
 .meeting-bottom-bar {
   -fx-background-color: #0f172a;
 }
+
 .meeting-control-button,
 .meeting-control-button-blue {
   -fx-background-color: #273345;
@@ -3177,35 +3444,47 @@
   -fx-background-radius: 8px;
   -fx-padding: 12px 20px;
 }
+
 .meeting-control-button:hover {
   -fx-background-color: #334155;
 }
+
 .meeting-control-button.active {
-  -fx-background-color: #d32f2f; /* Kırmızı bir ton */
+  -fx-background-color: #d32f2f;
+  /* Kırmızı bir ton */
 }
+
 .meeting-control-button.active:hover {
-  -fx-background-color: #b71c1c; /* Kırmızının daha koyu bir tonu */
+  -fx-background-color: #b71c1c;
+  /* Kırmızının daha koyu bir tonu */
 }
+
 .meeting-control-button-blue {
   -fx-background-color: #3b82f6;
   -fx-text-fill: white;
 }
+
 .meeting-control-button-blue:hover {
   -fx-background-color: #2563eb;
 }
+
 .meeting-control-button-blue .control-icon {
   -fx-icon-color: white;
 }
+
 .bottom-bar-icon-button {
   -fx-background-color: transparent;
 }
+
 .bottom-bar-icon {
   -fx-icon-color: #94a3b8;
   -fx-icon-size: 18px;
 }
+
 .bottom-bar-icon-button:hover .bottom-bar-icon {
   -fx-icon-color: white;
 }
+
 .leave-button {
   -fx-background-color: #ef4444;
   -fx-text-fill: white;
@@ -3213,50 +3492,62 @@
   -fx-background-radius: 8px;
   -fx-padding: 12px 24px;
 }
+
 .leave-button:hover {
   -fx-background-color: #dc2626;
 }
+
 .video-tile {
   -fx-background-color: transparent;
   -fx-background-radius: 12px;
   -fx-alignment: center;
 }
+
 .video-tile-avatar-label {
   -fx-font-size: 64px;
   -fx-font-weight: bold;
   -fx-text-fill: #475569;
 }
+
 .video-tile-nametag {
   -fx-background-color: transparent;
   -fx-background-radius: 6px;
   -fx-padding: 4px 8px;
 }
+
 .video-tile-name-label {
   -fx-text-fill: white;
   -fx-font-size: 13px;
 }
+
 .video-tile-mic-icon {
   -fx-icon-size: 12px;
   -fx-icon-color: white;
 }
+
 .icon-danger {
   -fx-icon-color: #ef4444 !important;
 }
+
 .right-panel {
   -fx-background-color: #161f31;
 }
-.right-panel > .stack-pane {
+
+.right-panel>.stack-pane {
   -fx-background-color: transparent;
 }
+
 .right-panel .sidebar-scroll-pane,
-.right-panel .sidebar-scroll-pane > .viewport {
+.right-panel .sidebar-scroll-pane>.viewport {
   -fx-background-color: transparent;
   -fx-background: transparent;
 }
+
 .right-panel-toggle-bar {
   -fx-border-color: #334155;
   -fx-border-width: 0 0 1px 0;
 }
+
 .sidebar-toggle-button {
   -fx-background-color: transparent;
   -fx-text-fill: #94a3b8;
@@ -3268,24 +3559,30 @@
   -fx-border-radius: 0;
   -fx-pref-width: 160px;
 }
+
 .sidebar-toggle-button:selected {
   -fx-text-fill: #e2e8f0;
   -fx-border-color: #3b82f6;
 }
+
 .sidebar-scroll-pane {
   -fx-background: transparent;
   -fx-background-color: transparent;
 }
+
 .sidebar-scroll-pane .viewport {
   -fx-background-color: transparent;
 }
+
 .participant-list-item {
   -fx-background-radius: 8px;
   -fx-cursor: hand;
 }
+
 .participant-list-item:hover {
   -fx-background-color: #334155;
 }
+
 .participant-avatar {
   -fx-background-color: #3b82f6;
   -fx-text-fill: white;
@@ -3296,27 +3593,33 @@
   -fx-pref-height: 32px;
   -fx-alignment: center;
 }
+
 .participant-name {
   -fx-text-fill: #e2e8f0;
   -fx-font-weight: 500;
 }
+
 .participant-role {
   -fx-text-fill: #64748b;
   -fx-font-size: 12px;
 }
+
 .participant-list-icon {
   -fx-icon-size: 16px;
   -fx-icon-color: #94a3b8;
 }
+
 .placeholder-text {
   -fx-text-fill: #64748b;
   -fx-font-size: 14px;
   -fx-text-alignment: center;
 }
+
 .control-icon {
   -fx-icon-size: 18px;
   -fx-icon-color: #cbd5e1;
 }
+
 .layout-button {
   -fx-background-color: transparent;
   -fx-padding: 8px 12px;
@@ -3324,64 +3627,84 @@
   -fx-border-color: transparent;
   -fx-border-width: 0 0 3px 0;
 }
+
 .layout-icon {
   -fx-icon-color: #94a3b8;
   -fx-icon-size: 18px;
 }
+
 .layout-button:hover .layout-icon {
   -fx-icon-color: white;
 }
+
 .layout-button.active .layout-icon {
   -fx-icon-color: white;
 }
+
 .layout-button.active {
   -fx-border-color: #3b82f6;
 }
+
 .participant-action-button {
   -fx-background-color: transparent;
   -fx-background-radius: 50%;
   -fx-padding: 6px;
 }
+
 .participant-action-button:hover {
   -fx-background-color: #334155;
 }
+
 .participant-action-icon {
   -fx-icon-color: #94a3b8;
   -fx-icon-size: 14px;
 }
+
 .context-menu {
   -fx-background-color: #273345;
   -fx-background-radius: 8px;
   -fx-padding: 4px;
   -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 10, 0, 0, 4);
 }
+
 .context-menu .menu-item {
   -fx-padding: 8px 12px;
   -fx-background-radius: 4px;
 }
+
 .context-menu .menu-item .label {
   -fx-text-fill: #e2e8f0;
   -fx-font-size: 13px;
 }
+
 .context-menu .menu-item:focused {
   -fx-background-color: #3b82f6;
 }
+
 .context-menu .menu-item:focused .label {
   -fx-text-fill: white;
 }
+
 .context-menu .menu-item.menu-item-danger .label {
-  -fx-text-fill: #f87171; /* red-400 */
+  -fx-text-fill: #f87171;
+  /* red-400 */
 }
+
 .context-menu .menu-item.menu-item-danger:focused {
-  -fx-background-color: #ef4444; /* red-500 */
+  -fx-background-color: #ef4444;
+  /* red-500 */
 }
+
 .context-menu .menu-item.menu-item-danger:focused .label {
   -fx-text-fill: white;
 }
+
 .error-field {
-  -fx-border-color: #e53e3e; /* Kırmızı bir ton */
+  -fx-border-color: #e53e3e;
+  /* Kırmızı bir ton */
   -fx-border-width: 1.5px;
-  -fx-border-radius: 4px; /* Kenar yuvarlaklığı */
+  -fx-border-radius: 4px;
+  /* Kenar yuvarlaklığı */
 }
 
 /* =================================================================
@@ -3390,27 +3713,35 @@
 
 /* Minimal sidebar'ın genişliğini ayarlar ve içeriği ortalar */
 .sidebar.sidebar-minimal {
-  -fx-pref-width: 40px; /* Genişliği daralt */
+  -fx-pref-width: 40px;
+  /* Genişliği daralt */
   -fx-alignment: TOP-CENTER;
   -fx-padding: 0;
 }
 
 /* Minimal sidebar başlığının (sadece logo) padding'ini ayarlar */
 .sidebar.sidebar-minimal {
-  -fx-pref-width: 75px; /* Genişliği biraz daha daralt */
+  -fx-pref-width: 75px;
+  /* Genişliği biraz daha daralt */
   -fx-alignment: TOP-CENTER;
   -fx-padding: 0;
 }
 
 /* İkon ve metin içeren butonların boyutunu ve stilini ayarlar */
 .sidebar.sidebar-minimal .nav-button {
-  -fx-pref-width: 55px; /* Reduced width for more compact layout */
-  -fx-pref-height: 50px; /* Reduced height for more compact layout */
+  -fx-pref-width: 55px;
+  /* Reduced width for more compact layout */
+  -fx-pref-height: 50px;
+  /* Reduced height for more compact layout */
   -fx-alignment: CENTER;
-  -fx-graphic-text-gap: 4px; /* Reduced gap between icon and text */
-  -fx-font-size: 11px; /* Fontu küçült ve soft bir görünüm ver */
-  -fx-padding: 3px 0 3px 0; /* Reduced padding */
-  -fx-line-spacing: 2px; /* Reduced line spacing */
+  -fx-graphic-text-gap: 4px;
+  /* Reduced gap between icon and text */
+  -fx-font-size: 11px;
+  /* Fontu küçült ve soft bir görünüm ver */
+  -fx-padding: 3px 0 3px 0;
+  /* Reduced padding */
+  -fx-line-spacing: 2px;
+  /* Reduced line spacing */
 }
 
 /* Sağ üstteki profil kutusu için cursor ve hover efekti */
@@ -3421,7 +3752,8 @@
 }
 
 .header-profile-box:hover {
-  -fx-background-color: #334155; /* search-field rengi */
+  -fx-background-color: #334155;
+  /* search-field rengi */
 }
 
 /* Sidebar bottom section for profile and notifications */
@@ -3432,7 +3764,8 @@
 
 /* Smaller nav buttons in sidebar bottom */
 .sidebar-bottom .nav-button {
-  -fx-pref-width: 32px; /* Even smaller for notifications */
+  -fx-pref-width: 32px;
+  /* Even smaller for notifications */
   -fx-pref-height: 32px;
   -fx-alignment: CENTER;
   -fx-background-radius: 8px;
@@ -3443,15 +3776,18 @@
 .sidebar-bottom .nav-button:pressed,
 .sidebar-bottom .nav-button:focused,
 .sidebar-bottom .nav-button.active {
-  -fx-background-color: rgba(51, 65, 85, 0.3); /* Subtle hover only */
-  -fx-text-fill: #a0a0a0; /* Keep original text color */
+  -fx-background-color: rgba(51, 65, 85, 0.3);
+  /* Subtle hover only */
+  -fx-text-fill: #a0a0a0;
+  /* Keep original text color */
 }
 
 .sidebar-bottom .nav-button:hover .nav-icon,
 .sidebar-bottom .nav-button:pressed .nav-icon,
 .sidebar-bottom .nav-button:focused .nav-icon,
 .sidebar-bottom .nav-button.active .nav-icon {
-  -fx-icon-color: #a0a0a0; /* Keep original icon color */
+  -fx-icon-color: #a0a0a0;
+  /* Keep original icon color */
 }
 
 /* Sidebar profile box styling - adjusted for larger avatar */
@@ -3459,8 +3795,10 @@
   -fx-cursor: hand;
   -fx-padding: 4px;
   -fx-background-radius: 8px;
-  -fx-pref-width: 42px; /* Adjusted for larger avatar */
-  -fx-pref-height: 42px; /* Adjusted for larger avatar */
+  -fx-pref-width: 42px;
+  /* Adjusted for larger avatar */
+  -fx-pref-height: 42px;
+  /* Adjusted for larger avatar */
 }
 
 .sidebar-profile-box:hover {
@@ -3473,14 +3811,18 @@
 
 /* Profil resminin sağ alt köşesindeki durum noktası */
 .status-dot {
-  -fx-pref-width: 12px; /* Slightly larger to match bigger avatar */
-  -fx-pref-height: 12px; /* Slightly larger to match bigger avatar */
+  -fx-pref-width: 12px;
+  /* Slightly larger to match bigger avatar */
+  -fx-pref-height: 12px;
+  /* Slightly larger to match bigger avatar */
   -fx-min-width: 12px;
   -fx-min-height: 12px;
   -fx-max-width: 12px;
   -fx-max-height: 12px;
-  -fx-background-radius: 50%; /* Tam yuvarlak */
-  -fx-border-color: #1e2b3b; /* Main background color for better contrast */
+  -fx-background-radius: 50%;
+  /* Tam yuvarlak */
+  -fx-border-color: #1e2b3b;
+  /* Main background color for better contrast */
   -fx-border-width: 2px;
   -fx-border-radius: 50%;
   -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.8), 4, 0, 0, 1);
@@ -3488,17 +3830,25 @@
 
 /* Durum renkleri */
 .status-dot-online {
-  -fx-background-color: #22c55e; /* Brighter green */
+  -fx-background-color: #22c55e;
+  /* Brighter green */
 }
+
 .status-dot-idle {
-  -fx-background-color: #fbbf24; /* Brighter yellow */
+  -fx-background-color: #fbbf24;
+  /* Brighter yellow */
 }
+
 .status-dot-dnd {
-  -fx-background-color: #ef4444; /* Bright red */
+  -fx-background-color: #ef4444;
+  /* Bright red */
 }
+
 .status-dot-offline {
-  -fx-background-color: #6b7280; /* Gray text for offline */
-  -fx-background-color: transparent; /* No background */
+  -fx-background-color: #6b7280;
+  /* Gray text for offline */
+  -fx-background-color: transparent;
+  /* No background */
 }
 
 /* Özel Pop-up Menü Kapsayıcısı */
@@ -3561,6 +3911,7 @@
 .profile-menu-separator {
   -fx-padding: 4px 0;
 }
+
 .profile-menu-separator .line {
   -fx-border-color: #334155;
   -fx-border-width: 1 0 0 0;
@@ -4270,8 +4621,10 @@
 }
 
 .chat-header-avatar {
-  -fx-background-color: #3E3454; /* Temaya uygun mat mor */
-  -fx-background-radius: 50%;     /* Tam Daire */
+  -fx-background-color: #3E3454;
+  /* Temaya uygun mat mor */
+  -fx-background-radius: 50%;
+  /* Tam Daire */
 
   /* 80px Header için ALTIN ORAN: 52px */
   -fx-min-width: 52px;
@@ -4282,12 +4635,14 @@
   -fx-max-height: 52px;
 
   -fx-text-fill: white;
-  -fx-font-size: 20px; /* Harf boyutu */
-  -fx-font-weight: 700; /* Bold */
+  -fx-font-size: 20px;
+  /* Harf boyutu */
+  -fx-font-weight: 700;
+  /* Bold */
   -fx-alignment: CENTER;
 
   /* Hafif Gölge (Derinlik katar, yapışık durmaz) */
-  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 8, 0, 0, 1);
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.25), 8, 0, 0, 1);
 }
 
 /* 2. İsim Metni (Daha okunaklı ve büyük) */
@@ -4300,7 +4655,8 @@
 
 /* 3. Durum Metni (Hafif ve şık) */
 .chat-header-status {
-  -fx-text-fill: #94a1b2; /* Göz yormayan gri */
+  -fx-text-fill: #94a1b2;
+  /* Göz yormayan gri */
   -fx-font-size: 13px;
   -fx-font-family: "Segoe UI", sans-serif;
 }
@@ -4334,7 +4690,8 @@
 /* Main Server Container */
 .server-pane {
   -fx-background-color: #1e2b3b;
-  -fx-background-radius: 12px; /* Match main app rounded corners */
+  -fx-background-radius: 12px;
+  /* Match main app rounded corners */
 }
 
 /* ========== LEFT SIDEBAR - CHANNELS ========== */
@@ -4342,7 +4699,8 @@
   -fx-background-color: #0f172a;
   -fx-border-color: #334155;
   -fx-border-width: 0 1px 0 0;
-  -fx-background-radius: 12px 0px 0px 12px; /* Rounded left corners for server sidebar */
+  -fx-background-radius: 12px 0px 0px 12px;
+  /* Rounded left corners for server sidebar */
 }
 
 /* Server Header */
@@ -4755,7 +5113,8 @@
   -fx-background-color: #0f172a;
   -fx-border-color: #334155;
   -fx-border-width: 0 0 0 1px;
-  -fx-background-radius: 0px 12px 12px 0px; /* Rounded right corners for users sidebar */
+  -fx-background-radius: 0px 12px 12px 0px;
+  /* Rounded right corners for users sidebar */
 }
 
 .users-header {
@@ -4841,28 +5200,38 @@
 }
 
 .status-online {
-  -fx-text-fill: #22c55e; /* Green text for online */
-  -fx-background-color: transparent; /* No background */
+  -fx-text-fill: #22c55e;
+  /* Green text for online */
+  -fx-background-color: transparent;
+  /* No background */
 }
 
 .status-idle {
-  -fx-text-fill: #fbbf24; /* Yellow text for idle */
-  -fx-background-color: transparent; /* No background */
+  -fx-text-fill: #fbbf24;
+  /* Yellow text for idle */
+  -fx-background-color: transparent;
+  /* No background */
 }
 
 .status-dnd {
-  -fx-text-fill: #ef4444; /* Red text for DND */
-  -fx-background-color: transparent; /* No background */
+  -fx-text-fill: #ef4444;
+  /* Red text for DND */
+  -fx-background-color: transparent;
+  /* No background */
 }
 
 .status-busy {
-  -fx-text-fill: #ef4444; /* Red text for Busy */
-  -fx-background-color: transparent; /* No background */
+  -fx-text-fill: #ef4444;
+  /* Red text for Busy */
+  -fx-background-color: transparent;
+  /* No background */
 }
 
 .status-offline {
-  -fx-text-fill: #6b7280; /* Gray text for offline */
-  -fx-background-color: transparent; /* No background */
+  -fx-text-fill: #6b7280;
+  /* Gray text for offline */
+  -fx-background-color: transparent;
+  /* No background */
 }
 
 .user-name-small {
@@ -5193,7 +5562,8 @@
 }
 
 /* Action Buttons */
-.friend-action-button, .add-friend-button {
+.friend-action-button,
+.add-friend-button {
   -fx-background-color: linear-gradient(to right, #29486f, #244e57);
   -fx-text-fill: white;
   -fx-background-radius: 8;
@@ -5203,7 +5573,8 @@
   -fx-cursor: hand;
 }
 
-.friend-action-button:hover, .add-friend-button:hover {
+.friend-action-button:hover,
+.add-friend-button:hover {
   -fx-background-color: linear-gradient(to bottom, #1f717e, #1d6787);
 }
 

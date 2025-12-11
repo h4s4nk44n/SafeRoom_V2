@@ -46,6 +46,12 @@ public class CallManager {
     private Runnable onRemoteScreenShareStoppedCallback; // Screen share stopped callback
     private Runnable onLocalTracksReadyCallback; // Callback when local audio/video tracks are added
 
+    // 🧊 ICE Candidate Buffering to prevent race conditions
+    private final java.util.List<WebRTCSignal> pendingIceCandidates = new java.util.ArrayList<>();
+
+    // ⚡ FAST P2P: Pre-generated offer to send immediately on accept
+    private String preGeneratedOffer;
+
     /**
      * Call states (matching server-side WebRTCSessionManager.CallState)
      */
@@ -185,6 +191,16 @@ public class CallManager {
                         System.out.println("[CallManager] 🎥 Local tracks ready (caller) - notifying GUI");
                         onLocalTracksReadyCallback.run();
                     }
+
+                    // ⚡ FAST P2P: Generate OFFER now (during RINGING) so it's ready instantly
+                    System.out.println("[CallManager] ⚡ Generating Early Offer during RINGING...");
+                    webrtcClient.createOffer().thenAccept(sdp -> {
+                        this.preGeneratedOffer = sdp;
+                        System.out.println("[CallManager] ⚡ Early Offer generated and ready!");
+                    }).exceptionally(ex -> {
+                        System.err.printf("[CallManager] ❌ Failed to generate Early Offer: %s%n", ex.getMessage());
+                        return null;
+                    });
 
                     return callId;
                 })
@@ -495,12 +511,21 @@ public class CallManager {
 
         this.currentState = CallState.CONNECTING;
 
-        // Create SDP offer
-        webrtcClient.createOffer().thenAccept(sdp -> {
-            // Send OFFER to callee
-            signalingClient.sendOffer(currentCallId, remoteUsername, sdp);
-            System.out.println("[CallManager] Offer sent");
-        });
+        this.currentState = CallState.CONNECTING;
+
+        // ⚡ FAST P2P: Send pre-generated offer if available
+        if (preGeneratedOffer != null) {
+            System.out.println("[CallManager] ⚡ Sending Early Offer immediately!");
+            signalingClient.sendOffer(currentCallId, remoteUsername, preGeneratedOffer);
+            preGeneratedOffer = null; // Consume it
+        } else {
+            // Fallback (race condition where answer happened before offer gen finished?)
+            System.out.println("[CallManager] ⚠️ Early offer not ready, generating now...");
+            webrtcClient.createOffer().thenAccept(sdp -> {
+                signalingClient.sendOffer(currentCallId, remoteUsername, sdp);
+                System.out.println("[CallManager] Offer sent");
+            });
+        }
 
         if (onCallAcceptedCallback != null) {
             onCallAcceptedCallback.accept(currentCallId);
@@ -584,8 +609,14 @@ public class CallManager {
             }).exceptionally(ex -> {
                 System.err.printf("[CallManager] Failed to create answer: %s%n", ex.getMessage());
                 return null;
+            }).exceptionally(ex -> {
+                System.err.printf("[CallManager] Failed to create answer: %s%n", ex.getMessage());
+                return null;
             });
         }
+
+        // 🧊 Replay any buffered ICE candidates that arrived before OFFER
+        drainPendingIceCandidates();
     }
 
     /**
@@ -603,6 +634,9 @@ public class CallManager {
         if (onCallConnectedCallback != null) {
             onCallConnectedCallback.run();
         }
+
+        // 🧊 Replay any buffered ICE candidates that arrived before ANSWER
+        drainPendingIceCandidates();
     }
 
     /**
@@ -611,10 +645,58 @@ public class CallManager {
     private void handleIceCandidate(WebRTCSignal signal) {
         System.out.println("[CallManager] Received ICE candidate");
 
-        webrtcClient.addIceCandidate(
-                signal.getCandidate(),
-                signal.getSdpMid(),
-                signal.getSdpMLineIndex());
+        // 🧊 Check if we are ready to accept ICE candidates
+        // We need: 1. WebRTCClient initialized, 2. PeerConnection created, 3. Remote
+        // Description set
+        boolean ready = webrtcClient != null &&
+                webrtcClient.getPeerConnection() != null &&
+                webrtcClient.getPeerConnection().getRemoteDescription() != null;
+
+        if (!ready) {
+            System.out.println(
+                    "[CallManager] 🧊 Remote description not set yet (or client null), buffering ICE candidate");
+            synchronized (pendingIceCandidates) {
+                pendingIceCandidates.add(signal);
+            }
+            return;
+        }
+
+        try {
+            webrtcClient.addIceCandidate(
+                    signal.getCandidate(),
+                    signal.getSdpMid(),
+                    signal.getSdpMLineIndex());
+        } catch (Exception e) {
+            System.err.printf("[CallManager] ❌ Failed to add ICE candidate: %s%n", e.getMessage());
+        }
+    }
+
+    /**
+     * Replay buffered ICE candidates
+     */
+    private void drainPendingIceCandidates() {
+        synchronized (pendingIceCandidates) {
+            if (pendingIceCandidates.isEmpty())
+                return;
+
+            System.out.printf("[CallManager] 🧊 Replaying %d buffered ICE candidates...%n",
+                    pendingIceCandidates.size());
+
+            for (WebRTCSignal signal : pendingIceCandidates) {
+                try {
+                    // Check again just in case (though we should be ready if this method is called)
+                    if (webrtcClient != null) {
+                        webrtcClient.addIceCandidate(
+                                signal.getCandidate(),
+                                signal.getSdpMid(),
+                                signal.getSdpMLineIndex());
+                    }
+                } catch (Exception e) {
+                    System.err.printf("[CallManager] ❌ Failed to replay ICE candidate: %s%n", e.getMessage());
+                }
+            }
+            pendingIceCandidates.clear();
+        }
     }
 
     /**
@@ -793,6 +875,11 @@ public class CallManager {
         this.pendingAudioEnabled = false;
         this.pendingVideoEnabled = false;
         this.tracksAddedForIncomingCall = false;
+
+        // Clear ICE buffer
+        synchronized (pendingIceCandidates) {
+            pendingIceCandidates.clear();
+        }
 
         // Now close WebRTC connection (this may trigger callbacks, but state is already
         // IDLE)
