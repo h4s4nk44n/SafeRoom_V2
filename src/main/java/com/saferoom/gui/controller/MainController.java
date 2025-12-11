@@ -46,9 +46,9 @@ public class MainController {
     @FXML
     private BorderPane headerBar;
     @FXML
-    private HBox windowControlsLeft;    // macOS için sol taraf
+    private HBox windowControlsLeft; // macOS için sol taraf
     @FXML
-    private HBox windowControlsRight;   // Windows için sağ taraf
+    private HBox windowControlsRight; // Windows için sağ taraf
     @FXML
     private HBox sidebarHeader;
     // ------------------------------------------------------------
@@ -273,8 +273,7 @@ public class MainController {
                     UserStatus.ONLINE.getStyleClass(),
                     UserStatus.IDLE.getStyleClass(),
                     UserStatus.DND.getStyleClass(),
-                    UserStatus.OFFLINE.getStyleClass()
-            );
+                    UserStatus.OFFLINE.getStyleClass());
             statusDot.getStyleClass().add(status.getStyleClass());
             currentStatus = status;
             boolean reopenUser = userMenu != null && userMenu.isShowing();
@@ -330,7 +329,7 @@ public class MainController {
             double menuTop = idealCenterY - (estimatedMenuHeight / 2);
             if (menuTop < 10) {
                 menuTop = 10;
-            }else if (menuTop + estimatedMenuHeight > windowHeight - 10) {
+            } else if (menuTop + estimatedMenuHeight > windowHeight - 10) {
                 menuTop = windowHeight - estimatedMenuHeight - 10;
             }
             offsetY = menuTop - profileBounds.getMinY();
@@ -373,7 +372,8 @@ public class MainController {
         });
 
         CustomMenuItem settingsItem = actionRow("Settings", "fas-cog", this::handleSettings);
-        CustomMenuItem helpItem = actionRow("Help", "far-question-circle", () -> AlertUtils.showInfo("Help", "Help is coming soon."));
+        CustomMenuItem helpItem = actionRow("Help", "far-question-circle",
+                () -> AlertUtils.showInfo("Help", "Help is coming soon."));
         CustomMenuItem logoutItem = actionRow("Log out", "fas-sign-out-alt", this::handleLogout);
 
         mainMenuItems.add(headerItem);
@@ -465,8 +465,8 @@ public class MainController {
                 scene.getStylesheets().add(cssUrl.toExternalForm());
             }
 
-            final double[] xOffset = {0};
-            final double[] yOffset = {0};
+            final double[] xOffset = { 0 };
+            final double[] yOffset = { 0 };
             root.setOnMousePressed(event -> {
                 xOffset[0] = event.getSceneX();
                 yOffset[0] = event.getSceneY();
@@ -551,8 +551,31 @@ public class MainController {
     }
 
     private void handleClose() {
+        // Stop heartbeat
+        try {
+            String currentUsername = UserSession.getInstance().getDisplayName();
+            com.saferoom.gui.utils.HeartbeatService.getInstance().stopHeartbeat(currentUsername);
+        } catch (Exception e) {
+            System.err.println("Error stopping heartbeat: " + e.getMessage());
+        }
+
+        // Cleanup WebRTC resources
+        try {
+            if (CallManager.getInstance().isInitialized()) {
+                System.out.println("[MainController] 🛑 Disposing CallManager...");
+                CallManager.getInstance().dispose();
+            }
+        } catch (Exception e) {
+            System.err.println("Error disposing CallManager: " + e.getMessage());
+        }
+
         Stage stage = (Stage) mainPane.getScene().getWindow();
         stage.close();
+
+        // Force exit to kill any lingering native threads (WebRTC)
+        System.out.println("[MainController] 🚪 Exiting application logic, forcing process exit...");
+        Platform.exit();
+        System.exit(0);
     }
 
     private void handleDashboard() {
@@ -568,7 +591,8 @@ public class MainController {
     public void handleMessages() {
         setActiveButton(messagesButton);
         try {
-            FXMLLoader loader = new FXMLLoader(Objects.requireNonNull(MainApp.class.getResource("/view/MessagesView.fxml")));
+            FXMLLoader loader = new FXMLLoader(
+                    Objects.requireNonNull(MainApp.class.getResource("/view/MessagesView.fxml")));
             Parent root = loader.load();
             MessagesController messagesController = loader.getController();
             messagesController.setOnNavigateToFriendsRequest(this::handleFriends);
@@ -596,7 +620,8 @@ public class MainController {
 
     public void handleProfile(String username) {
         try {
-            FXMLLoader loader = new FXMLLoader(Objects.requireNonNull(MainApp.class.getResource("/view/ProfileView.fxml")));
+            FXMLLoader loader = new FXMLLoader(
+                    Objects.requireNonNull(MainApp.class.getResource("/view/ProfileView.fxml")));
             Parent root = loader.load();
             ProfileController profileController = loader.getController();
             profileController.setProfileData(username);
@@ -690,7 +715,7 @@ public class MainController {
                 if (id != null) {
                     if (id.equals("dashboardView")) {
                         handleDashboard();
-                    }else if (id.equals("settingsView")) {
+                    } else if (id.equals("settingsView")) {
                         handleSettings();
                     }
                 }
@@ -706,8 +731,7 @@ public class MainController {
             Platform.runLater(() -> {
                 try {
                     IncomingCallDialog dialog = new IncomingCallDialog(
-                            callInfo.callerUsername, callInfo.callId, callInfo.videoEnabled
-                    );
+                            callInfo.callerUsername, callInfo.callId, callInfo.videoEnabled);
                     CompletableFuture<Boolean> dialogResult = dialog.show();
                     dialogResult.thenAccept(accepted -> {
                         if (accepted) {
@@ -715,8 +739,7 @@ public class MainController {
                             callManager.acceptCall(callInfo.callId);
                             Platform.runLater(() -> {
                                 currentActiveCallDialog = new ActiveCallDialog(
-                                        callInfo.callerUsername, callInfo.callId, callInfo.videoEnabled, callManager
-                                );
+                                        callInfo.callerUsername, callInfo.callId, callInfo.videoEnabled, callManager);
                                 currentActiveCallDialog.show();
                                 // NOTE: Local video will be attached via onLocalTracksReadyCallback
                                 // because tracks are added AFTER offer is received (deferred)
@@ -730,7 +753,7 @@ public class MainController {
                 }
             });
         });
-        
+
         // 🎥 Attach local video when tracks are actually ready
         callManager.setOnLocalTracksReadyCallback(() -> {
             Platform.runLater(() -> {
@@ -743,7 +766,7 @@ public class MainController {
                 }
             });
         });
-        
+
         callManager.setOnCallEndedCallback(callId -> {
             Platform.runLater(() -> {
                 if (currentActiveCallDialog != null) {
