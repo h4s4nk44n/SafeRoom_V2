@@ -325,8 +325,9 @@ tasks.withType(JavaExec).configureEach {
     // HEAP CONFIGURATION
     // ─────────────────────────────────────────────────────────────────────────────
     // Setting min=max prevents heap resizing overhead during connection establishment
-    jvmArgs += '-Xms2g'
-    jvmArgs += '-Xmx2g'
+    // OPTIMIZATION: Reduced from 2g to 256m/512m to fit in 300MB-600MB RAM target
+    jvmArgs += '-Xms256m'
+    jvmArgs += '-Xmx512m'
     
     // ─────────────────────────────────────────────────────────────────────────────
     // GARBAGE COLLECTOR (G1GC optimized for low latency media)
