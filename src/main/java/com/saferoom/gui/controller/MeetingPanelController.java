@@ -892,20 +892,30 @@ public class MeetingPanelController {
     private void leaveMeeting() {
         System.out.println("[MeetingPanel] Leaving meeting...");
 
-        // Dispose all video panels (ESKİ TASARIM uyumlu cleanup)
+        // 1. UI Cleanup (Immediate)
         disposeAllVideoPanels();
 
-        // Cleanup group call (this closes all peer connections and releases camera)
+        // 2. Media/Network Cleanup (Async)
         if (groupCallManager != null) {
             groupCallManager.leaveRoom()
-                    .thenAccept(v -> {
-                        System.out.println("[MeetingPanel] ✅ Left room successfully - camera released");
-                    })
-                    .exceptionally(ex -> {
-                        System.err.printf("[MeetingPanel] Error leaving room: %s%n", ex.getMessage());
+                    .handle((result, ex) -> { // Use handle to process both success and failure
+                        if (ex != null) {
+                            System.err.println("[MeetingPanel] Error during leave room: " + ex.getMessage());
+                        }
                         return null;
-                    });
+                    })
+                    .thenRunAsync(() -> {
+                        // 3. Final Cleanup (On UI Thread after leave completes)
+                        performFinalCleanup();
+                    }, javafx.application.Platform::runLater);
+        } else {
+            // If no manager, just do final cleanup
+            performFinalCleanup();
         }
+    }
+
+    private void performFinalCleanup() {
+        System.out.println("[MeetingPanel] Performing final cleanup...");
 
         // Stop signaling
         if (signalingClient != null) {
@@ -916,7 +926,7 @@ public class MeetingPanelController {
         // Clear remote tracks
         remoteVideoTracks.clear();
 
-        // Ana pencereye geri dön (content değiştirme yaklaşımı)
+        // Return to main view
         if (mainController != null) {
             mainController.returnToMainView();
         }
