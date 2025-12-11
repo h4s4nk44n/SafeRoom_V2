@@ -1013,4 +1013,20 @@ public class CallManager {
 
         System.out.println("[CallManager] Shutdown complete");
     }
+
+    /**
+     * Explicitly dispose resources (for application exit)
+     */
+    public void dispose() {
+        cleanup();
+        shutdown();
+        // Force factory disposal if exists
+        try {
+            if (WebRTCClient.getFactory() != null) {
+                WebRTCClient.getFactory().dispose();
+            }
+        } catch (Exception e) {
+            System.err.println("[CallManager] Error disposing factory: " + e.getMessage());
+        }
+    }
 }
