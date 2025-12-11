@@ -427,7 +427,7 @@ public class VideoPanel extends Canvas {
 
     private void startAnimation() {
         if (!animationRunning) {
-            System.out.println("[VideoPanel] 🎬 Starting AnimationTimer on FX thread");
+            System.out.println("[VideoPanel] Starting AnimationTimer on FX thread");
             animationTimer.start();
             animationRunning = true;
         } else {
@@ -437,7 +437,7 @@ public class VideoPanel extends Canvas {
 
     private void stopAnimation() {
         if (animationRunning) {
-            System.out.println("[VideoPanel] ⏹️ Stopping AnimationTimer");
+            System.out.println("[VideoPanel] Stopping AnimationTimer");
             animationTimer.stop();
             animationRunning = false;
         }

@@ -3,14 +3,24 @@ package com.saferoom.webrtc.pipeline;
 import java.nio.ByteBuffer;
 
 /**
- * Reference implementation for Native Video Encoder JNI wrapper.
+ * JNI-based Video Encoder Implementation.
  * 
- * <h2>JNI Optimization</h2>
+ * <h2>Zero-Copy Architecture</h2>
  * <p>
- * This class demonstrates the correct JNI signature to use with
- * DirectByteBuffer
- * to avoid GCLocker pauses (GetPrimitiveArrayCritical) and extra copying.
+ * This class serves as the bridge to the native C++ encoding layer.
+ * By passing the {@link java.nio.DirectByteBuffer} directly to native code,
+ * we avoid all JVM-heap copies. The native code can read the YUV/ARGB data
+ * directly from the native memory address of the buffer.
  * </p>
+ * 
+ * <h2>Usage</h2>
+ * 
+ * <pre>
+ * NativeVideoEncoder encoder = new NativeVideoEncoder();
+ * encoder.init(640, 480, 30);
+ * encoder.encodeFrame(directBuffer, timestamp);
+ * encoder.release();
+ * </pre>
  */
 public class NativeVideoEncoder {
 
