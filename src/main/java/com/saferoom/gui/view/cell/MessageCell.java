@@ -331,6 +331,8 @@ public class MessageCell extends ListCell<Message> {
             case VIDEO -> "\u25B6";
             case DOCUMENT -> "\uD83D\uDCC4";
             case FILE, FILE_PLACEHOLDER, TEXT -> "\uD83D\uDCCE";
+            case TERMINAL_SESSION -> "\uD83D\uDCBB";
+            case LIVE_SESSION -> "\uD83D\uDC41";
         };
     }
 

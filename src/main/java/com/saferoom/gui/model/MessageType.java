@@ -9,6 +9,8 @@ public enum MessageType {
     VIDEO,
     DOCUMENT,
     FILE,
-    FILE_PLACEHOLDER
+    FILE,
+    FILE_PLACEHOLDER,
+    TERMINAL_SESSION,
+    LIVE_SESSION
 }
-
