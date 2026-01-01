@@ -232,7 +232,7 @@ public class CallManager {
                     if (videoEnabled) {
                         logger.info("📹 Adding video track for outgoing call...");
                         trackFutures.add(webrtcClient.addVideoTrack()
-                                .orTimeout(5, TimeUnit.SECONDS)
+                                .orTimeout(15, TimeUnit.SECONDS) // FIX: Increased from 5s for Mac camera init
                                 .thenRun(() -> {
                                     registerCameraWithScreenShareController();
                                 }).exceptionally(e -> {
@@ -241,16 +241,15 @@ public class CallManager {
                                 }));
                     }
 
-                    // 🎥 Notify GUI that local tracks are ready (for CALLER)
-                    if (onLocalTracksReadyCallback != null) {
-                        logger.info("🎥 Local tracks ready (caller) - notifying GUI");
-                        onLocalTracksReadyCallback.run();
-                    }
-
-                    // Wait for tracks, then generate offer
-
+                    // Wait for tracks, then notify GUI and generate offer
                     CompletableFuture.allOf(trackFutures.toArray(new CompletableFuture[0]))
                             .thenCompose(v -> {
+                                // FIX: Notify GUI AFTER tracks are ready (not before!)
+                                if (onLocalTracksReadyCallback != null) {
+                                    logger.info("🎥 Local tracks ready (caller) - notifying GUI");
+                                    onLocalTracksReadyCallback.run();
+                                }
+
                                 // ⚡ FAST P2P: Generate OFFER now (during RINGING) so it's ready instantly
                                 logger.info("⚡ Generating Early Offer during RINGING...");
                                 return webrtcClient.createOffer()
@@ -677,7 +676,7 @@ public class CallManager {
                         if (pendingVideoEnabled) {
                             logger.info("Adding video track...");
                             trackFutures.add(webrtcClient.addVideoTrack()
-                                    .orTimeout(5, TimeUnit.SECONDS)
+                                    .orTimeout(15, TimeUnit.SECONDS) // FIX: Increased from 5s for Mac camera init
                                     .thenRun(() -> {
                                         registerCameraWithScreenShareController();
                                     }).exceptionally(e -> {
