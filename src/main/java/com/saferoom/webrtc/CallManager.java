@@ -326,7 +326,17 @@ public class CallManager {
         // Reset flag for track addition
         tracksAddedForIncomingCall = false;
 
-        // Send CALL_ACCEPT
+        // ═══════════════════════════════════════════════════════════════
+        // 🔥 MAC FIX: Pre-warm video track in parallel with CALL_ACCEPT
+        // Camera starts initializing NOW, during network round-trip.
+        // By the time OFFER arrives, camera is ready at 640x480!
+        // ═══════════════════════════════════════════════════════════════
+        if (pendingVideoEnabled) {
+            logger.info("🔥 Pre-warming camera (parallel with CALL_ACCEPT)...");
+            webrtcClient.preWarmVideoTrack();
+        }
+
+        // Send CALL_ACCEPT (network round-trip starts)
         boolean success = signalingClient.sendCallAccept(callId, remoteUsername);
 
         if (success) {
