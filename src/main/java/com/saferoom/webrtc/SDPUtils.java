@@ -2,7 +2,9 @@ package com.saferoom.webrtc;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -214,6 +216,157 @@ public class SDPUtils {
         }
 
         return sb.toString();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // MAC VIDEOTOOLBOX FIX: SDP Profile Enforcement (The Gatekeeper)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // Pattern to match profile-level-id in fmtp lines
+    private static final Pattern PROFILE_PATTERN = Pattern.compile("(profile-level-id=)([0-9a-fA-F]{6})");
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * SDP PROFILE MUNGING: The Gatekeeper
+     * ═══════════════════════════════════════════════════════════════════
+     * 
+     * Forces all H.264 fmtp lines to use Constrained Baseline profile (42e01f).
+     * This prevents the native VideoToolbox encoder from receiving a profile
+     * it cannot handle during mid-session renegotiation.
+     * 
+     * High Profile (640c1f) → Constrained Baseline (42e01f)
+     * Main Profile (4d001f) → Constrained Baseline (42e01f)
+     * 
+     * This is the "nuclear option" that guarantees stability at the cost of
+     * encoding efficiency. Constrained Baseline is universally supported.
+     * 
+     * @param sdp The SDP to process
+     * @return SDP with all H.264 profiles normalized to Constrained Baseline
+     */
+    public static String enforceBaselineH264Profile(String sdp) {
+        if (sdp == null)
+            return null;
+
+        StringBuilder result = new StringBuilder();
+        String[] lines = sdp.split("\r\n");
+        boolean modified = false;
+
+        for (String line : lines) {
+            if (line.contains("profile-level-id=")) {
+                Matcher m = PROFILE_PATTERN.matcher(line);
+                if (m.find()) {
+                    String originalProfile = m.group(2).toLowerCase();
+
+                    // Only modify if it's NOT already Baseline (42xx)
+                    if (!originalProfile.startsWith("42")) {
+                        String newLine = m.replaceFirst("$1" + "42e01f");
+                        result.append(newLine).append("\r\n");
+
+                        System.out.printf("[SDPUtils] 🔒 PROFILE MUNGED: %s → 42e01f (%s → Constrained Baseline)%n",
+                                originalProfile, decodeH264Profile(originalProfile));
+                        modified = true;
+                        continue;
+                    }
+                }
+            }
+            result.append(line).append("\r\n");
+        }
+
+        if (modified) {
+            System.out.println("[SDPUtils] ✅ SDP normalized to Constrained Baseline profile");
+        } else {
+            System.out.println("[SDPUtils] ℹ️ SDP already uses compatible Baseline profile");
+        }
+
+        return result.toString();
+    }
+
+    /**
+     * Analyze and log all video codec information in an SDP.
+     * Strategic logging for debugging cross-platform issues.
+     * 
+     * @param sdp   The SDP to analyze
+     * @param label A label for the log output (e.g., "REMOTE OFFER")
+     */
+    public static void logVideoCodecAnalysis(String sdp, String label) {
+        if (sdp == null)
+            return;
+
+        System.out.println("╔═══════════════════════════════════════════════════════════════════╗");
+        System.out.printf("║ VIDEO CODEC ANALYSIS: %-44s ║%n", label);
+        System.out.println("╠═══════════════════════════════════════════════════════════════════╣");
+
+        // Extract all rtpmap entries for video
+        Pattern rtpmapPattern = Pattern.compile("a=rtpmap:(\\d+) ([^/]+)");
+        Pattern fmtpPattern = Pattern.compile("a=fmtp:(\\d+) (.+)");
+
+        Map<String, String> codecNames = new HashMap<>();
+        Map<String, String> codecParams = new HashMap<>();
+
+        for (String line : sdp.split("\r\n")) {
+            Matcher rm = rtpmapPattern.matcher(line);
+            if (rm.find()) {
+                codecNames.put(rm.group(1), rm.group(2));
+            }
+
+            Matcher fm = fmtpPattern.matcher(line);
+            if (fm.find()) {
+                codecParams.put(fm.group(1), fm.group(2));
+            }
+        }
+
+        // Print codec analysis
+        int codecCount = 0;
+        for (var entry : codecNames.entrySet()) {
+            String pt = entry.getKey();
+            String name = entry.getValue();
+            String params = codecParams.getOrDefault(pt, "");
+
+            if (name.toUpperCase().contains("H264") ||
+                    name.toUpperCase().contains("VP8") ||
+                    name.toUpperCase().contains("VP9")) {
+
+                codecCount++;
+                String profile = "";
+                if (params.contains("profile-level-id=")) {
+                    int idx = params.indexOf("profile-level-id=") + 17;
+                    profile = params.substring(idx, Math.min(idx + 6, params.length()));
+
+                    // Decode profile meaning
+                    String meaning = decodeH264Profile(profile);
+                    System.out.printf("║  PT %-3s: %-8s Profile: %-6s %-20s ║%n",
+                            pt, name, profile, "(" + meaning + ")");
+                } else {
+                    System.out.printf("║  PT %-3s: %-8s (no profile)                           ║%n", pt, name);
+                }
+            }
+        }
+
+        if (codecCount == 0) {
+            System.out.println("║  No video codecs found                                            ║");
+        }
+
+        System.out.println("╚═══════════════════════════════════════════════════════════════════╝");
+    }
+
+    /**
+     * Decode H.264 profile byte to human-readable name.
+     */
+    private static String decodeH264Profile(String profileHex) {
+        if (profileHex == null || profileHex.length() < 2)
+            return "unknown";
+
+        String profileByte = profileHex.substring(0, 2).toLowerCase();
+        return switch (profileByte) {
+            case "42" -> "Baseline ✅";
+            case "4d" -> "Main";
+            case "58" -> "Extended";
+            case "64" -> "High ⚠️";
+            case "6e" -> "High 10";
+            case "7a" -> "High 4:2:2";
+            case "f4" -> "High 4:4:4";
+            default -> "unknown";
+        };
     }
 
 }
