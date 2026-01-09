@@ -1135,6 +1135,48 @@ public class WebRTCClient {
     private final java.util.concurrent.locks.ReentrantLock pcLock = new java.util.concurrent.locks.ReentrantLock();
 
     /**
+     * ═══════════════════════════════════════════════════════════════════
+     * ANSWERER BINDING FIX: Find existing video sender from transceiver
+     * ═══════════════════════════════════════════════════════════════════
+     * 
+     * When we're the Answerer, setRemoteDescription(OFFER) creates a video
+     * transceiver with an empty sender. We must use replaceTrack() on this
+     * existing sender instead of addTrack() (which would create a second sender).
+     * 
+     * @return Existing video sender to bind to, or null if none found
+     */
+    private RTCRtpSender findExistingVideoSender() {
+        if (peerConnection == null)
+            return null;
+
+        RTCRtpTransceiver[] transceivers = peerConnection.getTransceivers();
+        if (transceivers == null)
+            return null;
+
+        for (RTCRtpTransceiver transceiver : transceivers) {
+            if (transceiver == null)
+                continue;
+            RTCRtpSender sender = transceiver.getSender();
+            if (sender == null)
+                continue;
+
+            // Check if this sender has no track (empty slot from offer)
+            MediaStreamTrack senderTrack = sender.getTrack();
+            if (senderTrack == null) {
+                // Verify it's a video transceiver by checking receiver
+                if (transceiver.getReceiver() != null) {
+                    MediaStreamTrack rcvTrack = transceiver.getReceiver().getTrack();
+                    if (rcvTrack != null && "video".equalsIgnoreCase(rcvTrack.getKind())) {
+                        logger.debug("🔍 Found empty video sender from transceiver (Answerer binding)");
+                        return sender;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Add video track to peer connection
      */
     public CompletableFuture<Void> addVideoTrack() {
@@ -1177,16 +1219,29 @@ public class WebRTCClient {
                     preWarmedVideoSource = null;
                     videoPreWarmed = false;
 
-                    // Add pre-warmed track to peer connection
+                    // ═══════════════════════════════════════════════════════════════
+                    // ANSWERER BINDING FIX: Use replaceTrack if transceiver exists
+                    // ═══════════════════════════════════════════════════════════════
                     pcLock.lock();
                     try {
-                        videoSender = peerConnection.addTrack(videoTrack, List.of("stream1"));
+                        RTCRtpSender existingSender = findExistingVideoSender();
+                        if (existingSender != null) {
+                            // Answerer flow: bind to transceiver created by offer
+                            logger.info("🔗 ANSWERER BINDING: Using replaceTrack on existing sender");
+                            existingSender.replaceTrack(videoTrack);
+                            videoSender = existingSender;
+                            logger.info("✅ Pre-warmed track bound to negotiated transceiver (640x480)");
+                        } else {
+                            // Offerer flow: create new sender
+                            logger.info("➕ OFFERER MODE: Creating new video sender");
+                            videoSender = peerConnection.addTrack(videoTrack, List.of("stream1"));
+                            logger.info("✅ Pre-warmed video track added (640x480)");
+                        }
                         applyVideoCodecPreferences();
                     } finally {
                         pcLock.unlock();
                     }
 
-                    logger.info("✅ Pre-warmed video track added instantly (640x480)!");
                     this.localVideoTrack = videoTrack;
                     return;
                 }
