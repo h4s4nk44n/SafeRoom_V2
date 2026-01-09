@@ -227,25 +227,32 @@ public class SDPUtils {
 
     /**
      * ═══════════════════════════════════════════════════════════════════
-     * SDP PROFILE MUNGING: The Gatekeeper
+     * SDP PROFILE MUNGING: The Gatekeeper (STRICT MODE)
      * ═══════════════════════════════════════════════════════════════════
-     * 
-     * Forces all H.264 fmtp lines to use Constrained Baseline profile (42e01f).
+     *
+     * Forces all H.264 fmtp lines to use STRICTLY Constrained Baseline (42e01f).
      * This prevents the native VideoToolbox encoder from receiving a profile
      * it cannot handle during mid-session renegotiation.
-     * 
+     *
+     * CRITICAL: 42001f (Baseline) also causes freezes on Mac!
+     * Only 42e01f (Constrained Baseline) is safe.
+     *
      * High Profile (640c1f) → Constrained Baseline (42e01f)
      * Main Profile (4d001f) → Constrained Baseline (42e01f)
-     * 
+     * Plain Baseline (42001f) → Constrained Baseline (42e01f) <-- NEW!
+     *
      * This is the "nuclear option" that guarantees stability at the cost of
      * encoding efficiency. Constrained Baseline is universally supported.
-     * 
+     *
      * @param sdp The SDP to process
      * @return SDP with all H.264 profiles normalized to Constrained Baseline
      */
     public static String enforceBaselineH264Profile(String sdp) {
         if (sdp == null)
             return null;
+
+        // The ONLY safe profile for Mac VideoToolbox
+        final String SAFE_PROFILE = "42e01f";
 
         StringBuilder result = new StringBuilder();
         String[] lines = sdp.split("\r\n");
@@ -257,13 +264,13 @@ public class SDPUtils {
                 if (m.find()) {
                     String originalProfile = m.group(2).toLowerCase();
 
-                    // Only modify if it's NOT already Baseline (42xx)
-                    if (!originalProfile.startsWith("42")) {
-                        String newLine = m.replaceFirst("$1" + "42e01f");
+                    // STRICT: Only 42e01f is allowed (not just any 42xx)
+                    if (!originalProfile.equals(SAFE_PROFILE)) {
+                        String newLine = m.replaceFirst("$1" + SAFE_PROFILE);
                         result.append(newLine).append("\r\n");
 
-                        System.out.printf("[SDPUtils] 🔒 PROFILE MUNGED: %s → 42e01f (%s → Constrained Baseline)%n",
-                                originalProfile, decodeH264Profile(originalProfile));
+                        System.out.printf("[SDPUtils] 🔒 PROFILE MUNGED: %s → %s (%s → Constrained Baseline)%n",
+                                originalProfile, SAFE_PROFILE, decodeH264Profile(originalProfile));
                         modified = true;
                         continue;
                     }
@@ -273,9 +280,9 @@ public class SDPUtils {
         }
 
         if (modified) {
-            System.out.println("[SDPUtils] ✅ SDP normalized to Constrained Baseline profile");
+            System.out.println("[SDPUtils] ✅ SDP normalized to STRICT Constrained Baseline profile (42e01f)");
         } else {
-            System.out.println("[SDPUtils] ℹ️ SDP already uses compatible Baseline profile");
+            System.out.println("[SDPUtils] ℹ️ SDP already uses safe Constrained Baseline (42e01f)");
         }
 
         return result.toString();

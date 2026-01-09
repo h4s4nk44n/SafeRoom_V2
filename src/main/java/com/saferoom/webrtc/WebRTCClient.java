@@ -880,18 +880,20 @@ public class WebRTCClient {
         SDPUtils.logVideoCodecAnalysis(sdp, "REMOTE " + sdpType.toUpperCase());
 
         String remoteProfile = extractH264ProfileFromSdp(sdp);
-        boolean profileIsDangerous = remoteProfile != null && !remoteProfile.startsWith("42");
+        // STRICT: Only 42e01f is safe for Mac VideoToolbox (42001f also causes freeze!)
+        boolean profileIsDangerous = remoteProfile != null && !remoteProfile.equalsIgnoreCase("42e01f");
 
         if (profileIsDangerous) {
             if (IS_MAC) {
-                logger.warn(String.format("DANGEROUS PROFILE DETECTED: %s", remoteProfile));
-                logger.warn("   VideoToolbox may deadlock. Applying SDP munging...");
+                logger.warn(
+                        String.format("DANGEROUS PROFILE DETECTED: %s (requires munging to 42e01f)", remoteProfile));
+                logger.warn("   VideoToolbox requires strict Constrained Baseline. Applying SDP munging...");
             } else {
                 logger.info(String.format("Non-Baseline profile detected: %s (safe on %s)",
                         remoteProfile, IS_WINDOWS ? "Windows" : "Linux"));
             }
         } else if (remoteProfile != null) {
-            logger.info(String.format("✅ Safe profile detected: %s", remoteProfile));
+            logger.info(String.format("Safe profile detected: %s", remoteProfile));
         }
 
         // ═══════════════════════════════════════════════════════════════════
@@ -1790,6 +1792,33 @@ public class WebRTCClient {
             logger.info(String.format("║   Freeze threshold: %dms | Max soft resets: %d                   ║",
                     ENCODER_FREEZE_THRESHOLD_MS, MAX_SOFT_RESETS));
             logger.info("╚═══════════════════════════════════════════════════════════════════╝");
+
+            // GRACE PERIOD: Wait for videoSource to become available (up to 15s)
+            // This prevents watchdog from dying during answerer handshake where
+            // setRemoteDescription is called BEFORE addVideoTrack
+            int gracePeriodMs = 0;
+            final int MAX_GRACE_PERIOD_MS = 15000; // 15 second max wait
+            while (encoderWatchdogActive && videoSource == null && gracePeriodMs < MAX_GRACE_PERIOD_MS) {
+                try {
+                    Thread.sleep(100);
+                    gracePeriodMs += 100;
+                } catch (InterruptedException e) {
+                    logger.info("🐕 Encoder Watchdog interrupted during grace period");
+                    return;
+                }
+            }
+
+            if (!encoderWatchdogActive) {
+                logger.info("🐕 Encoder Watchdog DISARMED during grace period");
+                return;
+            }
+
+            if (videoSource == null) {
+                logger.warn("🐕 Encoder Watchdog: videoSource still null after grace period, disarming");
+                return;
+            }
+
+            logger.debug("🐕 Watchdog grace period complete (waited " + gracePeriodMs + "ms), starting monitoring");
 
             long lastCaptureCount = 0;
 
