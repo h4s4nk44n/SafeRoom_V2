@@ -883,8 +883,13 @@ public class WebRTCClient {
         boolean profileIsDangerous = remoteProfile != null && !remoteProfile.startsWith("42");
 
         if (profileIsDangerous) {
-            logger.warn(String.format("⚠️ DANGEROUS PROFILE DETECTED: %s", remoteProfile));
-            logger.warn("   VideoToolbox may deadlock. Applying SDP munging...");
+            if (IS_MAC) {
+                logger.warn(String.format("DANGEROUS PROFILE DETECTED: %s", remoteProfile));
+                logger.warn("   VideoToolbox may deadlock. Applying SDP munging...");
+            } else {
+                logger.info(String.format("Non-Baseline profile detected: %s (safe on %s)",
+                        remoteProfile, IS_WINDOWS ? "Windows" : "Linux"));
+            }
         } else if (remoteProfile != null) {
             logger.info(String.format("✅ Safe profile detected: %s", remoteProfile));
         }
@@ -1220,8 +1225,14 @@ public class WebRTCClient {
                 // FIX: Explicitly start capture AFTER adding track
                 resource.startCapture();
 
-                logger.info("✅ Video track added with optimized settings (Res: 640x480, FPS: 30)");
-                logger.info("🎥 GPU acceleration enabled (VideoToolbox on Mac)!");
+                logger.info("Video track added with optimized settings (Res: 640x480, FPS: 30)");
+                if (IS_MAC) {
+                    logger.info("GPU acceleration enabled (VideoToolbox)");
+                } else if (IS_WINDOWS) {
+                    logger.info("GPU acceleration available (DXVA/MediaFoundation)");
+                } else {
+                    logger.info("Video track ready");
+                }
 
                 // Store reference for cleanup
                 this.localVideoTrack = videoTrack;
