@@ -88,6 +88,11 @@ public class WebRTCClient {
     private dev.onvoid.webrtc.media.video.VideoDeviceSource preWarmedVideoSource = null;
     private volatile boolean videoPreWarmed = false;
 
+    // FIX: Deferred Mac capture start flag for Answerer role
+    // On Mac, capture MUST start AFTER Answer SDP is set to ensure
+    // VideoToolbox encoder initializes with correct 42e01f profile
+    private volatile boolean pendingMacCaptureStart = false;
+
     // Encoder watchdog for detecting VideoToolbox freezes
     private volatile long lastEncodedFrameTime = 0;
     private volatile long captureFrameCount = 0;
@@ -786,10 +791,20 @@ public class WebRTCClient {
                             logSdpVideoCodecs(optimizedSdp, "ANSWER");
 
                             // ═══════════════════════════════════════════════════════════════
-                            // LAW 2: Capture now starts synchronously in addVideoTrack
-                            // No deferred Mac capture needed - direction and capture are set
-                            // immediately after replaceTrack for all platforms.
+                            // MAC FIX: NOW start capture (after Answer SDP locks 42e01f profile)
+                            // VideoToolbox encoder initializes with correct profile from Answer
                             // ═══════════════════════════════════════════════════════════════
+                            if (IS_MAC && pendingMacCaptureStart && videoSource != null) {
+                                try {
+                                    logger.info("MAC ANSWERER: NOW starting capture (after Answer SDP 42e01f lock)");
+                                    videoSource.start();
+                                    pendingMacCaptureStart = false;
+                                    logger.info("MAC ANSWERER: Camera capture started with correct profile");
+                                    startEncoderWatchdog();
+                                } catch (Exception e) {
+                                    logger.error("Failed to start Mac answerer capture: " + e.getMessage(), e);
+                                }
+                            }
 
                             if (onLocalSDPCallback != null) {
                                 onLocalSDPCallback.accept(optimizedSdp);
@@ -1233,15 +1248,20 @@ public class WebRTCClient {
                             existingTransceiver.setDirection(RTCRtpTransceiverDirection.SEND_RECV);
                             logger.info("TRANSCEIVER_INIT: KIND [VIDEO] DIRECTION [SENDRECV]");
 
-                            // LAW 2: Synchronous capture for ALL platforms
-                            if (this.videoSource != null) {
-                                logger.info("JIT: STARTING CAPTURE SYNCHRONOUS WITH BINDING");
-                                this.videoSource.start();
-                                logger.info("CAPTURE: STARTED - OFFERER SHOULD RECEIVE VIDEO");
-
-                                // Mac encoder protection
-                                if (IS_MAC) {
-                                    startEncoderWatchdog();
+                            // ═══════════════════════════════════════════════════════════════
+                            // MAC FIX: Defer capture until AFTER Answer SDP is set
+                            // VideoToolbox encoder must initialize with 42e01f profile from Answer
+                            // ═══════════════════════════════════════════════════════════════
+                            if (IS_MAC) {
+                                logger.info("MAC ANSWERER: Deferring capture until after Answer SDP");
+                                pendingMacCaptureStart = true;
+                                // Capture will be triggered by createAnswerInternal
+                            } else {
+                                // Non-Mac: start capture immediately
+                                if (this.videoSource != null) {
+                                    logger.info("JIT: STARTING CAPTURE SYNCHRONOUS WITH BINDING");
+                                    this.videoSource.start();
+                                    logger.info("CAPTURE: STARTED - OFFERER SHOULD RECEIVE VIDEO");
                                 }
                             }
                         } else {
