@@ -225,21 +225,26 @@ public class SDPUtils {
     // Pattern to match profile-level-id in fmtp lines
     private static final Pattern PROFILE_PATTERN = Pattern.compile("(profile-level-id=)([0-9a-fA-F]{6})");
 
+    // Pattern to match packetization-mode in fmtp lines
+    private static final Pattern PACKETIZATION_MODE_PATTERN = Pattern.compile("(packetization-mode=)(\\d)");
+
     /**
      * ═══════════════════════════════════════════════════════════════════
      * SDP PROFILE MUNGING: The Gatekeeper (STRICT MODE)
      * ═══════════════════════════════════════════════════════════════════
      *
      * Forces all H.264 fmtp lines to use STRICTLY Constrained Baseline (42e01f).
+     * Also enforces packetization-mode=1 for macOS VideoToolbox compatibility.
      * This prevents the native VideoToolbox encoder from receiving a profile
      * it cannot handle during mid-session renegotiation.
      *
      * CRITICAL: 42001f (Baseline) also causes freezes on Mac!
      * Only 42e01f (Constrained Baseline) is safe.
      *
-     * High Profile (640c1f) → Constrained Baseline (42e01f)
-     * Main Profile (4d001f) → Constrained Baseline (42e01f)
-     * Plain Baseline (42001f) → Constrained Baseline (42e01f) <-- NEW!
+     * High Profile (640c1f) -> Constrained Baseline (42e01f)
+     * Main Profile (4d001f) -> Constrained Baseline (42e01f)
+     * Plain Baseline (42001f) -> Constrained Baseline (42e01f)
+     * packetization-mode=0 -> packetization-mode=1 (Mac compatibility)
      *
      * This is the "nuclear option" that guarantees stability at the cost of
      * encoding efficiency. Constrained Baseline is universally supported.
@@ -253,36 +258,55 @@ public class SDPUtils {
 
         // The ONLY safe profile for Mac VideoToolbox
         final String SAFE_PROFILE = "42e01f";
+        final String SAFE_PACKETIZATION_MODE = "1";
 
         StringBuilder result = new StringBuilder();
         String[] lines = sdp.split("\r\n");
-        boolean modified = false;
+        boolean profileModified = false;
+        boolean packetModeModified = false;
 
         for (String line : lines) {
-            if (line.contains("profile-level-id=")) {
-                Matcher m = PROFILE_PATTERN.matcher(line);
+            String processedLine = line;
+
+            // Check and fix profile-level-id
+            if (processedLine.contains("profile-level-id=")) {
+                Matcher m = PROFILE_PATTERN.matcher(processedLine);
                 if (m.find()) {
                     String originalProfile = m.group(2).toLowerCase();
 
                     // STRICT: Only 42e01f is allowed (not just any 42xx)
                     if (!originalProfile.equals(SAFE_PROFILE)) {
-                        String newLine = m.replaceFirst("$1" + SAFE_PROFILE);
-                        result.append(newLine).append("\r\n");
-
-                        System.out.printf("[SDPUtils] 🔒 PROFILE MUNGED: %s → %s (%s → Constrained Baseline)%n",
+                        processedLine = m.replaceFirst("$1" + SAFE_PROFILE);
+                        System.out.printf("[SDPUtils] PROFILE MUNGED: %s -> %s (%s -> Constrained Baseline)%n",
                                 originalProfile, SAFE_PROFILE, decodeH264Profile(originalProfile));
-                        modified = true;
-                        continue;
+                        profileModified = true;
                     }
                 }
             }
-            result.append(line).append("\r\n");
+
+            // Check and fix packetization-mode (Mac requires mode=1)
+            if (processedLine.contains("packetization-mode=")) {
+                Matcher pm = PACKETIZATION_MODE_PATTERN.matcher(processedLine);
+                if (pm.find()) {
+                    String originalMode = pm.group(2);
+                    if (!originalMode.equals(SAFE_PACKETIZATION_MODE)) {
+                        processedLine = pm.replaceFirst("$1" + SAFE_PACKETIZATION_MODE);
+                        System.out.printf(
+                                "[SDPUtils] PACKETIZATION MODE MUNGED: %s -> %s (Mac VideoToolbox compatibility)%n",
+                                originalMode, SAFE_PACKETIZATION_MODE);
+                        packetModeModified = true;
+                    }
+                }
+            }
+
+            result.append(processedLine).append("\r\n");
         }
 
-        if (modified) {
-            System.out.println("[SDPUtils] ✅ SDP normalized to STRICT Constrained Baseline profile (42e01f)");
+        if (profileModified || packetModeModified) {
+            System.out.println("[SDPUtils] MUNGING STATUS: ENFORCING 42E01F FOR HARDWARE SAFETY"
+                    + (packetModeModified ? " + PACKETIZATION-MODE=1" : ""));
         } else {
-            System.out.println("[SDPUtils] ℹ️ SDP already uses safe Constrained Baseline (42e01f)");
+            System.out.println("[SDPUtils] SDP already uses safe configuration (42e01f, mode=1)");
         }
 
         return result.toString();

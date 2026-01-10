@@ -797,13 +797,13 @@ public class WebRTCClient {
                             // ═══════════════════════════════════════════════════════════════
                             if (IS_MAC && pendingMacCaptureStart && videoSource != null) {
                                 try {
-                                    logger.info("▶️ MAC ANSWERER: NOW starting capture (profile locked to Answer SDP)");
+                                    logger.info("MAC ANSWERER: NOW starting capture (profile locked to Answer SDP)");
                                     videoSource.start();
                                     pendingMacCaptureStart = false;
-                                    logger.info("✅ MAC ANSWERER: Camera capture started with correct 42e01f profile!");
+                                    logger.info("MAC ANSWERER: Camera capture started with correct 42e01f profile");
                                     startEncoderWatchdog();
                                 } catch (Exception e) {
-                                    logger.error("❌ Failed to start Mac answerer capture: " + e.getMessage(), e);
+                                    logger.error("Failed to start Mac answerer capture: " + e.getMessage(), e);
                                 }
                             }
 
@@ -1216,7 +1216,7 @@ public class WebRTCClient {
                 // MAC FIX: Use pre-warmed track if available (instant!)
                 // ═══════════════════════════════════════════════════════════════
                 if (videoPreWarmed && preWarmedVideoTrack != null) {
-                    logger.info("🚀 Using PRE-WARMED video track (instant, no timeout risk)");
+                    logger.info("Using PRE-WARMED video track (instant, no timeout risk)");
 
                     // Transfer pre-warmed resources to main fields
                     this.videoSource = preWarmedVideoSource;
@@ -1236,19 +1236,19 @@ public class WebRTCClient {
 
                         if (isAnswererRole) {
                             // ANSWERER: Defer capture until after setLocalDescription
-                            logger.info("⏸️ MAC ANSWERER: Deferring capture until after Answer SDP is set");
+                            logger.info("MAC ANSWERER: Deferring capture until after Answer SDP is set");
                             logger.info("   Encoder will initialize with negotiated 42e01f profile");
                             pendingMacCaptureStart = true;
                             // Capture will be triggered by createAnswerInternal after setLocalDescription
                         } else {
                             // OFFERER: Start capture now (profile already set by createOffer)
                             try {
-                                logger.info("▶️ MAC OFFERER: Starting capture now");
+                                logger.info("MAC OFFERER: Starting capture now");
                                 this.videoSource.start();
-                                logger.info("✅ MAC: Camera capture started (OFFERER mode)");
+                                logger.info("MAC: Camera capture started (OFFERER mode)");
                                 startEncoderWatchdog();
                             } catch (Exception e) {
-                                logger.error("❌ Failed to start Mac camera capture: " + e.getMessage(), e);
+                                logger.error("Failed to start Mac camera capture: " + e.getMessage(), e);
                                 throw new RuntimeException("Mac camera JIT start failed", e);
                             }
                         }
@@ -1267,15 +1267,15 @@ public class WebRTCClient {
                         RTCRtpSender existingSender = findExistingVideoSender();
                         if (existingSender != null) {
                             // Answerer flow: bind to transceiver created by offer
-                            logger.info("🔗 ANSWERER BINDING: Using replaceTrack on existing sender");
+                            logger.info("TRANSCEIVER BINDING: REPLACETRACK on existing sender (pre-warmed path)");
                             existingSender.replaceTrack(videoTrack);
                             videoSender = existingSender;
-                            logger.info("✅ Pre-warmed track bound to negotiated transceiver (640x480)");
+                            logger.info("Pre-warmed track bound to negotiated transceiver (640x480)");
                         } else {
                             // Offerer flow: create new sender
-                            logger.info("➕ OFFERER MODE: Creating new video sender");
+                            logger.info("OFFERER MODE: Creating new video sender (pre-warmed path)");
                             videoSender = peerConnection.addTrack(videoTrack, List.of("stream1"));
-                            logger.info("✅ Pre-warmed video track added (640x480)");
+                            logger.info("Pre-warmed video track added (640x480)");
                         }
                         applyVideoCodecPreferences();
                     } finally {
@@ -1309,11 +1309,27 @@ public class WebRTCClient {
                 this.videoSource = resource.getSource();
                 VideoTrack videoTrack = resource.getTrack();
 
-                // Add track to peer connection with stream ID ve sender referansı
-                // 🔒 FIX: Use ReentrantLock instead of synchronized(this) to avoid VT pinning
+                // ═══════════════════════════════════════════════════════════════
+                // ANSWERER BINDING FIX: Use replaceTrack if transceiver exists
+                // When Answerer, the remote Offer creates a transceiver with empty sender.
+                // We MUST use replaceTrack() to bind our track to it, NOT addTrack()
+                // which would create a second sender (leaving offerer on dummy 320x240).
+                // ═══════════════════════════════════════════════════════════════
                 pcLock.lock();
                 try {
-                    videoSender = peerConnection.addTrack(videoTrack, List.of("stream1"));
+                    RTCRtpSender existingSender = findExistingVideoSender();
+                    if (existingSender != null) {
+                        // Answerer flow: bind to transceiver created by offer
+                        logger.info("TRANSCEIVER BINDING: REPLACETRACK on existing sender (normal path)");
+                        existingSender.replaceTrack(videoTrack);
+                        videoSender = existingSender;
+                        logger.info("Video track bound to negotiated transceiver (640x480)");
+                    } else {
+                        // Offerer flow: create new sender
+                        logger.info("OFFERER MODE: Creating new video sender (normal path)");
+                        videoSender = peerConnection.addTrack(videoTrack, List.of("stream1"));
+                        logger.info("Video track added with new sender (640x480)");
+                    }
                     applyVideoCodecPreferences();
                 } finally {
                     pcLock.unlock();
@@ -1361,13 +1377,13 @@ public class WebRTCClient {
      */
     public CompletableFuture<Void> preWarmVideoTrack() {
         if (videoPreWarmed) {
-            logger.info("🔥 Video track already pre-warmed");
+            logger.info("Video track already pre-warmed");
             return CompletableFuture.completedFuture(null);
         }
 
         return CompletableFuture.runAsync(() -> {
             try {
-                logger.info("🔥 Pre-warming video track (parallel with CALL_ACCEPT)...");
+                logger.info("Pre-warming video track (parallel with CALL_ACCEPT)...");
 
                 if (IS_MAC) {
                     // ═══════════════════════════════════════════════════════════════
@@ -1375,7 +1391,7 @@ public class WebRTCClient {
                     // Create camera source but DON'T start capture yet.
                     // This keeps the lens "warm" without initializing VideoToolbox.
                     // ═══════════════════════════════════════════════════════════════
-                    logger.info("📊 MAC MODE: Deferred encoder initialization (JIT pattern)");
+                    logger.info("IDENTIFIED PLATFORM: macOS - Deferred encoder initialization (JIT pattern)");
                     logger.info("   Camera sensor will be initialized, encoder deferred until SDP validated");
 
                     CameraCaptureService.CameraCaptureResource resource = CameraCaptureService
@@ -1390,14 +1406,14 @@ public class WebRTCClient {
                     // AFTER setRemoteDescription has validated and munged the profile.
 
                     videoPreWarmed = true;
-                    logger.info("✅ MAC: Video track structure ready (capture DEFERRED for safety)");
+                    logger.info("MAC: Video track structure ready (capture DEFERRED for safety)");
 
                 } else {
                     // ═══════════════════════════════════════════════════════════════
                     // WINDOWS/LINUX: FULL INITIALIZATION
                     // These platforms have more resilient encoder initialization.
                     // ═══════════════════════════════════════════════════════════════
-                    logger.info("📊 STANDARD MODE: Full pre-warming (Windows/Linux)");
+                    logger.info("IDENTIFIED PLATFORM: " + (IS_WINDOWS ? "Windows" : "Linux") + " - Full pre-warming");
 
                     CameraCaptureService.CameraCaptureResource resource = CameraCaptureService
                             .createCameraTrack("video0");
@@ -1407,7 +1423,7 @@ public class WebRTCClient {
                     resource.startCapture();
 
                     videoPreWarmed = true;
-                    logger.info("✅ Video track pre-warmed at 640x480 - ready for instant use!");
+                    logger.info("Video track pre-warmed at 640x480 - ready for instant use");
                 }
 
             } catch (Exception e) {
