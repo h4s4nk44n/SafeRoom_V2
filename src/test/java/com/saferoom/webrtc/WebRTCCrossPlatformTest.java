@@ -251,7 +251,7 @@ public class WebRTCCrossPlatformTest {
 
                         // VERIFY: Logs show no munging needed
                         String logs = capturedOutput.toString();
-                        assertTrue(logs.contains("already uses safe Constrained Baseline"),
+                        assertTrue(logs.contains("SDP already uses safe configuration"),
                                         "Log should indicate no munging was needed");
 
                         System.out.println("[PASS] Safe profiles pass through untouched");
