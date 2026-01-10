@@ -88,6 +88,11 @@ public class WebRTCClient {
     private dev.onvoid.webrtc.media.video.VideoDeviceSource preWarmedVideoSource = null;
     private volatile boolean videoPreWarmed = false;
 
+    // FIX: Deferred Mac capture start flag for Answerer role
+    // Capture must start AFTER setLocalDescription to ensure encoder gets correct
+    // profile
+    private volatile boolean pendingMacCaptureStart = false;
+
     // Encoder watchdog for detecting VideoToolbox freezes
     private volatile long lastEncodedFrameTime = 0;
     private volatile long captureFrameCount = 0;
@@ -785,6 +790,23 @@ public class WebRTCClient {
                             // Log video codec info from SDP
                             logSdpVideoCodecs(optimizedSdp, "ANSWER");
 
+                            // ═══════════════════════════════════════════════════════════════
+                            // FIX: NOW start Mac capture (after setLocalDescription with Answer)
+                            // The encoder will initialize with the correct 42e01f profile
+                            // that was negotiated in the Answer SDP.
+                            // ═══════════════════════════════════════════════════════════════
+                            if (IS_MAC && pendingMacCaptureStart && videoSource != null) {
+                                try {
+                                    logger.info("▶️ MAC ANSWERER: NOW starting capture (profile locked to Answer SDP)");
+                                    videoSource.start();
+                                    pendingMacCaptureStart = false;
+                                    logger.info("✅ MAC ANSWERER: Camera capture started with correct 42e01f profile!");
+                                    startEncoderWatchdog();
+                                } catch (Exception e) {
+                                    logger.error("❌ Failed to start Mac answerer capture: " + e.getMessage(), e);
+                                }
+                            }
+
                             if (onLocalSDPCallback != null) {
                                 onLocalSDPCallback.accept(optimizedSdp);
                             }
@@ -965,6 +987,9 @@ public class WebRTCClient {
 
         // Stop encoder watchdog first
         stopEncoderWatchdog();
+
+        // Reset Mac capture flag
+        pendingMacCaptureStart = false;
 
         // Clean up all audio sinks first (properly remove from tracks)
         cleanupAllAudioSinks();
@@ -1201,16 +1226,31 @@ public class WebRTCClient {
                     // MAC JIT: NOW start capture (after setRemoteDescription validated profile)
                     // ═══════════════════════════════════════════════════════════════
                     if (IS_MAC && this.videoSource != null) {
-                        try {
-                            logger.info("▶️ MAC JIT: Starting deferred capture (encoder now initializing)");
-                            this.videoSource.start();
-                            logger.info("✅ MAC: Camera capture started (JIT initialization COMPLETE)");
+                        // ═══════════════════════════════════════════════════════════════
+                        // FIX: For Mac ANSWERER, defer capture start until AFTER setLocalDescription
+                        // This ensures VideoToolbox encoder initializes with the correct 42e01f
+                        // profile from the negotiated Answer SDP, preventing freeze.
+                        // ═══════════════════════════════════════════════════════════════
+                        RTCRtpSender existingSender = findExistingVideoSender();
+                        boolean isAnswererRole = (existingSender != null);
 
-                            // Activate watchdog now that encoder is actually running
-                            startEncoderWatchdog();
-                        } catch (Exception e) {
-                            logger.error("❌ Failed to start Mac camera capture: " + e.getMessage(), e);
-                            throw new RuntimeException("Mac camera JIT start failed", e);
+                        if (isAnswererRole) {
+                            // ANSWERER: Defer capture until after setLocalDescription
+                            logger.info("⏸️ MAC ANSWERER: Deferring capture until after Answer SDP is set");
+                            logger.info("   Encoder will initialize with negotiated 42e01f profile");
+                            pendingMacCaptureStart = true;
+                            // Capture will be triggered by createAnswerInternal after setLocalDescription
+                        } else {
+                            // OFFERER: Start capture now (profile already set by createOffer)
+                            try {
+                                logger.info("▶️ MAC OFFERER: Starting capture now");
+                                this.videoSource.start();
+                                logger.info("✅ MAC: Camera capture started (OFFERER mode)");
+                                startEncoderWatchdog();
+                            } catch (Exception e) {
+                                logger.error("❌ Failed to start Mac camera capture: " + e.getMessage(), e);
+                                throw new RuntimeException("Mac camera JIT start failed", e);
+                            }
                         }
                     }
 
