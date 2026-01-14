@@ -11,6 +11,8 @@ import javafx.scene.layout.VBox;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.StackPane;
 import org.kordamp.ikonli.javafx.FontIcon;
+import com.saferoom.client.ClientMenu;
+import com.saferoom.rooms.client.logic.DataFSM;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -127,6 +129,50 @@ public class RoomsController implements Initializable {
             String roomName = roomNameLabel.getText();
             System.out.println("Navigating to room: " + roomName);
 
+            // [Rooms v1] Start DataFSM for this room
+            try {
+                // Using username as nodeId for v1 PoC
+                String nodeId = com.saferoom.gui.service.ChatService.getInstance().getCurrentUsername();
+                if (nodeId == null)
+                    nodeId = "unknown-user";
+
+                if (ClientMenu.roomClient != null) {
+                    System.out.println("[Rooms] Starting DataFSM for " + roomName);
+
+                    // Sprint 6: Inject WebRTC Stub for UI
+                    com.saferoom.rooms.client.logic.RoomWebRTCManager webRTCStub = new com.saferoom.rooms.client.logic.RoomWebRTCManager() {
+                        public void initiateConnection(String remoteNodeId) {
+                            System.out.println("STUB: initiateConnection " + remoteNodeId);
+                        }
+
+                        public void handleOffer(String remoteNodeId, String sdp) {
+                            System.out.println("STUB: handleOffer " + remoteNodeId);
+                        }
+
+                        public void handleAnswer(String remoteNodeId, String sdp) {
+                            System.out.println("STUB: handleAnswer " + remoteNodeId);
+                        }
+
+                        public void addIceCandidate(String remoteNodeId, String candidate, String sdpMid,
+                                int sdpMLineIndex) {
+                            System.out.println("STUB: addIce " + remoteNodeId);
+                        }
+
+                        public void disconnect(String remoteNodeId) {
+                        }
+
+                        public void setListener(Listener listener) {
+                        }
+                    };
+
+                    DataFSM fsm = new DataFSM(roomName, nodeId, ClientMenu.roomClient, webRTCStub);
+                    fsm.start();
+                    // In a real app, store 'fsm' in a SessionManager or pass to ServerView
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to start Rooms v1 FSM: " + e.getMessage());
+            }
+
             // Get room data if available
             boolean isPrivate = false;
             boolean isCustom = false;
@@ -192,12 +238,22 @@ public class RoomsController implements Initializable {
 
     private void setupActionButtonHandler(Button actionBtn) {
         actionBtn.setOnAction(event -> {
+            String nodeId = com.saferoom.gui.service.ChatService.getInstance().getCurrentUsername();
+            if (nodeId == null)
+                nodeId = "unknown-user";
+            // Mock roomId from button context (would be better to pass explicit roomId)
+            String roomId = "mock-room-id";
+
             if (actionBtn.getStyleClass().contains("voice-quick")) {
-                System.out.println("Voice action clicked");
-                // Add voice connection logic here
+                System.out.println("Voice action clicked for " + nodeId);
+                if (ClientMenu.roomClient != null) {
+                    ClientMenu.roomClient.joinVoice(roomId, nodeId);
+                }
             } else if (actionBtn.getStyleClass().contains("chat-quick")) {
                 System.out.println("Chat action clicked");
-                // Add chat navigation logic here
+                // Trigger navigation (which starts FSM)
+                VBox card = (VBox) actionBtn.getParent().getParent().getParent().getParent(); // Traversal hack for v1
+                navigateToRoom(card);
             }
         });
     }

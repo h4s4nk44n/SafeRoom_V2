@@ -17,6 +17,9 @@ public class ClientMenu {
 	public static ManagedChannel channel;
 	private static UDPHoleGrpc.UDPHoleBlockingStub blockingStub;
 
+	// Rooms v1 Signaling
+	public static com.saferoom.rooms.client.RoomSignalingClient roomClient;
+
 	static {
 		channel = ManagedChannelBuilder.forAddress(Server, Port)
 				.usePlaintext()
@@ -31,6 +34,21 @@ public class ClientMenu {
 
 		// Cache the blocking stub to avoid repeated allocation
 		blockingStub = UDPHoleGrpc.newBlockingStub(channel);
+
+		// Initialize Rooms Client
+		roomClient = new com.saferoom.rooms.client.RoomSignalingClient();
+		// Connection will be established when needed or via initRoomsV1
+	}
+
+	public static void initRoomsV1() {
+		try {
+			if (roomClient != null) {
+				System.out.println("[Rooms] Connecting to Signaling V1...");
+				roomClient.connect(Server, Port);
+			}
+		} catch (Exception e) {
+			System.err.println("[Rooms] Failed to init: " + e.getMessage());
+		}
 	}
 
 	public static String Login(String username, String Password) {
