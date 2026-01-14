@@ -459,11 +459,40 @@ task compileNative {
 
         // 1. Configure
         println "   → Configuring CMake..."
-        exec {
-            workingDir projectDir
-            commandLine 'cmake', '-S', 'src/main/native', '-B', buildDir.absolutePath, '-DCMAKE_BUILD_TYPE=Release' 
+
+        // Resolve JAVA_HOME reliably (toolchain-aware)
+        def javaHome = System.getenv("JAVA_HOME")
+        if (javaHome == null || javaHome.trim().isEmpty()) {
+            // Ask Gradle toolchain where javac is, then derive JAVA_HOME
+            def javacPath = javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(21)
+            }.get().metadata.installationPath.asFile.absolutePath
+            javaHome = javacPath
         }
-        
+
+        def javaInclude = "${javaHome}/include"
+        def javaInclude2 = isWindows ? "${javaHome}/include/win32" :
+                  (isMacOS ? "${javaHome}/include/darwin" : "${javaHome}/include/linux")
+
+    // Quick sanity checks (fail fast with clear message)
+    if (!file("${javaInclude}/jni.h").exists()) {
+        throw new GradleException("JNI header not found: ${javaInclude}/jni.h (JAVA_HOME resolved as: ${javaHome})")
+    }
+    if (!file(javaInclude2).exists()) {
+        throw new GradleException("JNI platform include dir not found: ${javaInclude2} (JAVA_HOME resolved as: ${javaHome})")
+    }
+
+    exec {
+        workingDir projectDir
+        commandLine 'cmake',
+            '-S', 'src/main/native',
+            '-B', buildDir.absolutePath,
+            "-DJAVA_HOME=${javaHome}",
+            "-DJAVA_INCLUDE_PATH=${javaInclude}",
+            "-DJAVA_INCLUDE_PATH2=${javaInclude2}",
+            '-DCMAKE_BUILD_TYPE=Release'
+        }
+
         // 2. Build
         println "   → Compiling..."
         exec {
