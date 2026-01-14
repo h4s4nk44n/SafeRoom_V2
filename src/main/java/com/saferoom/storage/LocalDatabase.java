@@ -312,4 +312,82 @@ public class LocalDatabase {
     public String getDbPath() {
         return dbPath;
     }
+
+    // ---------------------------------------------------------
+    // ENCRYPTION HELPERS (AES-256-GCM)
+    // ---------------------------------------------------------
+
+    /**
+     * Encrypt string using the derived key
+     */
+    public String encrypt(String plaintext) {
+        if (plaintext == null)
+            return null;
+        try {
+            byte[] keyBytes = hexToBytes(encryptionKey);
+            byte[] iv = new byte[12]; // GCM standard IV size
+            new java.security.SecureRandom().nextBytes(iv);
+
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding");
+            javax.crypto.spec.GCMParameterSpec spec = new javax.crypto.spec.GCMParameterSpec(128, iv);
+            javax.crypto.spec.SecretKeySpec keySpec = new javax.crypto.spec.SecretKeySpec(keyBytes, "AES");
+
+            cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, keySpec, spec);
+            byte[] ciphertext = cipher.doFinal(plaintext.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+            // Setup buffer for IV + Ciphertext
+            java.nio.ByteBuffer byteBuffer = java.nio.ByteBuffer.allocate(iv.length + ciphertext.length);
+            byteBuffer.put(iv);
+            byteBuffer.put(ciphertext);
+
+            return java.util.Base64.getEncoder().encodeToString(byteBuffer.array());
+
+        } catch (Exception e) {
+            LOGGER.warning("Encryption failed: " + e.getMessage());
+            throw new RuntimeException("Encryption failed", e);
+        }
+    }
+
+    /**
+     * Decrypt string using the derived key
+     */
+    public String decrypt(String encryptedText) {
+        if (encryptedText == null)
+            return null;
+        try {
+            byte[] decoded = java.util.Base64.getDecoder().decode(encryptedText);
+            java.nio.ByteBuffer byteBuffer = java.nio.ByteBuffer.wrap(decoded);
+
+            byte[] iv = new byte[12];
+            byteBuffer.get(iv);
+            byte[] ciphertext = new byte[byteBuffer.remaining()];
+            byteBuffer.get(ciphertext);
+
+            byte[] keyBytes = hexToBytes(encryptionKey);
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding");
+            javax.crypto.spec.GCMParameterSpec spec = new javax.crypto.spec.GCMParameterSpec(128, iv);
+            javax.crypto.spec.SecretKeySpec keySpec = new javax.crypto.spec.SecretKeySpec(keyBytes, "AES");
+
+            cipher.init(javax.crypto.Cipher.DECRYPT_MODE, keySpec, spec);
+            byte[] plaintext = cipher.doFinal(ciphertext);
+
+            return new String(plaintext, java.nio.charset.StandardCharsets.UTF_8);
+
+        } catch (Exception e) {
+            LOGGER.warning("Decryption failed: " + e.getMessage());
+            // Return original text if decryption fails (backward compatibility or
+            // corruption)
+            return encryptedText;
+        }
+    }
+
+    private byte[] hexToBytes(String hex) {
+        int len = hex.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
+                    + Character.digit(hex.charAt(i + 1), 16));
+        }
+        return data;
+    }
 }

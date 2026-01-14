@@ -46,6 +46,33 @@ public class RoomsController implements Initializable {
 
         // Setup room card click handlers
         setupRoomHandlers();
+
+        // Load rooms from server
+        refreshRooms();
+    }
+
+    private void refreshRooms() {
+        if (ClientMenu.roomClient == null)
+            return;
+
+        try {
+            javafx.application.Platform.runLater(() -> {
+                if (hubListContainer != null)
+                    hubListContainer.getChildren().clear();
+            });
+
+            var response = ClientMenu.roomClient.listRooms("");
+            for (var room : response.getRoomsList()) {
+                String name = room.getName();
+                boolean isPrivate = room.getIsPrivate();
+                // Create card for each room
+                javafx.application.Platform.runLater(() -> {
+                    addRoomCard(name, isPrivate, null); // Null image for now
+                });
+            }
+        } catch (Exception e) {
+            System.err.println("Error listing rooms: " + e.getMessage());
+        }
     }
 
     private void filterRooms(String searchText) {
@@ -137,40 +164,30 @@ public class RoomsController implements Initializable {
                     nodeId = "unknown-user";
 
                 if (ClientMenu.roomClient != null) {
+                    System.out.println("[Rooms] Joining Room " + roomName + " as " + nodeId);
+
+                    // 1. Join via RPC (Persistence + Membership)
+                    // TODO: Get real PubKey
+                    var joinResp = ClientMenu.roomClient.joinRoom(roomName, nodeId, "dummy-pub-key");
+
+                    if (!joinResp.getSuccess()) {
+                        System.err.println("Failed to join room: " + joinResp.getMessage());
+                        // TODO: Show Error
+                        return;
+                    }
+
                     System.out.println("[Rooms] Starting DataFSM for " + roomName);
 
-                    // Sprint 6: Inject WebRTC Stub for UI
-                    com.saferoom.rooms.client.logic.RoomWebRTCManager webRTCStub = new com.saferoom.rooms.client.logic.RoomWebRTCManager() {
-                        public void initiateConnection(String remoteNodeId) {
-                            System.out.println("STUB: initiateConnection " + remoteNodeId);
-                        }
+                    // Sprint 7: Use Real Native WebRTC Manager
+                    com.saferoom.rooms.client.logic.RoomWebRTCManager webRTCManager = new com.saferoom.rooms.client.logic.RoomWebRTCManagerImpl();
 
-                        public void handleOffer(String remoteNodeId, String sdp) {
-                            System.out.println("STUB: handleOffer " + remoteNodeId);
-                        }
-
-                        public void handleAnswer(String remoteNodeId, String sdp) {
-                            System.out.println("STUB: handleAnswer " + remoteNodeId);
-                        }
-
-                        public void addIceCandidate(String remoteNodeId, String candidate, String sdpMid,
-                                int sdpMLineIndex) {
-                            System.out.println("STUB: addIce " + remoteNodeId);
-                        }
-
-                        public void disconnect(String remoteNodeId) {
-                        }
-
-                        public void setListener(Listener listener) {
-                        }
-                    };
-
-                    DataFSM fsm = new DataFSM(roomName, nodeId, ClientMenu.roomClient, webRTCStub);
+                    DataFSM fsm = new DataFSM(roomName, nodeId, ClientMenu.roomClient, webRTCManager);
                     fsm.start();
                     // In a real app, store 'fsm' in a SessionManager or pass to ServerView
                 }
             } catch (Exception e) {
                 System.err.println("Failed to start Rooms v1 FSM: " + e.getMessage());
+                e.printStackTrace();
             }
 
             // Get room data if available
@@ -322,8 +339,29 @@ public class RoomsController implements Initializable {
 
                 System.out.println("Creating new room: " + roomName + ", Private: " + isPrivate);
 
-                // Add the new room card to the UI
-                addRoomCard(roomName, isPrivate, roomImage);
+                // Call Server RPC
+                if (ClientMenu.roomClient != null) {
+                    try {
+                        String ownerId = com.saferoom.gui.service.ChatService.getInstance().getCurrentUsername();
+                        if (ownerId == null)
+                            ownerId = "unknown";
+
+                        var response = ClientMenu.roomClient.createRoom(roomName, ownerId, isPrivate);
+                        if (response.getSuccess()) {
+                            System.out.println("Room created successfully: " + response.getMessage());
+                            // Add the new room card to the UI
+                            addRoomCard(roomName, isPrivate, roomImage);
+                        } else {
+                            System.err.println("Failed to create room: " + response.getMessage());
+                            // TODO: Show error dialog
+                        }
+                    } catch (Exception e) {
+                        System.err.println("RPC Error creating room: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                } else {
+                    System.err.println("RoomClient is null, cannot create room.");
+                }
             }
 
         } catch (java.io.IOException e) {

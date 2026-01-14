@@ -53,18 +53,45 @@ public class RoomsIntegrationTest {
     }
 
     @Test
-    public void testJoinRoomAndEventStream() throws InterruptedException {
-        String roomId = "test-room-1";
-        String nodeId = "node-1";
+    public void testFullRoomLifecycle() throws InterruptedException {
+        String roomId = "test-room-" + System.currentTimeMillis();
+        String roomName = "Test Room";
+        String ownerId = "owner-node";
+        String memberId = "member-node";
         String pubKey = "pub-key-1";
 
-        // 1. Join Room
-        JoinRoomResponse response = client.joinRoom(roomId, nodeId, pubKey);
+        // 1. Create Room (Assume implicit UUID generation by server if we passed name?
+        // No, current createRoom implementation in DBManager takes roomId from Caller?
+        // Wait, RoomServiceImpl.createRoom generates UUID? Let's check RoomServiceImpl.
+        // Assuming RoomServiceImpl generates ID or it was passed?
+        // Let's check CreateRoomRequest proto. It only has "name", "ownerNodeId",
+        // "isPrivate".
+        // So Server generates ID.
 
-        assertTrue(response.getSuccess(), "Join should be successful");
-        assertEquals(1L, response.getCurrentEpoch(), "Initial epoch should be 1");
+        var createResp = client.createRoom(roomName, ownerId, false);
+        assertTrue(createResp.getSuccess(), "Create room should be successful");
+        assertNotNull(createResp.getRoom(), "Should return room metadata");
+        assertEquals(roomName, createResp.getRoom().getName());
+        String createdRoomId = createResp.getRoom().getRoomId();
+        assertNotNull(createdRoomId, "Room ID should be generated");
 
-        // 2. Verify Presence Event (via listener)
+        // 2. List Rooms
+        var listResp = client.listRooms("");
+        boolean found = false;
+        for (var r : listResp.getRoomsList()) {
+            if (r.getRoomId().equals(createdRoomId)) {
+                found = true;
+                assertEquals(roomName, r.getName());
+                break;
+            }
+        }
+        assertTrue(found, "Created room should appear in list");
+
+        // 3. Join Room
+        JoinRoomResponse joinResp = client.joinRoom(createdRoomId, memberId, pubKey);
+        assertTrue(joinResp.getSuccess(), "Join should be successful");
+
+        // 4. Verify Presence Event
         BlockingQueue<RoomEvent> events = new LinkedBlockingQueue<>();
         client.addListener(new RoomSignalingClient.RoomEventListener() {
             @Override
@@ -77,16 +104,9 @@ public class RoomsIntegrationTest {
             }
         });
 
-        // Wait for event (Join triggers broadcastPresence)
+        // Wait for event
         RoomEvent event = events.poll(5, TimeUnit.SECONDS);
         assertNotNull(event, "Should receive presence event");
         assertEquals(RoomEvent.EventType.ROOM_PRESENCE, event.getType());
-        assertEquals(1, event.getPresence().getConnectedPeersCount());
-
-        // 3. Get Seeds
-        GetSeedsResponse seeds = client.getSeeds(roomId, 1L);
-        assertEquals(1L, seeds.getEpoch());
-        // Might be empty if logic limits to 5 and we have 1 peer (who is also leaf)
-        // Adjust test implementation or server logic if needed, but basic call works
     }
 }

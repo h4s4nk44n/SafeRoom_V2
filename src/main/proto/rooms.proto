@@ -4,6 +4,11 @@ option java_multiple_files = true;
 package com.saferoom.rooms.grpc;
 
 service RoomService {
+  // Lifecycle
+  rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
+  rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
+  rpc GetRoomInfo(GetRoomInfoRequest) returns (GetRoomInfoResponse);
+
   // Membership
   rpc JoinRoom(JoinRoomRequest) returns (JoinRoomResponse);
   rpc LeaveRoom(LeaveRoomRequest) returns (LeaveRoomResponse);
@@ -27,6 +32,46 @@ service RoomService {
 // =============================================================================
 // 1. SIGNALING & RPC MESSAGES (Server Interaction)
 // =============================================================================
+
+message RoomMetadata {
+  string roomId = 1;
+  string name = 2;
+  string ownerNodeId = 3;
+  bool isPrivate = 4;
+  int64 createdAt = 5;
+  int32 onlineCount = 6;
+  int32 voiceCount = 7;
+}
+
+message CreateRoomRequest {
+  string name = 1;
+  string ownerNodeId = 2;
+  bool isPrivate = 3;
+}
+
+message CreateRoomResponse {
+  bool success = 1;
+  string message = 2;
+  RoomMetadata room = 3; // Returns the created room details
+}
+
+message ListRoomsRequest {
+  // Optional filters
+  string searchQuery = 1;
+}
+
+message ListRoomsResponse {
+  repeated RoomMetadata rooms = 1;
+}
+
+message GetRoomInfoRequest {
+  string roomId = 1;
+}
+
+message GetRoomInfoResponse {
+  bool exists = 1;
+  RoomMetadata room = 2;
+}
 
 message RoomPeer {
   string nodeId = 1;

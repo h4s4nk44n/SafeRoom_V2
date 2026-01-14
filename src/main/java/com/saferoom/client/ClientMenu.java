@@ -514,12 +514,13 @@ public class ClientMenu {
 			// Set current username in ChatService for message rendering
 			com.saferoom.gui.service.ChatService.getInstance().setCurrentUsername(username);
 
-			// NEW: Initialize Persistent Storage (if password available)
-			try {
-				initializePersistentStorage(username, null); // Password will be stored after login
-			} catch (Exception e) {
-				System.err.println("[Storage] Persistent storage initialization skipped: " + e.getMessage());
-				System.err.println("[Storage] Messages will be stored in RAM only");
+			// Initialize Persistent Storage (if password available)
+			// Removed insecure initialization call. Storage should already be initialized
+			// by Login logic.
+			if (com.saferoom.storage.LocalDatabase.isInitialized()) {
+				System.out.println("[Storage] Persistent storage is active.");
+			} else {
+				System.out.println("[Storage] Persistent storage not initialized (awaiting login).");
 			}
 
 			// WEBRTC P2P: Initialize P2PConnectionManager for messaging
@@ -554,12 +555,14 @@ public class ClientMenu {
 		try {
 			System.out.println("[Storage] Initializing persistent storage...");
 
-			// If password not provided, try to use username as fallback
-			// (Not secure, but allows testing without password)
+			// If password not provided, check if already initialized
 			if (password == null || password.isEmpty()) {
-				System.err.println("[Storage] WARNING: No password provided for encryption!");
-				System.err.println("[Storage] Using username as password (INSECURE - for testing only)");
-				password = username; // Fallback
+				if (com.saferoom.storage.LocalDatabase.isInitialized()) {
+					System.out.println("[Storage] Database already initialized. Skipping re-init.");
+					return;
+				}
+				System.err.println("[Storage] ERROR: No password provided for persistent storage initialization!");
+				return;
 			}
 
 			// Data directory

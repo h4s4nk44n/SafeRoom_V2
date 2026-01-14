@@ -8847,3 +8847,25 @@ Caused by: java.lang.NullPointerException
 [2026-01-14 18:10:40.498] [INFO ] [JavaFX Application Thread] [CallManager] - Shutting down...
 [2026-01-14 18:10:40.711] [INFO ] [webrtc-device-monitor] [WebRTCClient] - Device monitor stopped
 [2026-01-14 18:10:40.812] [INFO ] [JavaFX Application Thread] [CallManager] - Shutdown complete
+[2026-01-14 18:27:19.636] [INFO ] [JavaFX Application Thread] [CallManager] - 🔧 Initializing for user: abkarada
+[2026-01-14 18:27:19.789] [INFO ] [webrtc-device-monitor] [WebRTCClient] - 🎧 Device monitor started (Hot-Swap enabled)
+[2026-01-14 18:27:19.798] [INFO ] [JavaFX Application Thread] [CallManager] - ✅ Initialization complete
+[2026-01-14 19:48:26.073] [INFO ] [JavaFX Application Thread] [CallManager] - 🔧 Initializing for user: abkarada
+[2026-01-14 19:48:26.221] [INFO ] [webrtc-device-monitor] [WebRTCClient] - 🎧 Device monitor started (Hot-Swap enabled)
+[2026-01-14 19:48:26.229] [INFO ] [JavaFX Application Thread] [CallManager] - ✅ Initialization complete
+[2026-01-14 19:49:49.454] [INFO ] [JavaFX Application Thread] [CallManager] - Cleaning up call resources...
+[2026-01-14 19:49:49.454] [DEBUG] [JavaFX Application Thread] [CallManager] - Already cleaned up, skipping
+[2026-01-14 19:49:49.455] [INFO ] [JavaFX Application Thread] [CallManager] - Shutting down...
+[2026-01-14 19:49:49.724] [INFO ] [webrtc-device-monitor] [WebRTCClient] - Device monitor stopped
+[2026-01-14 19:49:49.764] [INFO ] [JavaFX Application Thread] [CallManager] - Shutdown complete
+[2026-01-14 20:23:10.934] [INFO ] [grpc-default-executor-0] [DBManager] - Database config loaded successfully.
+[2026-01-14 20:23:11.017] [ERROR] [grpc-default-executor-0] [DBManager] - Failed to init Rooms tables: Communications link failure
+
+The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server.
+[2026-01-14 20:23:42.227] [INFO ] [grpc-default-executor-0] [DBManager] - Database config loaded successfully.
+[2026-01-14 20:23:42.299] [ERROR] [grpc-default-executor-0] [DBManager] - Failed to init Rooms tables: Communications link failure
+
+The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server.
+[2026-01-14 20:23:42.300] [ERROR] [grpc-default-executor-0] [DBManager] - Failed to init Rooms tables: Communications link failure
+
+The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server.

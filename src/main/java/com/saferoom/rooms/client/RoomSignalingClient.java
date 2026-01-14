@@ -49,6 +49,29 @@ public class RoomSignalingClient {
 
     // --- Actions ---
 
+    public CreateRoomResponse createRoom(String name, String ownerNodeId, boolean isPrivate) {
+        CreateRoomRequest request = CreateRoomRequest.newBuilder()
+                .setName(name)
+                .setOwnerNodeId(ownerNodeId)
+                .setIsPrivate(isPrivate)
+                .build();
+        return blockingStub.createRoom(request);
+    }
+
+    public ListRoomsResponse listRooms(String searchQuery) {
+        ListRoomsRequest request = ListRoomsRequest.newBuilder()
+                .setSearchQuery(searchQuery == null ? "" : searchQuery)
+                .build();
+        return blockingStub.listRooms(request);
+    }
+
+    public GetRoomInfoResponse getRoomInfo(String roomId) {
+        GetRoomInfoRequest request = GetRoomInfoRequest.newBuilder()
+                .setRoomId(roomId)
+                .build();
+        return blockingStub.getRoomInfo(request);
+    }
+
     public JoinRoomResponse joinRoom(String roomId, String nodeId, String pubKey) {
         JoinRoomRequest request = JoinRoomRequest.newBuilder()
                 .setRoomId(roomId)
