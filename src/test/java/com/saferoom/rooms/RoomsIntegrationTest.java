@@ -28,7 +28,7 @@ public class RoomsIntegrationTest {
 
     @BeforeAll
     public static void setup() throws IOException {
-        // Start Server on random port
+        // Start Server on random port using REAL DB (embedded in RoomServiceImpl)
         server = ServerBuilder.forPort(0)
                 .addService(new RoomServiceImpl())
                 .build()
@@ -54,29 +54,26 @@ public class RoomsIntegrationTest {
 
     @Test
     public void testFullRoomLifecycle() throws InterruptedException {
-        String roomId = "test-room-" + System.currentTimeMillis();
-        String roomName = "Test Room";
-        String ownerId = "owner-node";
-        String memberId = "member-node";
+        // NOTE: This test requires a running MariaDB instance accessible by DBManager.
+        // If DB is offline, test will fail with Communications link failure.
+
+        String roomName = "Real DB Test Room " + System.currentTimeMillis();
+        String ownerId = "owner-" + System.currentTimeMillis(); // Unique owner
+        String memberId = "member-" + System.currentTimeMillis();
         String pubKey = "pub-key-1";
 
-        // 1. Create Room (Assume implicit UUID generation by server if we passed name?
-        // No, current createRoom implementation in DBManager takes roomId from Caller?
-        // Wait, RoomServiceImpl.createRoom generates UUID? Let's check RoomServiceImpl.
-        // Assuming RoomServiceImpl generates ID or it was passed?
-        // Let's check CreateRoomRequest proto. It only has "name", "ownerNodeId",
-        // "isPrivate".
-        // So Server generates ID.
-
+        // 1. Create Room
         var createResp = client.createRoom(roomName, ownerId, false);
-        assertTrue(createResp.getSuccess(), "Create room should be successful");
+
+        // If DB fails, these assertions will fail
+        assertTrue(createResp.getSuccess(), "Create room should be successful (Check DB connection)");
         assertNotNull(createResp.getRoom(), "Should return room metadata");
         assertEquals(roomName, createResp.getRoom().getName());
         String createdRoomId = createResp.getRoom().getRoomId();
         assertNotNull(createdRoomId, "Room ID should be generated");
 
         // 2. List Rooms
-        var listResp = client.listRooms("");
+        var listResp = client.listRooms(roomName); // Search specifically for this room
         boolean found = false;
         for (var r : listResp.getRoomsList()) {
             if (r.getRoomId().equals(createdRoomId)) {
@@ -85,7 +82,7 @@ public class RoomsIntegrationTest {
                 break;
             }
         }
-        assertTrue(found, "Created room should appear in list");
+        assertTrue(found, "Created room should appear in list (Check DB persistence)");
 
         // 3. Join Room
         JoinRoomResponse joinResp = client.joinRoom(createdRoomId, memberId, pubKey);

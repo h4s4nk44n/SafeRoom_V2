@@ -25,6 +25,9 @@ public class RoomServiceImpl extends RoomServiceImplBase {
     // RoomId -> Current Epoch
     private final Map<String, Long> roomEpochs = new ConcurrentHashMap<>();
 
+    // RoomId -> NodeId -> RoomPeer (For active member list - Online users)
+    private final Map<String, Map<String, RoomPeer>> activePeers = new ConcurrentHashMap<>();
+
     @Override
     public void createRoom(CreateRoomRequest request, StreamObserver<CreateRoomResponse> responseObserver) {
         String name = request.getName();
@@ -129,19 +132,6 @@ public class RoomServiceImpl extends RoomServiceImplBase {
             voicePresence.computeIfAbsent(roomId, k -> new ConcurrentHashMap<>());
             long currentEpoch = roomEpochs.computeIfAbsent(roomId, k -> 1L);
 
-            // Add peer to active map (for Signalling/Presence)
-            // Note: We might want to load *all* members from DB if we want full roster,
-            // but for presence we typically only care about ONLINE users.
-            // So we'll track online users in memory 'activePeers' (which was removed in
-            // replacement, re-adding implicit logic below)
-
-            // Re-declaring activePeers if it was removed or we assume we track it in
-            // roomSessions keys?
-            // The previous implementation had activePeers. Let's look at broadcastPresence.
-            // We need to maintain activePeers for broadcastPresence to work.
-            // I will re-introduce activePeers management here, but it's ephemeral (online
-            // status).
-
             // Add self to active list
             RoomPeer peer = RoomPeer.newBuilder()
                     .setNodeId(nodeId)
@@ -149,14 +139,6 @@ public class RoomServiceImpl extends RoomServiceImplBase {
                     .setRole("LEAF")
                     .build();
 
-            // We need a thread-safe map for active peers.
-            // Ideally this class should have kept it. I pressed replace on the whole class?
-            // No, I'm replacing lines 20-266. I need to make sure 'activePeers' is
-            // preserved or re-declared.
-            // I will use a local getActivePeers map helper or re-add the field if I
-            // replaced it.
-            // Wait, I am replacing the METHOD IMPLEMENTATIONS mostly.
-            // Let's use a helper for ACTIVE peers tracking.
             addActivePeer(roomId, nodeId, peer);
 
             // Success response
@@ -181,9 +163,6 @@ public class RoomServiceImpl extends RoomServiceImplBase {
             responseObserver.onCompleted();
         }
     }
-
-    // RoomId -> NodeId -> RoomPeer (For active member list - Online users)
-    private final Map<String, Map<String, RoomPeer>> activePeers = new ConcurrentHashMap<>();
 
     private void addActivePeer(String roomId, String nodeId, RoomPeer peer) {
         activePeers.computeIfAbsent(roomId, k -> new ConcurrentHashMap<>()).put(nodeId, peer);
@@ -212,11 +191,6 @@ public class RoomServiceImpl extends RoomServiceImplBase {
 
         // Remove from memory (Offline)
         removeUser(roomId, nodeId);
-
-        // Note: We do NOT remove from DB 'room_members' automatically on simple leave
-        // unless it's a "Leave Group" action. For now, we assume this is "Going
-        // Offline".
-        // If the user wants to permanently leave, that's a different RPC or flag.
 
         responseObserver.onNext(LeaveRoomResponse.newBuilder().setSuccess(true).build());
         responseObserver.onCompleted();

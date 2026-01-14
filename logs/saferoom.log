@@ -8869,3 +8869,10 @@ The last packet sent successfully to the server was 0 milliseconds ago. The driv
 [2026-01-14 20:23:42.300] [ERROR] [grpc-default-executor-0] [DBManager] - Failed to init Rooms tables: Communications link failure
 
 The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server.
+[2026-01-14 21:24:31.697] [INFO ] [grpc-default-executor-0] [DBManager] - Database config loaded successfully.
+[2026-01-14 21:24:31.761] [ERROR] [grpc-default-executor-0] [DBManager] - Failed to init Rooms tables: Communications link failure
+
+The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server.
+[2026-01-14 21:24:31.764] [ERROR] [grpc-default-executor-0] [DBManager] - Failed to init Rooms tables: Communications link failure
+
+The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server.
