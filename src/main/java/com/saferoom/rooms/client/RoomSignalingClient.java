@@ -55,6 +55,9 @@ public class RoomSignalingClient {
                 .setOwnerNodeId(ownerNodeId)
                 .setIsPrivate(isPrivate)
                 .build();
+        if (blockingStub == null) {
+            throw new IllegalStateException("RoomSignalingClient not connected. Call connect() first.");
+        }
         return blockingStub.createRoom(request);
     }
 
@@ -62,6 +65,9 @@ public class RoomSignalingClient {
         ListRoomsRequest request = ListRoomsRequest.newBuilder()
                 .setSearchQuery(searchQuery == null ? "" : searchQuery)
                 .build();
+        if (blockingStub == null) {
+            return ListRoomsResponse.newBuilder().build(); // Return empty instead of crash
+        }
         return blockingStub.listRooms(request);
     }
 

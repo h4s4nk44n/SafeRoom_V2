@@ -1358,20 +1358,22 @@ public class DBManager {
 				    CREATE TABLE IF NOT EXISTS rooms (
 				        room_id VARCHAR(255) PRIMARY KEY,
 				        name VARCHAR(255) NOT NULL,
-				        owner_node_id VARCHAR(255) NOT NULL,
+				        owner_username VARCHAR(50) NOT NULL,
 				        is_private BOOLEAN DEFAULT FALSE,
-				        created_at BIGINT NOT NULL
+				        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				                    FOREIGN KEY (owner_username) REFERENCES users(username) ON DELETE CASCADE
 				    );
 				""";
 
 		String createMembers = """
 				    CREATE TABLE IF NOT EXISTS room_members (
 				        room_id VARCHAR(255) NOT NULL,
-				        node_id VARCHAR(255) NOT NULL,
+				        username VARCHAR(50) NOT NULL,
 				        role VARCHAR(50) DEFAULT 'MEMBER',
-				        joined_at BIGINT NOT NULL,
-				        PRIMARY KEY (room_id, node_id),
-				        FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE CASCADE
+				        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				        PRIMARY KEY (room_id, username),
+				        FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE CASCADE,
+				                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
 				    );
 				""";
 
@@ -1387,14 +1389,15 @@ public class DBManager {
 
 	public static boolean createRoom(String roomId, String name, String ownerNodeId, boolean isPrivate)
 			throws SQLException {
-		String sql = "INSERT INTO rooms (room_id, name, owner_node_id, is_private, created_at) VALUES (?, ?, ?, ?, ?)";
+		// created_at is automatic (DEFAULT CURRENT_TIMESTAMP) usually, but we can set
+		// it explicitly valid for TIMESTAMP column
+		String sql = "INSERT INTO rooms (room_id, name, owner_username, is_private) VALUES (?, ?, ?, ?)";
 		try (Connection conn = getConnection();
 				PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setString(1, roomId);
 			stmt.setString(2, name);
-			stmt.setString(3, ownerNodeId);
+			stmt.setString(3, ownerNodeId); // ownerNodeId maps to owner_username
 			stmt.setBoolean(4, isPrivate);
-			stmt.setLong(5, System.currentTimeMillis());
 			return stmt.executeUpdate() > 0;
 		}
 	}
@@ -1416,12 +1419,13 @@ public class DBManager {
 
 			ResultSet rs = stmt.executeQuery();
 			while (rs.next()) {
+				Timestamp ts = rs.getTimestamp("created_at");
 				list.add(com.saferoom.rooms.grpc.RoomMetadata.newBuilder()
 						.setRoomId(rs.getString("room_id"))
 						.setName(rs.getString("name"))
-						.setOwnerNodeId(rs.getString("owner_node_id"))
+						.setOwnerNodeId(rs.getString("owner_username"))
 						.setIsPrivate(rs.getBoolean("is_private"))
-						.setCreatedAt(rs.getLong("created_at"))
+						.setCreatedAt(ts != null ? ts.getTime() : 0L)
 						// Online stats can be joined/calculated, keeping simple for now
 						.build());
 			}
@@ -1436,12 +1440,13 @@ public class DBManager {
 			stmt.setString(1, roomId);
 			ResultSet rs = stmt.executeQuery();
 			if (rs.next()) {
+				Timestamp ts = rs.getTimestamp("created_at");
 				return com.saferoom.rooms.grpc.RoomMetadata.newBuilder()
 						.setRoomId(rs.getString("room_id"))
 						.setName(rs.getString("name"))
-						.setOwnerNodeId(rs.getString("owner_node_id"))
+						.setOwnerNodeId(rs.getString("owner_username"))
 						.setIsPrivate(rs.getBoolean("is_private"))
-						.setCreatedAt(rs.getLong("created_at"))
+						.setCreatedAt(ts != null ? ts.getTime() : 0L)
 						.build();
 			}
 		}
@@ -1449,20 +1454,20 @@ public class DBManager {
 	}
 
 	public static boolean addRoomMember(String roomId, String nodeId) throws SQLException {
-		String sql = "INSERT INTO room_members (room_id, node_id, joined_at) VALUES (?, ?, ?)" +
+		String sql = "INSERT INTO room_members (room_id, username, joined_at) VALUES (?, ?, CURRENT_TIMESTAMP) " +
 				"ON DUPLICATE KEY UPDATE joined_at = joined_at";
 		// Safe for re-joins
 		try (Connection conn = getConnection();
 				PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setString(1, roomId);
-			stmt.setString(2, nodeId);
-			stmt.setLong(3, System.currentTimeMillis());
+			stmt.setString(2, nodeId); // nodeId maps to username
+			// joined_at handled by DB or explicit CURRENT_TIMESTAMP
 			return stmt.executeUpdate() > 0;
 		}
 	}
 
 	public static boolean removeRoomMember(String roomId, String nodeId) throws SQLException {
-		String sql = "DELETE FROM room_members WHERE room_id = ? AND node_id = ?";
+		String sql = "DELETE FROM room_members WHERE room_id = ? AND username = ?";
 		try (Connection conn = getConnection();
 				PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setString(1, roomId);

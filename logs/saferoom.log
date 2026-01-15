@@ -8876,3 +8876,20 @@ The last packet sent successfully to the server was 0 milliseconds ago. The driv
 [2026-01-14 21:24:31.764] [ERROR] [grpc-default-executor-0] [DBManager] - Failed to init Rooms tables: Communications link failure
 
 The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server.
+[2026-01-14 21:56:45.153] [INFO ] [grpc-default-executor-0] [DBManager] - Database config loaded successfully.
+[2026-01-14 21:56:45.276] [INFO ] [grpc-default-executor-0] [DBManager] - Rooms v1 tables initialized.
+[2026-01-14 21:56:45.278] [INFO ] [grpc-default-executor-0] [DBManager] - Rooms v1 tables initialized.
+[2026-01-15 15:12:08.323] [INFO ] [JavaFX Application Thread] [CallManager] - 🔧 Initializing for user: abkarada
+[2026-01-15 15:12:08.457] [INFO ] [webrtc-device-monitor] [WebRTCClient] - 🎧 Device monitor started (Hot-Swap enabled)
+[2026-01-15 15:12:08.463] [INFO ] [JavaFX Application Thread] [CallManager] - ✅ Initialization complete
+[2026-01-15 15:12:54.485] [INFO ] [JavaFX Application Thread] [CallManager] - Cleaning up call resources...
+[2026-01-15 15:12:54.486] [DEBUG] [JavaFX Application Thread] [CallManager] - Already cleaned up, skipping
+[2026-01-15 15:12:54.487] [INFO ] [JavaFX Application Thread] [CallManager] - Shutting down...
+[2026-01-15 15:12:54.683] [INFO ] [webrtc-device-monitor] [WebRTCClient] - Device monitor stopped
+[2026-01-15 15:12:54.769] [INFO ] [JavaFX Application Thread] [CallManager] - Shutdown complete
+[2026-01-15 15:55:28.808] [INFO ] [JavaFX Application Thread] [CallManager] - 🔧 Initializing for user: abkarada
+[2026-01-15 15:55:28.928] [INFO ] [webrtc-device-monitor] [WebRTCClient] - 🎧 Device monitor started (Hot-Swap enabled)
+[2026-01-15 15:55:28.939] [INFO ] [JavaFX Application Thread] [CallManager] - ✅ Initialization complete
+[2026-01-15 16:00:43.920] [INFO ] [JavaFX Application Thread] [CallManager] - 🔧 Initializing for user: abkarada
+[2026-01-15 16:00:44.062] [INFO ] [webrtc-device-monitor] [WebRTCClient] - 🎧 Device monitor started (Hot-Swap enabled)
+[2026-01-15 16:00:44.067] [INFO ] [JavaFX Application Thread] [CallManager] - ✅ Initialization complete
