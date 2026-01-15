@@ -366,7 +366,7 @@ public class RoomsController implements Initializable {
                         if (response.getSuccess()) {
                             System.out.println("Room created successfully: " + response.getMessage());
                             // Add the new room card to the UI
-                            addRoomCard(response.getRoomId(), roomName, isPrivate, roomImage);
+                            addRoomCard(response.getRoom().getRoomId(), roomName, isPrivate, roomImage);
                         } else {
                             System.err.println("Failed to create room: " + response.getMessage());
                             // TODO: Show error dialog
