@@ -47,6 +47,8 @@ public interface RoomWebRTCManager {
      */
     void setListener(Listener listener);
 
+    void broadcastData(Envelope envelope);
+
     interface Listener {
         // Called when Local Signal (Offer/Answer/ICE) is generated and needs sending
         // via gRPC

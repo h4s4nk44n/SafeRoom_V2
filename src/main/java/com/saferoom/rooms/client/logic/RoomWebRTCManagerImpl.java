@@ -1,5 +1,6 @@
 package com.saferoom.rooms.client.logic;
 
+import com.saferoom.rooms.grpc.ChatMessage;
 import com.saferoom.rooms.grpc.Envelope;
 import com.saferoom.rooms.grpc.SignalRelayRequest;
 import com.saferoom.webrtc.WebRTCClient;
@@ -12,6 +13,8 @@ import dev.onvoid.webrtc.media.video.VideoTrack;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import dev.onvoid.webrtc.RTCDataChannelBuffer;
+import dev.onvoid.webrtc.RTCDataChannelState;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -60,6 +63,16 @@ public class RoomWebRTCManagerImpl implements RoomWebRTCManager {
     @Override
     public void setListener(Listener listener) {
         this.listener = listener;
+    }
+
+    @Override
+    public void broadcastData(Envelope envelope) {
+        byte[] data = envelope.toByteArray();
+        peers.values().forEach(ctx -> {
+            if (ctx.dcData != null && ctx.dcData.getState() == dev.onvoid.webrtc.RTCDataChannelState.OPEN) {
+                ctx.dcData.send(new dev.onvoid.webrtc.RTCDataChannelBuffer(ByteBuffer.wrap(data), true));
+            }
+        });
     }
 
     @Override

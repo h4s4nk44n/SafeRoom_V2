@@ -8934,3 +8934,19 @@ The last packet sent successfully to the server was 0 milliseconds ago. The driv
 [2026-01-15 17:57:59.501] [ERROR] [JavaFX Application Thread] [DBManager] - Failed to init Rooms tables: Communications link failure
 
 The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server.
+[2026-01-15 18:27:48.380] [INFO ] [JavaFX Application Thread] [CallManager] - 🔧 Initializing for user: abkarada
+[2026-01-15 18:27:48.500] [INFO ] [webrtc-device-monitor] [WebRTCClient] - 🎧 Device monitor started (Hot-Swap enabled)
+[2026-01-15 18:27:48.508] [INFO ] [JavaFX Application Thread] [CallManager] - ✅ Initialization complete
+[2026-01-15 18:29:46.690] [INFO ] [JavaFX Application Thread] [CallManager] - Cleaning up call resources...
+[2026-01-15 18:29:46.691] [DEBUG] [JavaFX Application Thread] [CallManager] - Already cleaned up, skipping
+[2026-01-15 18:29:46.692] [INFO ] [JavaFX Application Thread] [CallManager] - Shutting down...
+[2026-01-15 18:29:46.965] [INFO ] [webrtc-device-monitor] [WebRTCClient] - Device monitor stopped
+[2026-01-15 18:29:46.997] [INFO ] [JavaFX Application Thread] [CallManager] - Shutdown complete
+[2026-01-15 18:32:05.850] [INFO ] [JavaFX Application Thread] [CallManager] - 🔧 Initializing for user: abkarada
+[2026-01-15 18:32:05.980] [INFO ] [webrtc-device-monitor] [WebRTCClient] - 🎧 Device monitor started (Hot-Swap enabled)
+[2026-01-15 18:32:05.985] [INFO ] [JavaFX Application Thread] [CallManager] - ✅ Initialization complete
+[2026-01-15 18:32:25.981] [INFO ] [JavaFX Application Thread] [CallManager] - Cleaning up call resources...
+[2026-01-15 18:32:25.981] [DEBUG] [JavaFX Application Thread] [CallManager] - Already cleaned up, skipping
+[2026-01-15 18:32:25.982] [INFO ] [JavaFX Application Thread] [CallManager] - Shutting down...
+[2026-01-15 18:32:26.156] [INFO ] [webrtc-device-monitor] [WebRTCClient] - Device monitor stopped
+[2026-01-15 18:32:26.249] [INFO ] [JavaFX Application Thread] [CallManager] - Shutdown complete

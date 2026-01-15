@@ -363,8 +363,12 @@ public class RoomServiceImpl extends RoomServiceImplBase {
 
     private void notifyRoom(String roomId, RoomEvent event) {
         Map<String, StreamObserver<RoomEvent>> sessions = roomSessions.get(roomId);
-        if (sessions == null)
+        if (sessions == null) {
+            logger.warning("[ROOM] notifyRoom: No sessions map for roomId=" + roomId);
             return;
+        }
+        logger.info("[ROOM] notifyRoom: Broadcasting " + event.getType() + " to " + sessions.size() + " sessions in "
+                + roomId);
 
         sessions.values().forEach(observer -> {
             try {
@@ -372,7 +376,7 @@ public class RoomServiceImpl extends RoomServiceImplBase {
                     observer.onNext(event);
                 }
             } catch (Exception e) {
-                // Handle disconnect
+                logger.warning("[ROOM] notifyRoom error for peer: " + e.getMessage());
             }
         });
     }
@@ -520,43 +524,43 @@ public class RoomServiceImpl extends RoomServiceImplBase {
         logger.info("[ROOM] SendMessage: channelId=" + channelId + ", sender=" + sender);
 
         try {
-            if (com.saferoom.db.DBManager.saveMessage(messageId, channelId, sender, content)) {
-                logger.info("[ROOM] ✅ Message saved: " + messageId);
+            // Disable Persistence (User Request)
+            // if (com.saferoom.db.DBManager.saveMessage(messageId, channelId, sender,
+            // content)) {
 
-                ChatMessage msg = ChatMessage.newBuilder()
-                        .setMessageId(messageId)
-                        .setChannelId(channelId)
-                        .setSenderUsername(sender)
-                        .setContent(content)
-                        .setSentAt(System.currentTimeMillis())
-                        .build();
+            logger.info("[ROOM] Broker Message (No Persistence): " + messageId);
 
-                responseObserver.onNext(SendMessageResponse.newBuilder()
-                        .setSuccess(true)
-                        .setMessage("Message saved")
-                        .setSavedMessage(msg)
-                        .build());
+            ChatMessage msg = ChatMessage.newBuilder()
+                    .setMessageId(messageId)
+                    .setChannelId(channelId)
+                    .setSenderUsername(sender)
+                    .setContent(content)
+                    .setSentAt(System.currentTimeMillis())
+                    .build();
 
-                // Sprint 15: Broadcast MESSAGE_RECEIVED event
-                try {
-                    com.saferoom.db.DBManager.ChannelInfo ch = com.saferoom.db.DBManager.getChannel(channelId);
-                    if (ch != null) {
-                        notifyRoom(ch.roomId, RoomEvent.newBuilder()
-                                .setType(RoomEvent.EventType.MESSAGE_RECEIVED)
-                                .setTimestamp(System.currentTimeMillis())
-                                .setMessage(msg)
-                                .setMsgId(java.util.UUID.randomUUID().toString())
-                                .build());
-                    }
-                } catch (Exception ex) {
-                    logger.warning("[ROOM] Failed to broadcast message event: " + ex.getMessage());
+            responseObserver.onNext(SendMessageResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Message relayed")
+                    .setSavedMessage(msg)
+                    .build());
+
+            // Sprint 15: Broadcast MESSAGE_RECEIVED event
+            try {
+                com.saferoom.db.DBManager.ChannelInfo ch = com.saferoom.db.DBManager.getChannel(channelId);
+                if (ch != null) {
+                    notifyRoom(ch.roomId, RoomEvent.newBuilder()
+                            .setType(RoomEvent.EventType.MESSAGE_RECEIVED)
+                            .setTimestamp(System.currentTimeMillis())
+                            .setMessage(msg)
+                            .setMsgId(java.util.UUID.randomUUID().toString())
+                            .build());
+                } else {
+                    logger.warning("[ROOM] Channel not found for broadcasting: " + channelId);
                 }
-            } else {
-                responseObserver.onNext(SendMessageResponse.newBuilder()
-                        .setSuccess(false)
-                        .setMessage("Failed to save message")
-                        .build());
+            } catch (Exception ex) {
+                logger.warning("[ROOM] Failed to broadcast message event: " + ex.getMessage());
             }
+
         } catch (Exception e) {
             logger.severe("[ROOM] ❌ SendMessage error: " + e.getMessage());
             responseObserver.onNext(SendMessageResponse.newBuilder()
@@ -575,21 +579,9 @@ public class RoomServiceImpl extends RoomServiceImplBase {
         logger.info("[ROOM] GetMessages: channelId=" + channelId + ", limit=" + limit);
 
         try {
-            java.util.List<com.saferoom.db.DBManager.MessageInfo> dbMessages = com.saferoom.db.DBManager
-                    .getMessages(channelId, limit);
-
+            // Disable Persistence (User Request)
+            logger.info("[ROOM] GetMessages: Persistence disabled, returning empty list.");
             GetMessagesResponse.Builder builder = GetMessagesResponse.newBuilder();
-            for (var msg : dbMessages) {
-                builder.addMessages(ChatMessage.newBuilder()
-                        .setMessageId(msg.messageId)
-                        .setChannelId(msg.channelId)
-                        .setSenderUsername(msg.senderUsername)
-                        .setContent(msg.content)
-                        .setSentAt(msg.sentAt)
-                        .build());
-            }
-
-            logger.info("[ROOM] GetMessages: returning " + dbMessages.size() + " messages");
             responseObserver.onNext(builder.build());
         } catch (Exception e) {
             logger.severe("[ROOM] ❌ GetMessages error: " + e.getMessage());
