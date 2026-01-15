@@ -8896,3 +8896,9 @@ The last packet sent successfully to the server was 0 milliseconds ago. The driv
 [2026-01-15 16:16:03.310] [INFO ] [JavaFX Application Thread] [CallManager] - 🔧 Initializing for user: abkarada
 [2026-01-15 16:16:03.429] [INFO ] [webrtc-device-monitor] [WebRTCClient] - 🎧 Device monitor started (Hot-Swap enabled)
 [2026-01-15 16:16:03.438] [INFO ] [JavaFX Application Thread] [CallManager] - ✅ Initialization complete
+[2026-01-15 16:40:51.774] [INFO ] [JavaFX Application Thread] [CallManager] - 🔧 Initializing for user: abkarada
+[2026-01-15 16:40:51.923] [INFO ] [webrtc-device-monitor] [WebRTCClient] - 🎧 Device monitor started (Hot-Swap enabled)
+[2026-01-15 16:40:51.933] [INFO ] [JavaFX Application Thread] [CallManager] - ✅ Initialization complete
+[2026-01-15 16:41:40.941] [INFO ] [JavaFX Application Thread] [CallManager] - 🔧 Initializing for user: abkarada
+[2026-01-15 16:41:41.077] [INFO ] [webrtc-device-monitor] [WebRTCClient] - 🎧 Device monitor started (Hot-Swap enabled)
+[2026-01-15 16:41:41.088] [INFO ] [JavaFX Application Thread] [CallManager] - ✅ Initialization complete

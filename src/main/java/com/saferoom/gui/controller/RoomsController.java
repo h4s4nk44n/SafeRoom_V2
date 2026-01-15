@@ -47,8 +47,13 @@ public class RoomsController implements Initializable {
             filterRooms(newValue);
         });
 
-        // Setup room card click handlers
-        setupRoomHandlers();
+        // Clear any static/mock rooms defined in FXML
+        if (hubListContainer != null) {
+            hubListContainer.getChildren().clear();
+        }
+
+        // Setup room card click handlers (for any pre-existing? No, we cleared them)
+        // setupRoomHandlers(); // No longer needed if we clear list
 
         // Load rooms from server
         refreshRooms();
