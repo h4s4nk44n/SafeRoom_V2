@@ -197,6 +197,15 @@ public class RoomWebRTCManagerImpl implements RoomWebRTCManager {
         }
     }
 
+    @Override
+    public void closeAllConnections() {
+        logger.info("Closing all peer connections (" + peers.size() + " peers)");
+        for (String nodeId : new java.util.ArrayList<>(peers.keySet())) {
+            disconnect(nodeId);
+        }
+        peers.clear();
+    }
+
     // --- Helpers ---
 
     private void marshal(Runnable task) {

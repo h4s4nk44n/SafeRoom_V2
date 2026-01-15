@@ -35,11 +35,15 @@ public class RoomServiceImpl extends RoomServiceImplBase {
         boolean isPrivate = request.getIsPrivate();
         String roomId = java.util.UUID.randomUUID().toString();
 
+        logger.info("[ROOM] CreateRoom request: name=" + name + ", owner=" + ownerId + ", private=" + isPrivate);
+
         try {
             // Persist to DB
             if (com.saferoom.db.DBManager.createRoom(roomId, name, ownerId, isPrivate)) {
                 // Auto-join owner as admin
                 com.saferoom.db.DBManager.addRoomMember(roomId, ownerId);
+
+                logger.info("[ROOM] ✅ Room created successfully: " + roomId + " (" + name + ")");
 
                 RoomMetadata meta = RoomMetadata.newBuilder()
                         .setRoomId(roomId)
@@ -55,13 +59,15 @@ public class RoomServiceImpl extends RoomServiceImplBase {
                         .setRoom(meta)
                         .build());
             } else {
+                logger.warning("[ROOM] ❌ Failed to persist room: " + name);
                 responseObserver.onNext(CreateRoomResponse.newBuilder()
                         .setSuccess(false)
                         .setMessage("Failed to persist room")
                         .build());
             }
         } catch (Exception e) {
-            logger.severe("CreateRoom error: " + e.getMessage());
+            logger.severe("[ROOM] ❌ CreateRoom error: " + e.getMessage());
+            e.printStackTrace();
             responseObserver.onNext(CreateRoomResponse.newBuilder()
                     .setSuccess(false)
                     .setMessage("Server error: " + e.getMessage())
@@ -72,13 +78,15 @@ public class RoomServiceImpl extends RoomServiceImplBase {
 
     @Override
     public void listRooms(ListRoomsRequest request, StreamObserver<ListRoomsResponse> responseObserver) {
+        logger.info("[ROOM] ListRooms request: query='" + request.getSearchQuery() + "'");
         try {
             java.util.List<RoomMetadata> rooms = com.saferoom.db.DBManager.getRooms(request.getSearchQuery());
+            logger.info("[ROOM] ListRooms: returning " + rooms.size() + " rooms");
             responseObserver.onNext(ListRoomsResponse.newBuilder()
                     .addAllRooms(rooms)
                     .build());
         } catch (Exception e) {
-            logger.severe("ListRooms error: " + e.getMessage());
+            logger.severe("[ROOM] ❌ ListRooms error: " + e.getMessage());
             responseObserver.onNext(ListRoomsResponse.newBuilder().build()); // Return empty on error
         }
         responseObserver.onCompleted();
@@ -110,12 +118,13 @@ public class RoomServiceImpl extends RoomServiceImplBase {
         String roomId = request.getRoomId();
         String nodeId = request.getNodeId();
 
-        logger.info("JoinRoom: " + nodeId + " @ " + roomId);
+        logger.info("[ROOM] JoinRoom request: nodeId=" + nodeId + ", roomId=" + roomId);
 
         try {
             // 1. Check if room exists
             RoomMetadata room = com.saferoom.db.DBManager.getRoom(roomId);
             if (room == null) {
+                logger.warning("[ROOM] ❌ Room not found: " + roomId);
                 responseObserver.onNext(JoinRoomResponse.newBuilder()
                         .setSuccess(false)
                         .setMessage("Room not found")

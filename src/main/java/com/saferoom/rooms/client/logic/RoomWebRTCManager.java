@@ -38,6 +38,11 @@ public interface RoomWebRTCManager {
     void disconnect(String remoteNodeId);
 
     /**
+     * Closes all peer connections. Used when leaving a room.
+     */
+    void closeAllConnections();
+
+    /**
      * Sets the listener for incoming DataChannel messages.
      */
     void setListener(Listener listener);

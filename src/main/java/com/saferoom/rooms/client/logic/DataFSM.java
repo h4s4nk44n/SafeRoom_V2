@@ -43,6 +43,35 @@ public class DataFSM implements RoomSignalingClient.RoomEventListener, RoomWebRT
     private final FileManager fileManager;
     private final RoomWebRTCManager webRTCManager;
 
+    // UI Listeners for presence updates
+    public interface UIListener {
+        void onPresenceUpdate(java.util.List<RoomPeer> peers);
+
+        void onStateChange(State newState);
+    }
+
+    private final java.util.List<UIListener> uiListeners = new java.util.ArrayList<>();
+
+    public void addUIListener(UIListener listener) {
+        uiListeners.add(listener);
+    }
+
+    public void removeUIListener(UIListener listener) {
+        uiListeners.remove(listener);
+    }
+
+    private void notifyPresenceUpdate(java.util.List<RoomPeer> peers) {
+        for (UIListener l : uiListeners) {
+            l.onPresenceUpdate(peers);
+        }
+    }
+
+    private void notifyStateChange(State newState) {
+        for (UIListener l : uiListeners) {
+            l.onStateChange(newState);
+        }
+    }
+
     public DataFSM(String roomId, String nodeId, RoomSignalingClient client, RoomWebRTCManager webRTCManager) {
         this.roomId = roomId;
         this.nodeId = nodeId;
@@ -60,6 +89,17 @@ public class DataFSM implements RoomSignalingClient.RoomEventListener, RoomWebRT
         // Signaling Join is handled by caller (RoomManager/UI) calling client.joinRoom
         // But here we listen for events
         signalingClient.addListener(this);
+    }
+
+    public void stop() {
+        logger.info("Stopping DataFSM for room: " + roomId);
+        signalingClient.removeListener(this);
+        uiListeners.clear();
+        webRTCManager.closeAllConnections();
+        if (scheduler != null) {
+            scheduler.shutdownNow();
+        }
+        transitionTo(State.IDLE);
     }
 
     public void onSignalingJoinSuccess(long epoch) {
@@ -166,6 +206,7 @@ public class DataFSM implements RoomSignalingClient.RoomEventListener, RoomWebRT
         switch (event.getType()) {
             case ROOM_PRESENCE:
                 logger.info("Presence update: " + event.getPresence().getConnectedPeersCount() + " peers");
+                notifyPresenceUpdate(event.getPresence().getPeersList());
                 break;
             case EPOCH_CHANGE:
                 if (event.getNewEpoch() > currentEpoch) {
@@ -277,6 +318,7 @@ public class DataFSM implements RoomSignalingClient.RoomEventListener, RoomWebRT
     private void transitionTo(State newState) {
         logger.info("FSM: " + currentState + " -> " + newState);
         this.currentState = newState;
+        notifyStateChange(newState);
     }
 
     /**

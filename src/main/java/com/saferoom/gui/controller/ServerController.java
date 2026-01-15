@@ -40,6 +40,10 @@ import javafx.scene.input.TransferMode;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.SnapshotParameters;
 import com.saferoom.gui.controller.MainController; // Ensure this is imported if not already
+import com.saferoom.rooms.client.ActiveRoomSession;
+import com.saferoom.rooms.client.logic.DataFSM;
+import com.saferoom.rooms.grpc.RoomPeer;
+import javafx.application.Platform;
 
 public class ServerController implements Initializable {
 
@@ -578,7 +582,10 @@ public class ServerController implements Initializable {
 
         setupReordering(fileChannelsList);
 
-        initializeMockData();
+        // Sprint 10: Initialize from ActiveRoomSession if available, otherwise use mock
+        // fallback
+        initializeRoomSession();
+
         setupContextMenusForExistingNodes();
         populateUsers();
         setupMessageListView();
@@ -774,6 +781,65 @@ public class ServerController implements Initializable {
                 voiceUsersContainer.getChildren().add(userItem);
             }
         }
+    }
+
+    // Sprint 10: Real presence integration
+    private DataFSM currentFSM;
+
+    private void initializeRoomSession() {
+        DataFSM fsm = ActiveRoomSession.getInstance().getFSM();
+        if (fsm != null) {
+            this.currentFSM = fsm;
+            System.out.println("[ServerController] Connected to real room session: "
+                    + ActiveRoomSession.getInstance().getRoomName());
+
+            // Listen for real presence updates
+            fsm.addUIListener(new DataFSM.UIListener() {
+                @Override
+                public void onPresenceUpdate(java.util.List<RoomPeer> peers) {
+                    Platform.runLater(() -> updateMembersFromPresence(peers));
+                }
+
+                @Override
+                public void onStateChange(DataFSM.State newState) {
+                    System.out.println("[ServerController] FSM state: " + newState);
+                }
+            });
+        } else {
+            // Fallback to mock data if no active session
+            System.out.println("[ServerController] No active room session, using mock data");
+            initializeMockData();
+        }
+    }
+
+    private void updateMembersFromPresence(java.util.List<RoomPeer> peers) {
+        System.out.println("[ServerController] Updating members from presence: " + peers.size() + " peers");
+
+        // Clear existing users
+        serverUsers.clear();
+
+        // Convert RoomPeer to User objects
+        for (RoomPeer peer : peers) {
+            boolean isOnline = true; // Presence = online
+            String username = peer.getNodeId();
+            String status = "Online";
+            String role = "Member"; // TODO: Get from room membership
+            String roleIcon = "";
+            String activity = "Connected";
+
+            serverUsers.add(new User(peer.getNodeId(), username, status, role, roleIcon, isOnline, activity));
+        }
+
+        // If no peers yet, add at least the current user
+        if (serverUsers.isEmpty()) {
+            String currentUser = com.saferoom.gui.service.ChatService.getInstance().getCurrentUsername();
+            if (currentUser != null) {
+                serverUsers.add(new User(currentUser, currentUser, "Online", "Member", "", true, "Connected"));
+            }
+        }
+
+        // Refresh the UI
+        populateUsers();
     }
 
     private void initializeMockData() {

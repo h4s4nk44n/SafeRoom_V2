@@ -8905,3 +8905,14 @@ The last packet sent successfully to the server was 0 milliseconds ago. The driv
 [2026-01-15 16:57:19.137] [INFO ] [JavaFX Application Thread] [CallManager] - 🔧 Initializing for user: abkarada
 [2026-01-15 16:57:19.264] [INFO ] [webrtc-device-monitor] [WebRTCClient] - 🎧 Device monitor started (Hot-Swap enabled)
 [2026-01-15 16:57:19.270] [INFO ] [JavaFX Application Thread] [CallManager] - ✅ Initialization complete
+[2026-01-15 17:11:37.449] [INFO ] [JavaFX Application Thread] [CallManager] - 🔧 Initializing for user: abkarada
+[2026-01-15 17:11:37.579] [INFO ] [webrtc-device-monitor] [WebRTCClient] - 🎧 Device monitor started (Hot-Swap enabled)
+[2026-01-15 17:11:37.585] [INFO ] [JavaFX Application Thread] [CallManager] - ✅ Initialization complete
+[2026-01-15 17:16:07.856] [INFO ] [JavaFX Application Thread] [CallManager] - Cleaning up call resources...
+[2026-01-15 17:16:07.857] [DEBUG] [JavaFX Application Thread] [CallManager] - Already cleaned up, skipping
+[2026-01-15 17:16:07.857] [INFO ] [JavaFX Application Thread] [CallManager] - Shutting down...
+[2026-01-15 17:16:08.147] [INFO ] [webrtc-device-monitor] [WebRTCClient] - Device monitor stopped
+[2026-01-15 17:16:08.180] [INFO ] [JavaFX Application Thread] [CallManager] - Shutdown complete
+[2026-01-15 17:19:16.129] [INFO ] [JavaFX Application Thread] [CallManager] - 🔧 Initializing for user: abkarada
+[2026-01-15 17:19:16.267] [INFO ] [webrtc-device-monitor] [WebRTCClient] - 🎧 Device monitor started (Hot-Swap enabled)
+[2026-01-15 17:19:16.281] [INFO ] [JavaFX Application Thread] [CallManager] - ✅ Initialization complete

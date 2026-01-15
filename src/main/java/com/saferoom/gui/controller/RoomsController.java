@@ -13,6 +13,7 @@ import javafx.scene.layout.StackPane;
 import org.kordamp.ikonli.javafx.FontIcon;
 import com.saferoom.client.ClientMenu;
 import com.saferoom.rooms.client.logic.DataFSM;
+import com.saferoom.rooms.client.ActiveRoomSession;
 import com.saferoom.rooms.grpc.*;
 
 import java.net.URL;
@@ -220,7 +221,9 @@ public class RoomsController implements Initializable {
 
                 DataFSM fsm = new DataFSM(roomId, nodeId, ClientMenu.roomClient, webRTCManager);
                 fsm.start();
-                // In a real app, store 'fsm' in a SessionManager or pass to ServerView
+
+                // Sprint 10: Store FSM in ActiveRoomSession for ServerController access
+                ActiveRoomSession.getInstance().setActiveSession(roomId, roomName, fsm);
             }
         } catch (Exception e) {
             System.err.println("Failed to start Rooms v1 FSM: " + e.getMessage());
