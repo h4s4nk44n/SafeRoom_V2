@@ -1377,11 +1377,40 @@ public class DBManager {
 				    );
 				""";
 
+		// Sprint 11: Channel persistence
+		String createChannels = """
+				    CREATE TABLE IF NOT EXISTS room_channels (
+				        channel_id VARCHAR(255) PRIMARY KEY,
+				        room_id VARCHAR(255) NOT NULL,
+				        name VARCHAR(255) NOT NULL,
+				        type ENUM('TEXT', 'VOICE', 'FILE') DEFAULT 'TEXT',
+				        category VARCHAR(255) DEFAULT 'GENERAL',
+				        position INT DEFAULT 0,
+				        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				        FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE CASCADE
+				    );
+				""";
+
+		// Sprint 12: Message persistence
+		String createMessages = """
+				    CREATE TABLE IF NOT EXISTS room_messages (
+				        message_id VARCHAR(255) PRIMARY KEY,
+				        channel_id VARCHAR(255) NOT NULL,
+				        sender_username VARCHAR(50) NOT NULL,
+				        content TEXT NOT NULL,
+				        sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				        FOREIGN KEY (channel_id) REFERENCES room_channels(channel_id) ON DELETE CASCADE,
+				        FOREIGN KEY (sender_username) REFERENCES users(username) ON DELETE CASCADE
+				    );
+				""";
+
 		try (Connection conn = getConnection();
 				Statement stmt = conn.createStatement()) {
 			stmt.execute(createRooms);
 			stmt.execute(createMembers);
-			LOGGER.info("Rooms v1 tables initialized.");
+			stmt.execute(createChannels);
+			stmt.execute(createMessages);
+			LOGGER.info("Rooms v1 tables initialized (including channels and messages).");
 		} catch (SQLException e) {
 			LOGGER.error("Failed to init Rooms tables: " + e.getMessage());
 		}
@@ -1473,6 +1502,140 @@ public class DBManager {
 			stmt.setString(1, roomId);
 			stmt.setString(2, nodeId);
 			return stmt.executeUpdate() > 0;
+		}
+	}
+
+	// ====================== Sprint 11: Channel CRUD ======================
+
+	public static boolean createChannel(String channelId, String roomId, String name, String type, String category)
+			throws SQLException {
+		String sql = "INSERT INTO room_channels (channel_id, room_id, name, type, category, position) VALUES (?, ?, ?, ?, ?, ?)";
+		int position = getChannelCount(roomId); // Append to end
+		try (Connection conn = getConnection();
+				PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, channelId);
+			stmt.setString(2, roomId);
+			stmt.setString(3, name);
+			stmt.setString(4, type);
+			stmt.setString(5, category);
+			stmt.setInt(6, position);
+			return stmt.executeUpdate() > 0;
+		}
+	}
+
+	private static int getChannelCount(String roomId) throws SQLException {
+		String sql = "SELECT COUNT(*) FROM room_channels WHERE room_id = ?";
+		try (Connection conn = getConnection();
+				PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, roomId);
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					return rs.getInt(1);
+				}
+			}
+		}
+		return 0;
+	}
+
+	public static java.util.List<ChannelInfo> getChannels(String roomId) throws SQLException {
+		String sql = "SELECT * FROM room_channels WHERE room_id = ? ORDER BY category, position";
+		java.util.List<ChannelInfo> channels = new java.util.ArrayList<>();
+		try (Connection conn = getConnection();
+				PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, roomId);
+			try (ResultSet rs = stmt.executeQuery()) {
+				while (rs.next()) {
+					channels.add(new ChannelInfo(
+							rs.getString("channel_id"),
+							rs.getString("room_id"),
+							rs.getString("name"),
+							rs.getString("type"),
+							rs.getString("category"),
+							rs.getInt("position")));
+				}
+			}
+		}
+		return channels;
+	}
+
+	public static boolean deleteChannel(String channelId) throws SQLException {
+		String sql = "DELETE FROM room_channels WHERE channel_id = ?";
+		try (Connection conn = getConnection();
+				PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, channelId);
+			return stmt.executeUpdate() > 0;
+		}
+	}
+
+	// Channel Info DTO
+	public static class ChannelInfo {
+		public final String channelId;
+		public final String roomId;
+		public final String name;
+		public final String type;
+		public final String category;
+		public final int position;
+
+		public ChannelInfo(String channelId, String roomId, String name, String type, String category, int position) {
+			this.channelId = channelId;
+			this.roomId = roomId;
+			this.name = name;
+			this.type = type;
+			this.category = category;
+			this.position = position;
+		}
+	}
+
+	// ====================== Sprint 12: Message CRUD ======================
+
+	public static boolean saveMessage(String messageId, String channelId, String senderUsername, String content)
+			throws SQLException {
+		String sql = "INSERT INTO room_messages (message_id, channel_id, sender_username, content) VALUES (?, ?, ?, ?)";
+		try (Connection conn = getConnection();
+				PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, messageId);
+			stmt.setString(2, channelId);
+			stmt.setString(3, senderUsername);
+			stmt.setString(4, content);
+			return stmt.executeUpdate() > 0;
+		}
+	}
+
+	public static java.util.List<MessageInfo> getMessages(String channelId, int limit) throws SQLException {
+		String sql = "SELECT * FROM room_messages WHERE channel_id = ? ORDER BY sent_at DESC LIMIT ?";
+		java.util.List<MessageInfo> messages = new java.util.ArrayList<>();
+		try (Connection conn = getConnection();
+				PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, channelId);
+			stmt.setInt(2, limit);
+			try (ResultSet rs = stmt.executeQuery()) {
+				while (rs.next()) {
+					messages.add(0, new MessageInfo( // Add at 0 to reverse order (oldest first)
+							rs.getString("message_id"),
+							rs.getString("channel_id"),
+							rs.getString("sender_username"),
+							rs.getString("content"),
+							rs.getTimestamp("sent_at").getTime()));
+				}
+			}
+		}
+		return messages;
+	}
+
+	// Message Info DTO
+	public static class MessageInfo {
+		public final String messageId;
+		public final String channelId;
+		public final String senderUsername;
+		public final String content;
+		public final long sentAt;
+
+		public MessageInfo(String messageId, String channelId, String senderUsername, String content, long sentAt) {
+			this.messageId = messageId;
+			this.channelId = channelId;
+			this.senderUsername = senderUsername;
+			this.content = content;
+			this.sentAt = sentAt;
 		}
 	}
 

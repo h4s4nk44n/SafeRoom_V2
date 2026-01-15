@@ -475,9 +475,24 @@ public class ServerController implements Initializable {
     }
 
     private void createTextChannel(String name, VBox container) {
+        // Generate channel ID
+        String channelId = java.util.UUID.randomUUID().toString();
+        String roomId = ActiveRoomSession.getInstance().getRoomId();
+
+        // Sprint 11: Persist to DB if we have an active room session
+        if (roomId != null) {
+            try {
+                com.saferoom.db.DBManager.createChannel(channelId, roomId, name, "TEXT", "GENERAL");
+                System.out.println("[Channels] Created text channel: " + name + " (ID: " + channelId + ")");
+            } catch (Exception e) {
+                System.err.println("[Channels] Failed to persist channel: " + e.getMessage());
+            }
+        }
+
         HBox item = new HBox(8.0);
         item.setAlignment(Pos.CENTER_LEFT);
         item.getStyleClass().add("text-channel-item");
+        item.setUserData(channelId); // Store channel ID for later reference
 
         FontIcon icon = new FontIcon("fas-comment");
         icon.getStyleClass().add("channel-icon");
@@ -509,9 +524,24 @@ public class ServerController implements Initializable {
     }
 
     private void createVoiceChannel(String name, VBox container, int userLimit) {
+        // Generate channel ID
+        String channelId = java.util.UUID.randomUUID().toString();
+        String roomId = ActiveRoomSession.getInstance().getRoomId();
+
+        // Sprint 11: Persist to DB if we have an active room session
+        if (roomId != null) {
+            try {
+                com.saferoom.db.DBManager.createChannel(channelId, roomId, name, "VOICE", "GENERAL");
+                System.out.println("[Channels] Created voice channel: " + name + " (ID: " + channelId + ")");
+            } catch (Exception e) {
+                System.err.println("[Channels] Failed to persist channel: " + e.getMessage());
+            }
+        }
+
         HBox item = new HBox(8.0);
         item.setAlignment(Pos.CENTER_LEFT);
         item.getStyleClass().add("voice-channel-item");
+        item.setUserData(channelId); // Store channel ID for later reference
 
         FontIcon icon = new FontIcon("fas-volume-up");
         icon.getStyleClass().add("channel-icon");
@@ -567,6 +597,9 @@ public class ServerController implements Initializable {
     }
 
     private SidebarState currentSidebarState = SidebarState.OPEN;
+
+    // Sprint 12: Track current channel for message persistence
+    private String currentChannelId = null;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -805,10 +838,51 @@ public class ServerController implements Initializable {
                     System.out.println("[ServerController] FSM state: " + newState);
                 }
             });
+
+            // Sprint 11: Load channels from DB
+            loadChannelsFromDB();
         } else {
             // Fallback to mock data if no active session
             System.out.println("[ServerController] No active room session, using mock data");
             initializeMockData();
+        }
+    }
+
+    // Sprint 11: Load persisted channels from database
+    private void loadChannelsFromDB() {
+        String roomId = ActiveRoomSession.getInstance().getRoomId();
+        if (roomId == null)
+            return;
+
+        try {
+            var channels = com.saferoom.db.DBManager.getChannels(roomId);
+            System.out.println("[ServerController] Loading " + channels.size() + " channels from DB");
+
+            // Clear existing mock channels
+            voiceChannels.clear();
+            textChannels.clear();
+
+            for (var ch : channels) {
+                switch (ch.type) {
+                    case "VOICE":
+                        voiceChannels.add(new Channel(ch.channelId, ch.name, "voice", false));
+                        break;
+                    case "TEXT":
+                        textChannels.add(new Channel(ch.channelId, ch.name, "text", false));
+                        break;
+                    case "FILE":
+                        // TODO: Add file channels support
+                        break;
+                }
+            }
+
+            // If no channels exist, create default ones
+            if (channels.isEmpty()) {
+                System.out.println("[ServerController] No channels found, creating defaults");
+                // Channels will be created by mock fallback or first user action
+            }
+        } catch (Exception e) {
+            System.err.println("[ServerController] Failed to load channels: " + e.getMessage());
         }
     }
 
@@ -1028,20 +1102,47 @@ public class ServerController implements Initializable {
         currentChannelTopic.setText(topic);
         messageTextField.setPromptText("Message #" + channelName);
 
-        // Clear and populate with mock messages
-        // Clear and populate with mock messages
+        // Sprint 12: Find channel ID and load messages from DB
         messagesListView.getItems().clear();
-        messagesListView.getItems().addAll(
-                new Message("Welcome to the " + channelName + " channel!", "Alice Cooper", "A"),
-                new Message("Thanks for setting this up", "Bob Smith", "B"),
-                new Message("Looking forward to collaborating here", "Carol Johnson", "C"),
-                new Message("Great to have a secure space for our discussions", "David Wilson", "D"));
+        currentChannelId = findChannelIdByName(channelName);
+
+        if (currentChannelId != null) {
+            // Load messages from DB
+            try {
+                var messages = com.saferoom.db.DBManager.getMessages(currentChannelId, 50);
+                System.out.println("[Messages] Loading " + messages.size() + " messages from DB");
+                for (var msg : messages) {
+                    String avatar = msg.senderUsername.isEmpty() ? "?"
+                            : msg.senderUsername.substring(0, 1).toUpperCase();
+                    messagesListView.getItems().add(new Message(msg.content, msg.senderUsername, avatar));
+                }
+            } catch (Exception e) {
+                System.err.println("[Messages] Failed to load messages: " + e.getMessage());
+            }
+        }
+
+        // If no messages loaded, show a welcome message
+        if (messagesListView.getItems().isEmpty()) {
+            messagesListView.getItems().add(
+                    new Message("Welcome to #" + channelName + "! Start the conversation.", "System", "S"));
+        }
 
         showTextChatView();
         updateChannelSelection();
 
         // Clear notification badges for this channel
         clearChannelNotifications(channelName);
+    }
+
+    // Sprint 12: Find channel ID by name from current room's channels
+    private String findChannelIdByName(String channelName) {
+        for (Channel ch : textChannels) {
+            if (ch.getName().equalsIgnoreCase(channelName) ||
+                    ch.getName().equalsIgnoreCase(channelName.toLowerCase().replace(" ", "-"))) {
+                return ch.getId();
+            }
+        }
+        return null;
     }
 
     private void joinVoiceChannel(String channelName, String iconLiteral) {
@@ -1194,6 +1295,17 @@ public class ServerController implements Initializable {
         // Create and add the message
         Message newMessage = new Message(messageText, actualUsername, avatarChar);
         messagesListView.getItems().add(newMessage);
+
+        // Sprint 12: Persist message to DB if we have a channel ID
+        if (currentChannelId != null) {
+            String messageId = java.util.UUID.randomUUID().toString();
+            try {
+                com.saferoom.db.DBManager.saveMessage(messageId, currentChannelId, actualUsername, messageText);
+                System.out.println("[Messages] Saved message to DB: " + messageId);
+            } catch (Exception e) {
+                System.err.println("[Messages] Failed to save message: " + e.getMessage());
+            }
+        }
 
         // Clear the input field
         messageTextField.clear();
