@@ -27,6 +27,15 @@ service RoomService {
   
   // Server-to-Client Event Stream (Presence, Voice State, Signals)
   rpc StreamEvents(StreamEventsRequest) returns (stream RoomEvent);
+
+  // Sprint 13: Channel Management
+  rpc CreateChannel(CreateChannelRequest) returns (CreateChannelResponse);
+  rpc ListChannels(ListChannelsRequest) returns (ListChannelsResponse);
+  rpc DeleteChannel(DeleteChannelRequest) returns (DeleteChannelResponse);
+
+  // Sprint 14: Message Management
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
 }
 
 // =============================================================================
@@ -164,6 +173,9 @@ message RoomEvent {
     EPOCH_CHANGE = 3;   // Topology epoch changed
     SIGNAL_RELAY = 4;   // P2P Signal (SDP/ICE) forwarded by server
     FILE_META = 5;      // New File published
+    CHANNEL_CREATED = 6;
+    CHANNEL_DELETED = 7;
+    MESSAGE_RECEIVED = 8;
   }
   
   EventType type = 1;
@@ -176,6 +188,11 @@ message RoomEvent {
   SignalRelayRequest signal = 5; // Incoming signal
   int64 newEpoch = 6;
   FileMeta fileMeta = 8;
+  
+  // Sprint 15 Payloads
+  ChannelMetadata channel = 9;
+  string channelId = 10; // For deletion
+  ChatMessage message = 11;
 }
 
 message RoomPresence {
@@ -269,4 +286,81 @@ message Envelope {
   // Inner Payload: Encrypted JSON bytes or serialized Proto
   // For v1 we can use bytes to support the encryption Spec
   bytes payload = 12; 
+}
+
+// =============================================================================
+// 5. SPRINT 13: CHANNEL MESSAGES
+// =============================================================================
+
+message ChannelMetadata {
+  string channelId = 1;
+  string roomId = 2;
+  string name = 3;
+  string type = 4;  // TEXT, VOICE, FILE
+  string category = 5;
+  int32 position = 6;
+}
+
+message CreateChannelRequest {
+  string roomId = 1;
+  string name = 2;
+  string type = 3;
+  string category = 4;
+}
+
+message CreateChannelResponse {
+  bool success = 1;
+  string message = 2;
+  ChannelMetadata channel = 3;
+}
+
+message ListChannelsRequest {
+  string roomId = 1;
+}
+
+message ListChannelsResponse {
+  repeated ChannelMetadata channels = 1;
+}
+
+message DeleteChannelRequest {
+  string channelId = 1;
+}
+
+message DeleteChannelResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// =============================================================================
+// 6. SPRINT 14: CHAT MESSAGE MESSAGES
+// =============================================================================
+
+message ChatMessage {
+  string messageId = 1;
+  string channelId = 2;
+  string senderUsername = 3;
+  string content = 4;
+  int64 sentAt = 5;
+}
+
+message SendMessageRequest {
+  string channelId = 1;
+  string senderUsername = 2;
+  string content = 3;
+}
+
+message SendMessageResponse {
+  bool success = 1;
+  string message = 2;
+  ChatMessage savedMessage = 3;
+}
+
+message GetMessagesRequest {
+  string channelId = 1;
+  int32 limit = 2;
+  int64 beforeTimestamp = 3;  // For pagination (0 = latest)
+}
+
+message GetMessagesResponse {
+  repeated ChatMessage messages = 1;
 }

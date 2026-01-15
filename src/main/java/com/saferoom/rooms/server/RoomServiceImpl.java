@@ -376,4 +376,225 @@ public class RoomServiceImpl extends RoomServiceImplBase {
             }
         });
     }
+
+    // =============================================================================
+    // SPRINT 13: CHANNEL MANAGEMENT RPCs
+    // =============================================================================
+
+    @Override
+    public void createChannel(CreateChannelRequest request, StreamObserver<CreateChannelResponse> responseObserver) {
+        String roomId = request.getRoomId();
+        String name = request.getName();
+        String type = request.getType();
+        String category = request.getCategory();
+        String channelId = java.util.UUID.randomUUID().toString();
+
+        logger.info("[ROOM] CreateChannel: name=" + name + ", type=" + type + ", roomId=" + roomId);
+
+        try {
+            if (com.saferoom.db.DBManager.createChannel(channelId, roomId, name, type, category)) {
+                logger.info("[ROOM] ✅ Channel created: " + channelId + " (" + name + ")");
+
+                ChannelMetadata meta = ChannelMetadata.newBuilder()
+                        .setChannelId(channelId)
+                        .setRoomId(roomId)
+                        .setName(name)
+                        .setType(type)
+                        .setCategory(category)
+                        .setPosition(0)
+                        .build();
+
+                responseObserver.onNext(CreateChannelResponse.newBuilder()
+                        .setSuccess(true)
+                        .setMessage("Channel created")
+                        .setChannel(meta)
+                        .build());
+
+                // Sprint 15: Broadcast CHANNEL_CREATED event
+                notifyRoom(roomId, RoomEvent.newBuilder()
+                        .setType(RoomEvent.EventType.CHANNEL_CREATED)
+                        .setTimestamp(System.currentTimeMillis())
+                        .setChannel(meta)
+                        .setMsgId(java.util.UUID.randomUUID().toString())
+                        .build());
+            } else {
+                logger.warning("[ROOM] ❌ Failed to create channel: " + name);
+                responseObserver.onNext(CreateChannelResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Failed to create channel")
+                        .build());
+            }
+        } catch (Exception e) {
+            logger.severe("[ROOM] ❌ CreateChannel error: " + e.getMessage());
+            responseObserver.onNext(CreateChannelResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Server error: " + e.getMessage())
+                    .build());
+        }
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void listChannels(ListChannelsRequest request, StreamObserver<ListChannelsResponse> responseObserver) {
+        String roomId = request.getRoomId();
+        logger.info("[ROOM] ListChannels: roomId=" + roomId);
+
+        try {
+            java.util.List<com.saferoom.db.DBManager.ChannelInfo> dbChannels = com.saferoom.db.DBManager
+                    .getChannels(roomId);
+
+            ListChannelsResponse.Builder builder = ListChannelsResponse.newBuilder();
+            for (var ch : dbChannels) {
+                builder.addChannels(ChannelMetadata.newBuilder()
+                        .setChannelId(ch.channelId)
+                        .setRoomId(ch.roomId)
+                        .setName(ch.name)
+                        .setType(ch.type)
+                        .setCategory(ch.category)
+                        .setPosition(ch.position)
+                        .build());
+            }
+
+            logger.info("[ROOM] ListChannels: returning " + dbChannels.size() + " channels");
+            responseObserver.onNext(builder.build());
+        } catch (Exception e) {
+            logger.severe("[ROOM] ❌ ListChannels error: " + e.getMessage());
+            responseObserver.onNext(ListChannelsResponse.newBuilder().build());
+        }
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void deleteChannel(DeleteChannelRequest request, StreamObserver<DeleteChannelResponse> responseObserver) {
+        String channelId = request.getChannelId();
+        logger.info("[ROOM] DeleteChannel: channelId=" + channelId);
+
+        try {
+            // Find roomId before deleting
+            com.saferoom.db.DBManager.ChannelInfo ch = com.saferoom.db.DBManager.getChannel(channelId);
+            String roomId = (ch != null) ? ch.roomId : null;
+
+            if (com.saferoom.db.DBManager.deleteChannel(channelId)) {
+                logger.info("[ROOM] ✅ Channel deleted: " + channelId);
+                responseObserver.onNext(DeleteChannelResponse.newBuilder()
+                        .setSuccess(true)
+                        .setMessage("Channel deleted")
+                        .build());
+
+                // Sprint 15: Broadcast CHANNEL_DELETED event
+                if (roomId != null) {
+                    notifyRoom(roomId, RoomEvent.newBuilder()
+                            .setType(RoomEvent.EventType.CHANNEL_DELETED)
+                            .setTimestamp(System.currentTimeMillis())
+                            .setChannelId(channelId)
+                            .setMsgId(java.util.UUID.randomUUID().toString())
+                            .build());
+                }
+            } else {
+                responseObserver.onNext(DeleteChannelResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Channel not found")
+                        .build());
+            }
+        } catch (Exception e) {
+            logger.severe("[ROOM] ❌ DeleteChannel error: " + e.getMessage());
+            responseObserver.onNext(DeleteChannelResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Server error: " + e.getMessage())
+                    .build());
+        }
+        responseObserver.onCompleted();
+    }
+
+    // =============================================================================
+    // SPRINT 14: MESSAGE MANAGEMENT RPCs
+    // =============================================================================
+
+    @Override
+    public void sendMessage(SendMessageRequest request, StreamObserver<SendMessageResponse> responseObserver) {
+        String channelId = request.getChannelId();
+        String sender = request.getSenderUsername();
+        String content = request.getContent();
+        String messageId = java.util.UUID.randomUUID().toString();
+
+        logger.info("[ROOM] SendMessage: channelId=" + channelId + ", sender=" + sender);
+
+        try {
+            if (com.saferoom.db.DBManager.saveMessage(messageId, channelId, sender, content)) {
+                logger.info("[ROOM] ✅ Message saved: " + messageId);
+
+                ChatMessage msg = ChatMessage.newBuilder()
+                        .setMessageId(messageId)
+                        .setChannelId(channelId)
+                        .setSenderUsername(sender)
+                        .setContent(content)
+                        .setSentAt(System.currentTimeMillis())
+                        .build();
+
+                responseObserver.onNext(SendMessageResponse.newBuilder()
+                        .setSuccess(true)
+                        .setMessage("Message saved")
+                        .setSavedMessage(msg)
+                        .build());
+
+                // Sprint 15: Broadcast MESSAGE_RECEIVED event
+                try {
+                    com.saferoom.db.DBManager.ChannelInfo ch = com.saferoom.db.DBManager.getChannel(channelId);
+                    if (ch != null) {
+                        notifyRoom(ch.roomId, RoomEvent.newBuilder()
+                                .setType(RoomEvent.EventType.MESSAGE_RECEIVED)
+                                .setTimestamp(System.currentTimeMillis())
+                                .setMessage(msg)
+                                .setMsgId(java.util.UUID.randomUUID().toString())
+                                .build());
+                    }
+                } catch (Exception ex) {
+                    logger.warning("[ROOM] Failed to broadcast message event: " + ex.getMessage());
+                }
+            } else {
+                responseObserver.onNext(SendMessageResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Failed to save message")
+                        .build());
+            }
+        } catch (Exception e) {
+            logger.severe("[ROOM] ❌ SendMessage error: " + e.getMessage());
+            responseObserver.onNext(SendMessageResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Server error: " + e.getMessage())
+                    .build());
+        }
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void getMessages(GetMessagesRequest request, StreamObserver<GetMessagesResponse> responseObserver) {
+        String channelId = request.getChannelId();
+        int limit = request.getLimit() > 0 ? request.getLimit() : 50;
+
+        logger.info("[ROOM] GetMessages: channelId=" + channelId + ", limit=" + limit);
+
+        try {
+            java.util.List<com.saferoom.db.DBManager.MessageInfo> dbMessages = com.saferoom.db.DBManager
+                    .getMessages(channelId, limit);
+
+            GetMessagesResponse.Builder builder = GetMessagesResponse.newBuilder();
+            for (var msg : dbMessages) {
+                builder.addMessages(ChatMessage.newBuilder()
+                        .setMessageId(msg.messageId)
+                        .setChannelId(msg.channelId)
+                        .setSenderUsername(msg.senderUsername)
+                        .setContent(msg.content)
+                        .setSentAt(msg.sentAt)
+                        .build());
+            }
+
+            logger.info("[ROOM] GetMessages: returning " + dbMessages.size() + " messages");
+            responseObserver.onNext(builder.build());
+        } catch (Exception e) {
+            logger.severe("[ROOM] ❌ GetMessages error: " + e.getMessage());
+            responseObserver.onNext(GetMessagesResponse.newBuilder().build());
+        }
+        responseObserver.onCompleted();
+    }
 }

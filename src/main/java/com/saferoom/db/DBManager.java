@@ -1537,6 +1537,26 @@ public class DBManager {
 		return 0;
 	}
 
+	public static ChannelInfo getChannel(String channelId) throws SQLException {
+		String sql = "SELECT * FROM room_channels WHERE channel_id = ?";
+		try (Connection conn = getConnection();
+				PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, channelId);
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					return new ChannelInfo(
+							rs.getString("channel_id"),
+							rs.getString("room_id"),
+							rs.getString("name"),
+							rs.getString("type"),
+							rs.getString("category"),
+							rs.getInt("position"));
+				}
+			}
+		}
+		return null;
+	}
+
 	public static java.util.List<ChannelInfo> getChannels(String roomId) throws SQLException {
 		String sql = "SELECT * FROM room_channels WHERE room_id = ? ORDER BY category, position";
 		java.util.List<ChannelInfo> channels = new java.util.ArrayList<>();

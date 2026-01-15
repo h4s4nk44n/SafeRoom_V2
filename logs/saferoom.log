@@ -8924,3 +8924,13 @@ The last packet sent successfully to the server was 0 milliseconds ago. The driv
 [2026-01-15 17:43:40.256] [INFO ] [JavaFX Application Thread] [CallManager] - Shutting down...
 [2026-01-15 17:43:40.529] [INFO ] [JavaFX Application Thread] [CallManager] - Shutdown complete
 [2026-01-15 17:43:40.538] [INFO ] [webrtc-device-monitor] [WebRTCClient] - Device monitor stopped
+[2026-01-15 17:57:29.315] [INFO ] [JavaFX Application Thread] [CallManager] - 🔧 Initializing for user: abkarada
+[2026-01-15 17:57:29.447] [INFO ] [webrtc-device-monitor] [WebRTCClient] - 🎧 Device monitor started (Hot-Swap enabled)
+[2026-01-15 17:57:29.455] [INFO ] [JavaFX Application Thread] [CallManager] - ✅ Initialization complete
+[2026-01-15 17:57:59.440] [INFO ] [JavaFX Application Thread] [DBManager] - Database config loaded successfully.
+[2026-01-15 17:57:59.499] [ERROR] [JavaFX Application Thread] [DBManager] - Failed to init Rooms tables: Communications link failure
+
+The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server.
+[2026-01-15 17:57:59.501] [ERROR] [JavaFX Application Thread] [DBManager] - Failed to init Rooms tables: Communications link failure
+
+The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server.

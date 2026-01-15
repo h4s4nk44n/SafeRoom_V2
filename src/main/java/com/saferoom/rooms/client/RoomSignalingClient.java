@@ -232,4 +232,74 @@ public class RoomSignalingClient {
             l.onDisconnected();
         }
     }
+
+    // =============================================================================
+    // SPRINT 13: CHANNEL MANAGEMENT RPC METHODS
+    // =============================================================================
+
+    public CreateChannelResponse createChannel(String roomId, String name, String type, String category) {
+        if (blockingStub == null) {
+            throw new IllegalStateException("RoomSignalingClient not connected. Call connect() first.");
+        }
+        CreateChannelRequest request = CreateChannelRequest.newBuilder()
+                .setRoomId(roomId)
+                .setName(name)
+                .setType(type)
+                .setCategory(category == null ? "GENERAL" : category)
+                .build();
+        logger.info("[RPC] CreateChannel: " + name + " in room " + roomId);
+        return blockingStub.createChannel(request);
+    }
+
+    public ListChannelsResponse listChannels(String roomId) {
+        if (blockingStub == null) {
+            return ListChannelsResponse.newBuilder().build(); // Return empty if not connected
+        }
+        ListChannelsRequest request = ListChannelsRequest.newBuilder()
+                .setRoomId(roomId)
+                .build();
+        logger.info("[RPC] ListChannels for room: " + roomId);
+        return blockingStub.listChannels(request);
+    }
+
+    public DeleteChannelResponse deleteChannel(String channelId) {
+        if (blockingStub == null) {
+            throw new IllegalStateException("RoomSignalingClient not connected. Call connect() first.");
+        }
+        DeleteChannelRequest request = DeleteChannelRequest.newBuilder()
+                .setChannelId(channelId)
+                .build();
+        logger.info("[RPC] DeleteChannel: " + channelId);
+        return blockingStub.deleteChannel(request);
+    }
+
+    // =============================================================================
+    // SPRINT 14: MESSAGE MANAGEMENT RPC METHODS
+    // =============================================================================
+
+    public SendMessageResponse sendMessageToChannel(String channelId, String senderUsername, String content) {
+        if (blockingStub == null) {
+            throw new IllegalStateException("RoomSignalingClient not connected. Call connect() first.");
+        }
+        SendMessageRequest request = SendMessageRequest.newBuilder()
+                .setChannelId(channelId)
+                .setSenderUsername(senderUsername)
+                .setContent(content)
+                .build();
+        logger.info("[RPC] SendMessage to channel: " + channelId);
+        return blockingStub.sendMessage(request);
+    }
+
+    public GetMessagesResponse getMessages(String channelId, int limit) {
+        if (blockingStub == null) {
+            return GetMessagesResponse.newBuilder().build(); // Return empty if not connected
+        }
+        GetMessagesRequest request = GetMessagesRequest.newBuilder()
+                .setChannelId(channelId)
+                .setLimit(limit > 0 ? limit : 50)
+                .setBeforeTimestamp(0) // 0 = get latest
+                .build();
+        logger.info("[RPC] GetMessages for channel: " + channelId + ", limit=" + limit);
+        return blockingStub.getMessages(request);
+    }
 }

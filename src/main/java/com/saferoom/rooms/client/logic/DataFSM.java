@@ -6,7 +6,9 @@ import com.saferoom.rooms.grpc.GetSeedsResponse;
 import com.saferoom.rooms.grpc.RoomPeer;
 import com.saferoom.rooms.grpc.GetSeedsResponse;
 import com.saferoom.rooms.grpc.RoomPeer;
-import com.saferoom.rooms.client.storage.EventLog; // Import
+import com.saferoom.rooms.client.storage.EventLog;
+import com.saferoom.rooms.grpc.ChannelMetadata;
+import com.saferoom.rooms.grpc.ChatMessage;
 import java.util.logging.Logger;
 
 /**
@@ -48,6 +50,16 @@ public class DataFSM implements RoomSignalingClient.RoomEventListener, RoomWebRT
         void onPresenceUpdate(java.util.List<RoomPeer> peers);
 
         void onStateChange(State newState);
+
+        // Sprint 15: Real-time events
+        default void onChannelCreated(ChannelMetadata channel) {
+        }
+
+        default void onChannelDeleted(String channelId) {
+        }
+
+        default void onMessageReceived(ChatMessage message) {
+        }
     }
 
     private final java.util.List<UIListener> uiListeners = new java.util.ArrayList<>();
@@ -69,6 +81,24 @@ public class DataFSM implements RoomSignalingClient.RoomEventListener, RoomWebRT
     private void notifyStateChange(State newState) {
         for (UIListener l : uiListeners) {
             l.onStateChange(newState);
+        }
+    }
+
+    private void notifyChannelCreated(ChannelMetadata channel) {
+        for (UIListener l : uiListeners) {
+            l.onChannelCreated(channel);
+        }
+    }
+
+    private void notifyChannelDeleted(String channelId) {
+        for (UIListener l : uiListeners) {
+            l.onChannelDeleted(channelId);
+        }
+    }
+
+    private void notifyMessageReceived(ChatMessage message) {
+        for (UIListener l : uiListeners) {
+            l.onMessageReceived(message);
         }
     }
 
@@ -225,6 +255,21 @@ public class DataFSM implements RoomSignalingClient.RoomEventListener, RoomWebRT
             case FILE_META:
                 if (event.hasFileMeta()) {
                     fileManager.handleMeta(event.getFileMeta());
+                }
+                break;
+            case CHANNEL_CREATED:
+                if (event.hasChannel()) {
+                    notifyChannelCreated(event.getChannel());
+                }
+                break;
+            case CHANNEL_DELETED:
+                if (!event.getChannelId().isEmpty()) {
+                    notifyChannelDeleted(event.getChannelId());
+                }
+                break;
+            case MESSAGE_RECEIVED:
+                if (event.hasMessage()) {
+                    notifyMessageReceived(event.getMessage());
                 }
                 break;
             default:

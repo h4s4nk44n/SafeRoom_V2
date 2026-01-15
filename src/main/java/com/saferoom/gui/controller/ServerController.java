@@ -475,18 +475,26 @@ public class ServerController implements Initializable {
     }
 
     private void createTextChannel(String name, VBox container) {
-        // Generate channel ID
-        String channelId = java.util.UUID.randomUUID().toString();
         String roomId = ActiveRoomSession.getInstance().getRoomId();
+        String channelId = null;
 
-        // Sprint 11: Persist to DB if we have an active room session
-        if (roomId != null) {
+        // Sprint 13: Create channel via RPC (not direct DB)
+        if (roomId != null && com.saferoom.client.ClientMenu.roomClient != null) {
             try {
-                com.saferoom.db.DBManager.createChannel(channelId, roomId, name, "TEXT", "GENERAL");
-                System.out.println("[Channels] Created text channel: " + name + " (ID: " + channelId + ")");
+                var response = com.saferoom.client.ClientMenu.roomClient.createChannel(roomId, name, "TEXT", "GENERAL");
+                if (response.getSuccess()) {
+                    channelId = response.getChannel().getChannelId();
+                    System.out.println("[Channels] Created text channel via RPC: " + name + " (ID: " + channelId + ")");
+                } else {
+                    System.err.println("[Channels] RPC failed: " + response.getMessage());
+                }
             } catch (Exception e) {
-                System.err.println("[Channels] Failed to persist channel: " + e.getMessage());
+                System.err.println("[Channels] Failed to create channel: " + e.getMessage());
             }
+        }
+
+        if (channelId == null) {
+            channelId = java.util.UUID.randomUUID().toString(); // Fallback local ID
         }
 
         HBox item = new HBox(8.0);
@@ -524,18 +532,28 @@ public class ServerController implements Initializable {
     }
 
     private void createVoiceChannel(String name, VBox container, int userLimit) {
-        // Generate channel ID
-        String channelId = java.util.UUID.randomUUID().toString();
         String roomId = ActiveRoomSession.getInstance().getRoomId();
+        String channelId = null;
 
-        // Sprint 11: Persist to DB if we have an active room session
-        if (roomId != null) {
+        // Sprint 13: Create channel via RPC
+        if (roomId != null && com.saferoom.client.ClientMenu.roomClient != null) {
             try {
-                com.saferoom.db.DBManager.createChannel(channelId, roomId, name, "VOICE", "GENERAL");
-                System.out.println("[Channels] Created voice channel: " + name + " (ID: " + channelId + ")");
+                var response = com.saferoom.client.ClientMenu.roomClient.createChannel(roomId, name, "VOICE",
+                        "GENERAL");
+                if (response.getSuccess()) {
+                    channelId = response.getChannel().getChannelId();
+                    System.out
+                            .println("[Channels] Created voice channel via RPC: " + name + " (ID: " + channelId + ")");
+                } else {
+                    System.err.println("[Channels] RPC failed: " + response.getMessage());
+                }
             } catch (Exception e) {
-                System.err.println("[Channels] Failed to persist channel: " + e.getMessage());
+                System.err.println("[Channels] Failed to create channel: " + e.getMessage());
             }
+        }
+
+        if (channelId == null) {
+            channelId = java.util.UUID.randomUUID().toString(); // Fallback
         }
 
         HBox item = new HBox(8.0);
@@ -826,7 +844,7 @@ public class ServerController implements Initializable {
             System.out.println("[ServerController] Connected to real room session: "
                     + ActiveRoomSession.getInstance().getRoomName());
 
-            // Listen for real presence updates
+            // Listen for real presence updates and events
             fsm.addUIListener(new DataFSM.UIListener() {
                 @Override
                 public void onPresenceUpdate(java.util.List<RoomPeer> peers) {
@@ -836,6 +854,50 @@ public class ServerController implements Initializable {
                 @Override
                 public void onStateChange(DataFSM.State newState) {
                     System.out.println("[ServerController] FSM state: " + newState);
+                }
+
+                @Override
+                public void onChannelCreated(com.saferoom.rooms.grpc.ChannelMetadata ch) {
+                    Platform.runLater(() -> {
+                        System.out.println("[ServerController] New channel received: " + ch.getName());
+                        if ("VOICE".equals(ch.getType())) {
+                            if (voiceChannels.stream().noneMatch(c -> c.getId().equals(ch.getChannelId()))) {
+                                voiceChannels.add(new Channel(ch.getChannelId(), ch.getName(), "voice", false));
+                            }
+                        } else if ("TEXT".equals(ch.getType())) {
+                            if (textChannels.stream().noneMatch(c -> c.getId().equals(ch.getChannelId()))) {
+                                textChannels.add(new Channel(ch.getChannelId(), ch.getName(), "text", false));
+                            }
+                        }
+                    });
+                }
+
+                @Override
+                public void onChannelDeleted(String channelId) {
+                    Platform.runLater(() -> {
+                        System.out.println("[ServerController] Channel deleted: " + channelId);
+                        voiceChannels.removeIf(c -> c.getId().equals(channelId));
+                        textChannels.removeIf(c -> c.getId().equals(channelId));
+                        if (channelId.equals(currentChannelId)) {
+                            messagesListView.getItems().clear();
+                            currentChannelName.setText("Channel Deleted");
+                            currentChannelId = null;
+                            messageTextField.setDisable(true);
+                        }
+                    });
+                }
+
+                @Override
+                public void onMessageReceived(com.saferoom.rooms.grpc.ChatMessage msg) {
+                    Platform.runLater(() -> {
+                        if (msg.getChannelId().equals(currentChannelId)) {
+                            String content = msg.getContent();
+                            String sender = msg.getSenderUsername();
+                            String avatar = sender.isEmpty() ? "?" : sender.substring(0, 1).toUpperCase();
+                            messagesListView.getItems().add(new Message(content, sender, avatar));
+                            messagesListView.scrollTo(messagesListView.getItems().size() - 1);
+                        }
+                    });
                 }
             });
 
@@ -848,41 +910,44 @@ public class ServerController implements Initializable {
         }
     }
 
-    // Sprint 11: Load persisted channels from database
+    // Sprint 13: Load persisted channels via RPC
     private void loadChannelsFromDB() {
         String roomId = ActiveRoomSession.getInstance().getRoomId();
         if (roomId == null)
             return;
 
-        try {
-            var channels = com.saferoom.db.DBManager.getChannels(roomId);
-            System.out.println("[ServerController] Loading " + channels.size() + " channels from DB");
+        // Clear existing mock channels
+        voiceChannels.clear();
+        textChannels.clear();
 
-            // Clear existing mock channels
-            voiceChannels.clear();
-            textChannels.clear();
+        if (com.saferoom.client.ClientMenu.roomClient != null) {
+            try {
+                var response = com.saferoom.client.ClientMenu.roomClient.listChannels(roomId);
+                var channels = response.getChannelsList();
+                System.out.println("[ServerController] Loading " + channels.size() + " channels via RPC");
 
-            for (var ch : channels) {
-                switch (ch.type) {
-                    case "VOICE":
-                        voiceChannels.add(new Channel(ch.channelId, ch.name, "voice", false));
-                        break;
-                    case "TEXT":
-                        textChannels.add(new Channel(ch.channelId, ch.name, "text", false));
-                        break;
-                    case "FILE":
-                        // TODO: Add file channels support
-                        break;
+                for (var ch : channels) {
+                    switch (ch.getType()) {
+                        case "VOICE":
+                            voiceChannels.add(new Channel(ch.getChannelId(), ch.getName(), "voice", false));
+                            break;
+                        case "TEXT":
+                            textChannels.add(new Channel(ch.getChannelId(), ch.getName(), "text", false));
+                            break;
+                        case "FILE":
+                            // TODO: Add file channels support
+                            break;
+                    }
                 }
+            } catch (Exception e) {
+                System.err.println("[ServerController] Failed to load channels via RPC: " + e.getMessage());
             }
+        }
 
-            // If no channels exist, create default ones
-            if (channels.isEmpty()) {
-                System.out.println("[ServerController] No channels found, creating defaults");
-                // Channels will be created by mock fallback or first user action
-            }
-        } catch (Exception e) {
-            System.err.println("[ServerController] Failed to load channels: " + e.getMessage());
+        // If no channels exist, create default ones handled by logic elsewhere or UI
+        // remains empty
+        if (voiceChannels.isEmpty() && textChannels.isEmpty()) {
+            System.out.println("[ServerController] No channels found via RPC.");
         }
     }
 
@@ -1107,17 +1172,24 @@ public class ServerController implements Initializable {
         currentChannelId = findChannelIdByName(channelName);
 
         if (currentChannelId != null) {
-            // Load messages from DB
-            try {
-                var messages = com.saferoom.db.DBManager.getMessages(currentChannelId, 50);
-                System.out.println("[Messages] Loading " + messages.size() + " messages from DB");
-                for (var msg : messages) {
-                    String avatar = msg.senderUsername.isEmpty() ? "?"
-                            : msg.senderUsername.substring(0, 1).toUpperCase();
-                    messagesListView.getItems().add(new Message(msg.content, msg.senderUsername, avatar));
+            // Sprint 14: Load messages via RPC
+            if (com.saferoom.client.ClientMenu.roomClient != null) {
+                try {
+                    var response = com.saferoom.client.ClientMenu.roomClient.getMessages(currentChannelId, 50);
+                    var messages = response.getMessagesList();
+                    System.out.println("[Messages] Loading " + messages.size() + " messages via RPC");
+                    for (var msg : messages) {
+                        String sender = msg.getSenderUsername();
+                        String avatar = sender.isEmpty() ? "?" : sender.substring(0, 1).toUpperCase();
+                        messagesListView.getItems().add(new Message(msg.getContent(), sender, avatar));
+                    }
+                } catch (Exception e) {
+                    System.err.println("[Messages] Failed to load messages via RPC: " + e.getMessage());
                 }
-            } catch (Exception e) {
-                System.err.println("[Messages] Failed to load messages: " + e.getMessage());
+            } else {
+                // Fallback to mock data or empty if RPC not available
+                // For now, doing nothing effectively leaves it empty, which is correct until
+                // messages arrive
             }
         }
 
@@ -1296,14 +1368,19 @@ public class ServerController implements Initializable {
         Message newMessage = new Message(messageText, actualUsername, avatarChar);
         messagesListView.getItems().add(newMessage);
 
-        // Sprint 12: Persist message to DB if we have a channel ID
-        if (currentChannelId != null) {
-            String messageId = java.util.UUID.randomUUID().toString();
+        // Sprint 14: Persist message via RPC
+        if (currentChannelId != null && com.saferoom.client.ClientMenu.roomClient != null) {
             try {
-                com.saferoom.db.DBManager.saveMessage(messageId, currentChannelId, actualUsername, messageText);
-                System.out.println("[Messages] Saved message to DB: " + messageId);
+                var response = com.saferoom.client.ClientMenu.roomClient.sendMessageToChannel(currentChannelId,
+                        actualUsername, messageText);
+                if (response.getSuccess()) {
+                    System.out
+                            .println("[Messages] Saved message via RPC: " + response.getSavedMessage().getMessageId());
+                } else {
+                    System.err.println("[Messages] RPC failed: " + response.getMessage());
+                }
             } catch (Exception e) {
-                System.err.println("[Messages] Failed to save message: " + e.getMessage());
+                System.err.println("[Messages] Failed to save message via RPC: " + e.getMessage());
             }
         }
 
