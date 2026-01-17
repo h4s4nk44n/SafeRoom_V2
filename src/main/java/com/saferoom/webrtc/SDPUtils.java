@@ -216,4 +216,174 @@ public class SDPUtils {
         return sb.toString();
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // HIGH PROFILE PACKETIZATION FIX: Smart Additive Munging
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // Pattern to detect High Profile (64xxxx) - covers all High Profile variants
+    private static final Pattern HIGH_PROFILE_PATTERN = Pattern.compile("profile-level-id=64[0-9a-fA-F]{4}",
+            Pattern.CASE_INSENSITIVE);
+
+    // Pattern to detect/replace packetization-mode
+    private static final Pattern PACKETIZATION_MODE_PATTERN = Pattern.compile("packetization-mode=(\\d)");
+
+    // Pattern for profile-level-id replacement
+    private static final Pattern PROFILE_PATTERN = Pattern.compile("(profile-level-id=)([0-9a-fA-F]{6})",
+            Pattern.CASE_INSENSITIVE);
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * SMART ADDITIVE MUNGING: Preserve High Profile, Enforce Packetization Mode 1
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * This method PRESERVES the H.264 High Profile (64xxxx) for better video
+     * quality
+     * while ENSURING packetization-mode=1 is present for cross-platform
+     * compatibility.
+     *
+     * Unlike enforceBaselineH264Profile() which destructively replaces all
+     * profiles,
+     * this method only ADDS or FIXES packetization-mode on fmtp lines.
+     *
+     * Transformations:
+     * - High Profile missing mode → append ";packetization-mode=1"
+     * - Any profile with mode=0 → change to mode=1
+     * - Already has mode=1 → no change
+     *
+     * @param sdp The SDP to process
+     * @return SDP with packetization-mode=1 enforced on all H.264 fmtp lines
+     */
+    public static String enforceHighProfilePacketization(String sdp) {
+        if (sdp == null)
+            return null;
+
+        StringBuilder result = new StringBuilder();
+        String[] lines = sdp.split("\r\n");
+        boolean modified = false;
+
+        for (String line : lines) {
+            String processedLine = line;
+
+            // Only process fmtp lines with profile-level-id (H.264 codec parameters)
+            if (line.startsWith("a=fmtp:") && line.contains("profile-level-id=")) {
+
+                // Check if packetization-mode exists
+                Matcher modeMatcher = PACKETIZATION_MODE_PATTERN.matcher(line);
+                if (modeMatcher.find()) {
+                    // Mode exists - ensure it's mode=1
+                    String currentMode = modeMatcher.group(1);
+                    if (!"1".equals(currentMode)) {
+                        processedLine = modeMatcher.replaceFirst("packetization-mode=1");
+                        System.out.printf("[SDPUtils] PACKETIZATION MODE FIX: %s → 1%n", currentMode);
+                        modified = true;
+                    }
+                } else {
+                    // Mode missing - append packetization-mode=1
+                    // Find end of fmtp line (before \r\n) and append
+                    processedLine = line + ";packetization-mode=1";
+                    System.out.println("[SDPUtils] PACKETIZATION MODE ADDED: ;packetization-mode=1");
+                    modified = true;
+                }
+            }
+
+            result.append(processedLine).append("\r\n");
+        }
+
+        if (modified) {
+            System.out.println("[SDPUtils] Smart High Profile munging applied - quality preserved");
+        }
+
+        return result.toString();
+    }
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * SDP PROFILE MUNGING: The Gatekeeper (STRICT MODE) - Mac Fallback
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * Forces all H.264 fmtp lines to use STRICTLY Constrained Baseline (42e01f).
+     * Also enforces packetization-mode=1 for macOS VideoToolbox compatibility.
+     * This prevents the native VideoToolbox encoder from receiving a profile
+     * it cannot handle during mid-session renegotiation.
+     *
+     * CRITICAL: This is the "nuclear option" for Mac safety.
+     * Use enforceHighProfilePacketization() first to try preserving High Profile.
+     *
+     * @param sdp The SDP to process
+     * @return SDP with all H.264 profiles normalized to Constrained Baseline
+     */
+    public static String enforceBaselineH264Profile(String sdp) {
+        if (sdp == null)
+            return null;
+
+        final String SAFE_PROFILE = "42e01f";
+
+        StringBuilder result = new StringBuilder();
+        String[] lines = sdp.split("\r\n");
+        boolean profileModified = false;
+        boolean packetModeModified = false;
+
+        for (String line : lines) {
+            String processedLine = line;
+
+            // Check and fix profile-level-id
+            if (processedLine.contains("profile-level-id=")) {
+                Matcher m = PROFILE_PATTERN.matcher(processedLine);
+                if (m.find()) {
+                    String originalProfile = m.group(2).toLowerCase();
+
+                    // Only 42e01f is safe
+                    if (!originalProfile.equals(SAFE_PROFILE)) {
+                        processedLine = m.replaceFirst("$1" + SAFE_PROFILE);
+                        System.out.printf("[SDPUtils] PROFILE MUNGED: %s → %s%n",
+                                originalProfile, SAFE_PROFILE);
+                        profileModified = true;
+                    }
+                }
+            }
+
+            // Check and fix packetization-mode (Mac requires mode=1)
+            if (processedLine.contains("packetization-mode=")) {
+                Matcher pm = PACKETIZATION_MODE_PATTERN.matcher(processedLine);
+                if (pm.find()) {
+                    String originalMode = pm.group(1);
+                    if (!"1".equals(originalMode)) {
+                        processedLine = pm.replaceFirst("packetization-mode=1");
+                        System.out.printf("[SDPUtils] PACKETIZATION MODE MUNGED: %s → 1%n", originalMode);
+                        packetModeModified = true;
+                    }
+                }
+            }
+
+            result.append(processedLine).append("\r\n");
+        }
+
+        if (profileModified || packetModeModified) {
+            System.out.println("[SDPUtils] MAC SAFETY: Enforced 42e01f + packetization-mode=1");
+        } else {
+            System.out.println("[SDPUtils] SDP already uses safe configuration");
+        }
+
+        return result.toString();
+    }
+
+    /**
+     * Decode H.264 profile byte to human-readable name.
+     */
+    public static String decodeH264Profile(String profileHex) {
+        if (profileHex == null || profileHex.length() < 2)
+            return "unknown";
+
+        String profileByte = profileHex.substring(0, 2).toLowerCase();
+        return switch (profileByte) {
+            case "42" -> "Baseline";
+            case "4d" -> "Main";
+            case "58" -> "Extended";
+            case "64" -> "High";
+            case "6e" -> "High 10";
+            case "7a" -> "High 4:2:2";
+            case "f4" -> "High 4:4:4";
+            default -> "unknown";
+        };
+    }
 }
