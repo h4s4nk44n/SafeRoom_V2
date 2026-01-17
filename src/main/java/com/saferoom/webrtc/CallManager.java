@@ -28,6 +28,9 @@ public class CallManager {
     private static final Logger logger = Logger.getLogger(CallManager.class);
     private static CallManager instance;
 
+    // Platform detection for Mac-specific VideoToolbox deferred capture fix
+    private static final boolean IS_MAC = System.getProperty("os.name").toLowerCase().contains("mac");
+
     private String myUsername;
     private WebRTCSignalingClient signalingClient;
     private boolean isInitialized = false; // 🔧 Track initialization state
@@ -665,16 +668,35 @@ public class CallManager {
                         }
 
                         if (pendingVideoEnabled) {
-                            logger.info("Adding video track...");
-                            trackFutures.add(webrtcClient.addVideoTrack()
-                                    .orTimeout(5, TimeUnit.SECONDS)
-                                    .thenRun(() -> {
-                                        registerCameraWithScreenShareController();
-                                    }).exceptionally(e -> {
-                                        logger.error("Failed to add video track (timeout or error): " + e.getMessage(),
-                                                e);
-                                        return null;
-                                    }));
+                            // ═══════════════════════════════════════════════════════════════
+                            // MAC DEFERRED CAPTURE FIX:
+                            // On macOS, VideoToolbox encoder can output 320x240 instead of 640x480
+                            // if capture starts before codec negotiation completes.
+                            // Solution: Defer capture until AFTER SDP answer is sent.
+                            // ═══════════════════════════════════════════════════════════════
+                            if (IS_MAC) {
+                                logger.info("Adding video track with DEFERRED capture (Mac Answerer fix)...");
+                                trackFutures.add(webrtcClient.addVideoTrackDeferred()
+                                        .orTimeout(5, TimeUnit.SECONDS)
+                                        .thenRun(() -> {
+                                            registerCameraWithScreenShareController();
+                                        }).exceptionally(e -> {
+                                            logger.error("Failed to add deferred video track: " + e.getMessage(), e);
+                                            return null;
+                                        }));
+                            } else {
+                                logger.info("Adding video track...");
+                                trackFutures.add(webrtcClient.addVideoTrack()
+                                        .orTimeout(5, TimeUnit.SECONDS)
+                                        .thenRun(() -> {
+                                            registerCameraWithScreenShareController();
+                                        }).exceptionally(e -> {
+                                            logger.error(
+                                                    "Failed to add video track (timeout or error): " + e.getMessage(),
+                                                    e);
+                                            return null;
+                                        }));
+                            }
                         }
 
                         tracksAddedForIncomingCall = true;
@@ -700,6 +722,15 @@ public class CallManager {
                                                 // Send ANSWER to caller
                                                 signalingClient.sendAnswer(currentCallId, remoteUsername, sdp);
                                                 logger.info("Answer sent to caller");
+
+                                                // ═══════════════════════════════════════════════════════════════
+                                                // MAC DEFERRED CAPTURE: Start camera AFTER answer is sent
+                                                // This ensures VideoToolbox encoder uses the negotiated profile
+                                                // ═══════════════════════════════════════════════════════════════
+                                                if (IS_MAC && pendingVideoEnabled) {
+                                                    logger.info("🎬 Mac: Starting deferred capture after answer...");
+                                                    webrtcClient.startDeferredCapture();
+                                                }
                                             }).exceptionally(ex -> {
                                                 logger.error("Failed to create answer: " + ex.getMessage(), ex);
                                                 return null;
