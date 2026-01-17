@@ -83,6 +83,11 @@ public class WebRTCClient {
     // Track RTP senders for replaceTrack operations
     private RTCRtpSender videoSender = null;
 
+    // Deferred capture support for Mac Answerer flow
+    // Stores the camera resource when capture needs to be delayed until after SDP
+    // answer
+    private CameraCaptureService.CameraCaptureResource pendingCaptureResource = null;
+
     // Callbacks
     private Consumer<RTCIceCandidate> onIceCandidateCallback;
     private Consumer<String> onLocalSDPCallback;
@@ -1138,6 +1143,94 @@ public class WebRTCClient {
                 throw new RuntimeException(e);
             }
         }, webrtcExecutor);
+    }
+
+    /**
+     * Add video track with DEFERRED capture (for Mac Answerer flow).
+     * 
+     * On macOS, when acting as Answerer, the VideoToolbox hardware encoder
+     * can get confused if capture starts before codec negotiation completes.
+     * This causes the encoder to fall back to 320x240 instead of 640x480.
+     * 
+     * This method creates the track and adds it to the peer connection,
+     * but does NOT start camera capture. Call startDeferredCapture() after
+     * the SDP answer is created and set as local description.
+     */
+    public CompletableFuture<Void> addVideoTrackDeferred() {
+        if (peerConnection == null) {
+            logger.error("Cannot add video track - peer connection not created", null);
+            return CompletableFuture.completedFuture(null);
+        }
+
+        return CompletableFuture.runAsync(() -> {
+            try {
+                logger.info("Adding video track with DEFERRED capture (Mac Answerer)...");
+
+                // Cleanup existing video source first
+                if (this.videoSource != null) {
+                    logger.info("Cleaning up existing video source...");
+                    try {
+                        videoSource.stop();
+                        videoSource.dispose();
+                    } catch (Exception e) {
+                        logger.warn("Error cleaning up old video source: " + e.getMessage());
+                    }
+                    this.videoSource = null;
+                }
+
+                // Create camera track but DON'T start capture yet
+                CameraCaptureService.CameraCaptureResource resource = CameraCaptureService.createCameraTrack("video0");
+
+                this.videoSource = resource.getSource();
+                VideoTrack videoTrack = resource.getTrack();
+
+                // Add track to peer connection
+                pcLock.lock();
+                try {
+                    videoSender = peerConnection.addTrack(videoTrack, List.of("stream1"));
+                    applyVideoCodecPreferences();
+                } finally {
+                    pcLock.unlock();
+                }
+
+                // Store reference for deferred capture
+                this.pendingCaptureResource = resource;
+                this.localVideoTrack = videoTrack;
+
+                logger.info("✅ Video track added (capture DEFERRED until after SDP answer)");
+                logger.info("🎥 Call startDeferredCapture() after answer is set");
+
+            } catch (Exception e) {
+                logger.error("Failed to add deferred video track: " + e.getMessage(), e);
+                throw new RuntimeException(e);
+            }
+        }, webrtcExecutor);
+    }
+
+    /**
+     * Start camera capture that was deferred during Mac Answerer flow.
+     * 
+     * Call this AFTER the SDP answer has been created and set as local description.
+     * This ensures the VideoToolbox encoder initializes with the correct codec
+     * profile.
+     */
+    public void startDeferredCapture() {
+        if (pendingCaptureResource == null) {
+            logger.debug("No pending capture to start (normal path or already started)");
+            return;
+        }
+
+        logger.info("🎬 Starting DEFERRED camera capture (after SDP answer)...");
+        try {
+            pendingCaptureResource.startCapture();
+            logger.info("✅ Deferred capture started successfully (Res: 640x480, FPS: 30)");
+            logger.info("🎥 VideoToolbox encoder initialized with negotiated codec profile");
+        } catch (Exception e) {
+            logger.error("Failed to start deferred capture: " + e.getMessage(), e);
+        } finally {
+            // Clear the pending reference
+            pendingCaptureResource = null;
+        }
     }
 
     /**
