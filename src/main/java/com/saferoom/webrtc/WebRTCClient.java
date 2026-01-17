@@ -847,6 +847,9 @@ public class WebRTCClient {
 
     /**
      * Set remote SDP (offer or answer)
+     * 
+     * SMART HIGH PROFILE FIX: Applies packetization-mode=1 enforcement to ensure
+     * cross-platform compatibility while preserving H.264 High Profile quality.
      */
     public void setRemoteDescription(String sdpType, String sdp) {
         logger.info(String.format("Setting remote %s", sdpType));
@@ -857,8 +860,15 @@ public class WebRTCClient {
         }
 
         try {
+            // ═══════════════════════════════════════════════════════════════════
+            // SMART HIGH PROFILE FIX: Enforce packetization-mode=1 for all H.264
+            // This preserves High Profile quality while ensuring cross-platform
+            // compatibility (prevents Windows/Linux black screen when Mac is sender)
+            // ═══════════════════════════════════════════════════════════════════
+            String safeSdp = SDPUtils.enforceHighProfilePacketization(sdp);
+
             RTCSdpType type = sdpType.equalsIgnoreCase("offer") ? RTCSdpType.OFFER : RTCSdpType.ANSWER;
-            RTCSessionDescription description = new RTCSessionDescription(type, sdp);
+            RTCSessionDescription description = new RTCSessionDescription(type, safeSdp);
 
             // Log remote SDP video codecs
             logSdpVideoCodecs(sdp, "REMOTE " + sdpType.toUpperCase());
