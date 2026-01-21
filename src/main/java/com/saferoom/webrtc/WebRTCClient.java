@@ -83,23 +83,10 @@ public class WebRTCClient {
     // Track RTP senders for replaceTrack operations
     private RTCRtpSender videoSender = null;
 
-    // Pre-warmed video track for fast answerer setup (Mac fix)
-    private VideoTrack preWarmedVideoTrack = null;
-    private dev.onvoid.webrtc.media.video.VideoDeviceSource preWarmedVideoSource = null;
-    private volatile boolean videoPreWarmed = false;
-
-    // FIX: Deferred Mac capture start flag for Answerer role
-    // On Mac, capture MUST start AFTER Answer SDP is set to ensure
-    // VideoToolbox encoder initializes with correct 42e01f profile
-    private volatile boolean pendingMacCaptureStart = false;
-
-    // Encoder watchdog for detecting VideoToolbox freezes
-    private volatile long lastEncodedFrameTime = 0;
-    private volatile long captureFrameCount = 0;
-    private volatile boolean encoderWatchdogActive = false;
-    private volatile int softResetCount = 0;
-    private static final long ENCODER_FREEZE_THRESHOLD_MS = 2000; // 2 seconds
-    private static final int MAX_SOFT_RESETS = 3; // Escalate to hard reset after 3 failures
+    // Deferred capture support for Mac Answerer flow
+    // Stores the camera resource when capture needs to be delayed until after SDP
+    // answer
+    private CameraCaptureService.CameraCaptureResource pendingCaptureResource = null;
 
     // Callbacks
     private Consumer<RTCIceCandidate> onIceCandidateCallback;
@@ -882,10 +869,8 @@ public class WebRTCClient {
     /**
      * Set remote SDP (offer or answer)
      * 
-     * MASTERPIECE FIX: This method now implements the JIT encoder pattern:
-     * 1. Analyze incoming SDP for video codec profiles (strategic logging)
-     * 2. On Mac, munge dangerous profiles to safe Constrained Baseline
-     * 3. Set the description, then activate watchdog protection
+     * SMART HIGH PROFILE FIX: Applies packetization-mode=1 enforcement to ensure
+     * cross-platform compatibility while preserving H.264 High Profile quality.
      */
     public void setRemoteDescription(String sdpType, String sdp) {
         logger.info(String.format("Setting remote %s", sdpType));
@@ -895,43 +880,19 @@ public class WebRTCClient {
             return;
         }
 
-        // ═══════════════════════════════════════════════════════════════════
-        // PHASE 1: VIDEO CODEC ANALYSIS (Strategic Logging)
-        // ═══════════════════════════════════════════════════════════════════
-        SDPUtils.logVideoCodecAnalysis(sdp, "REMOTE " + sdpType.toUpperCase());
-
-        String remoteProfile = extractH264ProfileFromSdp(sdp);
-        // STRICT: Only 42e01f is safe for Mac VideoToolbox (42001f also causes freeze!)
-        boolean profileIsDangerous = remoteProfile != null && !remoteProfile.equalsIgnoreCase("42e01f");
-
-        if (profileIsDangerous) {
-            if (IS_MAC) {
-                logger.warn(
-                        String.format("DANGEROUS PROFILE DETECTED: %s (requires munging to 42e01f)", remoteProfile));
-                logger.warn("   VideoToolbox requires strict Constrained Baseline. Applying SDP munging...");
-            } else {
-                logger.info(String.format("Non-Baseline profile detected: %s (safe on %s)",
-                        remoteProfile, IS_WINDOWS ? "Windows" : "Linux"));
-            }
-        } else if (remoteProfile != null) {
-            logger.info(String.format("Safe profile detected: %s", remoteProfile));
-        }
-
-        // ═══════════════════════════════════════════════════════════════════
-        // PHASE 2: SDP MUNGING (The Gatekeeper) - MAC ONLY
-        // ═══════════════════════════════════════════════════════════════════
-        String safeSdp = sdp;
-        if (IS_MAC && profileIsDangerous) {
-            safeSdp = SDPUtils.enforceBaselineH264Profile(sdp);
-            logger.info("🔒 SDP munged to Constrained Baseline for Mac safety");
-        }
-
-        // ═══════════════════════════════════════════════════════════════════
-        // PHASE 3: SET REMOTE DESCRIPTION
-        // ═══════════════════════════════════════════════════════════════════
         try {
+            // ═══════════════════════════════════════════════════════════════════
+            // SMART HIGH PROFILE FIX: Enforce packetization-mode=1 for all H.264
+            // This preserves High Profile quality while ensuring cross-platform
+            // compatibility (prevents Windows/Linux black screen when Mac is sender)
+            // ═══════════════════════════════════════════════════════════════════
+            String safeSdp = SDPUtils.enforceHighProfilePacketization(sdp);
+
             RTCSdpType type = sdpType.equalsIgnoreCase("offer") ? RTCSdpType.OFFER : RTCSdpType.ANSWER;
             RTCSessionDescription description = new RTCSessionDescription(type, safeSdp);
+
+            // Log remote SDP video codecs
+            logSdpVideoCodecs(sdp, "REMOTE " + sdpType.toUpperCase());
 
             peerConnection.setRemoteDescription(description, new SetSessionDescriptionObserver() {
                 @Override
@@ -1370,90 +1331,91 @@ public class WebRTCClient {
     }
 
     /**
-     * Pre-warm video track for fast answerer setup.
+     * Add video track with DEFERRED capture (for Mac Answerer flow).
      * 
-     * ═══════════════════════════════════════════════════════════════════
-     * MASTERPIECE: JIT (Just-In-Time) Initialization
-     * ═══════════════════════════════════════════════════════════════════
+     * On macOS, when acting as Answerer, the VideoToolbox hardware encoder
+     * can get confused if capture starts before codec negotiation completes.
+     * This causes the encoder to fall back to 320x240 instead of 640x480.
      * 
-     * ON MAC: We ONLY initialize the camera sensor (AVFoundation) but do NOT
-     * start capture. The actual encoder (VideoToolbox) is initialized AFTER
-     * we receive the remote SDP and can verify the profile is compatible.
-     * This prevents the "handshake paradox" where we lock in a profile before
-     * knowing what the peer expects.
-     * 
-     * ON WINDOWS/LINUX: Full initialization is safe - these platforms have
-     * more resilient encoder reconfiguration.
-     * 
-     * Called when user clicks Accept, runs in parallel with CALL_ACCEPT signaling.
+     * This method creates the track and adds it to the peer connection,
+     * but does NOT start camera capture. Call startDeferredCapture() after
+     * the SDP answer is created and set as local description.
      */
-    public CompletableFuture<Void> preWarmVideoTrack() {
-        if (videoPreWarmed) {
-            logger.info("Video track already pre-warmed");
+    public CompletableFuture<Void> addVideoTrackDeferred() {
+        if (peerConnection == null) {
+            logger.error("Cannot add video track - peer connection not created", null);
             return CompletableFuture.completedFuture(null);
         }
 
         return CompletableFuture.runAsync(() -> {
             try {
-                logger.info("Pre-warming video track (parallel with CALL_ACCEPT)...");
+                logger.info("Adding video track with DEFERRED capture (Mac Answerer)...");
 
-                if (IS_MAC) {
-                    // ═══════════════════════════════════════════════════════════════
-                    // MAC: DEFERRED INITIALIZATION (JIT Pattern)
-                    // Create camera source but DON'T start capture yet.
-                    // This keeps the lens "warm" without initializing VideoToolbox.
-                    // ═══════════════════════════════════════════════════════════════
-                    logger.info("IDENTIFIED PLATFORM: macOS - Deferred encoder initialization (JIT pattern)");
-                    logger.info("   Camera sensor will be initialized, encoder deferred until SDP validated");
-
-                    CameraCaptureService.CameraCaptureResource resource = CameraCaptureService
-                            .createCameraTrack("video0");
-
-                    preWarmedVideoSource = resource.getSource();
-                    preWarmedVideoTrack = resource.getTrack();
-
-                    // DO NOT call resource.startCapture() on Mac!
-                    // The encoder (VideoToolbox) initializes when capture starts.
-                    // We defer this until addVideoTrack() is called, which happens
-                    // AFTER setRemoteDescription has validated and munged the profile.
-
-                    videoPreWarmed = true;
-                    logger.info("MAC: Video track structure ready (capture DEFERRED for safety)");
-
-                } else {
-                    // ═══════════════════════════════════════════════════════════════
-                    // WINDOWS/LINUX: DEFERRED CAPTURE (Fix for Answerer video bug)
-                    // Previously we started capture here, but this caused the RTP sender
-                    // to not encode frames properly because replaceTrack() hadn't been
-                    // called yet. Now we defer capture until AFTER replaceTrack().
-                    // ═══════════════════════════════════════════════════════════════
-                    logger.info("IDENTIFIED PLATFORM: " + (IS_WINDOWS ? "Windows" : "Linux")
-                            + " - Deferred capture (Answerer fix)");
-
-                    CameraCaptureService.CameraCaptureResource resource = CameraCaptureService
-                            .createCameraTrack("video0");
-
-                    preWarmedVideoSource = resource.getSource();
-                    preWarmedVideoTrack = resource.getTrack();
-                    // DON'T start capture here! Defer until after replaceTrack() in addVideoTrack()
-                    // This fixes the bug where Answerer's video never reaches Offerer.
-
-                    videoPreWarmed = true;
-                    logger.info("Video track structure ready (capture DEFERRED for Answerer binding)");
+                // Cleanup existing video source first
+                if (this.videoSource != null) {
+                    logger.info("Cleaning up existing video source...");
+                    try {
+                        videoSource.stop();
+                        videoSource.dispose();
+                    } catch (Exception e) {
+                        logger.warn("Error cleaning up old video source: " + e.getMessage());
+                    }
+                    this.videoSource = null;
                 }
 
+                // Create camera track but DON'T start capture yet
+                CameraCaptureService.CameraCaptureResource resource = CameraCaptureService.createCameraTrack("video0");
+
+                this.videoSource = resource.getSource();
+                VideoTrack videoTrack = resource.getTrack();
+
+                // Add track to peer connection
+                pcLock.lock();
+                try {
+                    videoSender = peerConnection.addTrack(videoTrack, List.of("stream1"));
+                    applyVideoCodecPreferences();
+                } finally {
+                    pcLock.unlock();
+                }
+
+                // Store reference for deferred capture
+                this.pendingCaptureResource = resource;
+                this.localVideoTrack = videoTrack;
+
+                logger.info("✅ Video track added (capture DEFERRED until after SDP answer)");
+                logger.info("🎥 Call startDeferredCapture() after answer is set");
+
             } catch (Exception e) {
-                logger.warn("Pre-warm failed, will use normal path: " + e.getMessage());
-                videoPreWarmed = false;
+                logger.error("Failed to add deferred video track: " + e.getMessage(), e);
+                throw new RuntimeException(e);
             }
         }, webrtcExecutor);
     }
 
     /**
-     * Check if a pre-warmed video track is available
+     * Start camera capture that was deferred during Mac Answerer flow.
+     * 
+     * Call this AFTER the SDP answer has been created and set as local description.
+     * This ensures the VideoToolbox encoder initializes with the correct codec
+     * profile.
      */
-    public boolean hasPreWarmedVideoTrack() {
-        return videoPreWarmed && preWarmedVideoTrack != null;
+    public void startDeferredCapture() {
+        if (pendingCaptureResource == null) {
+            logger.debug("No pending capture to start (normal path or already started)");
+            return;
+        }
+
+        logger.info("🎬 Starting DEFERRED camera capture (after SDP answer)...");
+        try {
+            pendingCaptureResource.startCapture();
+            logger.info("✅ Deferred capture started successfully (Res: 640x480, FPS: 30)");
+            logger.info("🎥 VideoToolbox encoder initialized with negotiated codec profile");
+        } catch (Exception e) {
+            logger.error("Failed to start deferred capture: " + e.getMessage(), e);
+        } finally {
+            // Clear the pending reference
+            pendingCaptureResource = null;
+        }
     }
 
     /**
