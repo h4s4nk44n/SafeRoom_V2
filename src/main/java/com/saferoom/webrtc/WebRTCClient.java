@@ -88,6 +88,22 @@ public class WebRTCClient {
     // answer
     private CameraCaptureService.CameraCaptureResource pendingCaptureResource = null;
 
+    // Mac: Flag to defer capture start until after Answer SDP is set
+    private boolean pendingMacCaptureStart = false;
+
+    // Pre-warm video track support (for fast answerer path)
+    private volatile boolean videoPreWarmed = false;
+    private VideoTrack preWarmedVideoTrack = null;
+    private dev.onvoid.webrtc.media.video.VideoDeviceSource preWarmedVideoSource = null;
+
+    // Encoder watchdog state (Mac VideoToolbox freeze detection)
+    private static final long ENCODER_FREEZE_THRESHOLD_MS = 2000; // 2 seconds
+    private static final int MAX_SOFT_RESETS = 3;
+    private volatile boolean encoderWatchdogActive = false;
+    private volatile long lastEncodedFrameTime = 0;
+    private volatile long captureFrameCount = 0;
+    private volatile int softResetCount = 0;
+
     // Callbacks
     private Consumer<RTCIceCandidate> onIceCandidateCallback;
     private Consumer<String> onLocalSDPCallback;
@@ -1160,6 +1176,41 @@ public class WebRTCClient {
             }
         }
         return null;
+    }
+
+    /**
+     * Pre-warm video track in parallel with CALL_ACCEPT signaling.
+     * This starts camera initialization early so it's ready when handleOffer
+     * arrives.
+     * 
+     * IMPORTANT: Must be awaited in handleOffer BEFORE calling addVideoTrack()
+     * to prevent race condition where two camera tracks are created.
+     */
+    public CompletableFuture<Void> preWarmVideoTrack() {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                logger.info("🔥 PRE-WARMING video track (parallel with CALL_ACCEPT)...");
+
+                // Create camera track early
+                CameraCaptureService.CameraCaptureResource resource = CameraCaptureService
+                        .createCameraTrack("video0_prewarm");
+
+                preWarmedVideoSource = resource.getSource();
+                preWarmedVideoTrack = resource.getTrack();
+
+                // DON'T start capture yet - capture will be started in addVideoTrack()
+                // This just initializes the camera and creates the track
+
+                videoPreWarmed = true;
+                logger.info("✅ Video track pre-warmed and ready for instant binding");
+
+            } catch (Exception e) {
+                logger.error("Failed to pre-warm video track: " + e.getMessage(), e);
+                videoPreWarmed = false;
+                preWarmedVideoTrack = null;
+                preWarmedVideoSource = null;
+            }
+        }, webrtcExecutor);
     }
 
     /**

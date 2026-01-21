@@ -473,6 +473,14 @@ task compileNative {
             javaHome = javacPath
         }
 
+        // ═══════════════════════════════════════════════════════════════════════════
+        // FIX: Convert paths to forward slashes for CMake compatibility
+        // CMake 4.2+ has a bug parsing Windows backslash paths (e.g., \P in 
+        // "Program Files" is interpreted as escape sequence)
+        // Forward slashes work on ALL platforms (Windows, Mac, Linux)
+        // ═══════════════════════════════════════════════════════════════════════════
+        javaHome = javaHome.replace('\\', '/')
+
         def javaInclude = "${javaHome}/include"
         def javaInclude2 = isWindows ? "${javaHome}/include/win32" :
                   (isMacOS ? "${javaHome}/include/darwin" : "${javaHome}/include/linux")
@@ -487,6 +495,9 @@ task compileNative {
 
     exec {
         workingDir projectDir
+        // FIX: Override JAVA_HOME environment variable with forward slashes
+        // CMake's FindJNI.cmake reads JAVA_HOME from environment, not just CMake vars
+        environment 'JAVA_HOME', javaHome
         commandLine 'cmake',
             '-S', 'src/main/native',
             '-B', buildDir.absolutePath,

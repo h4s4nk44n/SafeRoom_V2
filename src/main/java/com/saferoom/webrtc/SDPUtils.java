@@ -370,6 +370,70 @@ public class SDPUtils {
     }
 
     /**
+     * Logs a detailed analysis of video codecs present in the SDP.
+     * Useful for verifying if dangerous profiles are present.
+     */
+    public static void logVideoCodecAnalysis(String sdp, String label) {
+        if (sdp == null)
+            return;
+
+        System.out.printf("%n[SDPUtils] ════ VIDEO CODEC ANALYSIS: %s ════%n", label);
+
+        String[] lines = sdp.split("\r\n");
+        Map<String, String> payloadCodecMap = new HashMap<>();
+
+        // First pass: Map payload types to codec names
+        for (String line : lines) {
+            Matcher m = RTPMAP_PATTERN.matcher(line);
+            if (m.find()) {
+                payloadCodecMap.put(m.group(1), m.group(2));
+            }
+        }
+
+        // Second pass: Find m=video line and iterate priorities
+        for (String line : lines) {
+            if (line.startsWith("m=video")) {
+                Matcher m = MLINE_VIDEO_PATTERN.matcher(line);
+                if (m.find()) {
+                    String[] payloadTypes = m.group(1).split("\\s+");
+
+                    int rank = 1;
+                    for (String pt : payloadTypes) {
+                        String codec = payloadCodecMap.get(pt);
+                        if (codec != null) {
+                            // Check for H.264 profile
+                            String details = "";
+                            if (codec.toUpperCase().contains("H264")) {
+                                details = " - " + getH264ProfileDetails(sdp, pt);
+                            }
+
+                            System.out.printf("  #%d [%s] %s%s%n", rank++, pt, codec, details);
+                        }
+                    }
+                }
+            }
+        }
+        System.out.println("════════════════════════════════════════════════════════════\n");
+    }
+
+    private static String getH264ProfileDetails(String sdp, String payloadType) {
+        // Look for fmtp line for this payload
+        String[] lines = sdp.split("\r\n");
+        for (String line : lines) {
+            if (line.startsWith("a=fmtp:" + payloadType)) {
+                if (line.contains("profile-level-id=")) {
+                    Matcher m = PROFILE_PATTERN.matcher(line);
+                    if (m.find()) {
+                        String hex = m.group(2);
+                        return decodeH264Profile(hex) + " (" + hex + ")";
+                    }
+                }
+            }
+        }
+        return "Unknown Profile";
+    }
+
+    /**
      * Decode H.264 profile byte to human-readable name.
      */
     public static String decodeH264Profile(String profileHex) {

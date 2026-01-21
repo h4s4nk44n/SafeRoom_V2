@@ -1,10 +1,13 @@
 package com.saferoom.webrtc.pipeline;
 
 import dev.onvoid.webrtc.media.video.VideoFrame;
+import dev.onvoid.webrtc.media.video.I420Buffer;
 import org.jctools.queues.SpscArrayQueue;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
@@ -21,6 +24,7 @@ public final class FrameProcessor implements AutoCloseable {
     private static final String QUEUE_CAPACITY_PROPERTY = "saferoom.video.queue.capacity";
     public static final int DEFAULT_QUEUE_CAPACITY = Integer.getInteger(QUEUE_CAPACITY_PROPERTY, 12);
     private static final Duration POLL_TIMEOUT = Duration.ofMillis(50);
+    private static final long POLL_SPIN_NANOS = Duration.ofMillis(1).toNanos();
     private static final long STALL_THRESHOLD_NANOS = Duration.ofSeconds(2).toNanos();
     private static final long STALL_LOG_INTERVAL_NANOS = Duration.ofSeconds(5).toNanos();
 
@@ -91,6 +95,7 @@ public final class FrameProcessor implements AutoCloseable {
     // Debug counters
     private volatile long processedCount = 0;
     private volatile long lastProcessedLog = 0;
+    private int emptySpinCount = 0;
 
     private void processLoop() {
         System.out.println("[FrameProcessor] Process loop started on thread: " + Thread.currentThread().getName());
