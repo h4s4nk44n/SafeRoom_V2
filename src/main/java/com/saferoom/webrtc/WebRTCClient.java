@@ -1420,10 +1420,25 @@ public class WebRTCClient {
                 this.videoSource = resource.getSource();
                 VideoTrack videoTrack = resource.getTrack();
 
-                // Add track to peer connection
+                // Add track to peer connection (ANSWERER mode - bind to existing transceiver)
                 pcLock.lock();
                 try {
-                    videoSender = peerConnection.addTrack(videoTrack, List.of("stream1"));
+                    RTCRtpTransceiver existingTransceiver = findExistingVideoTransceiver();
+                    if (existingTransceiver != null) {
+                        // Answerer flow: bind to transceiver created by remote offer
+                        RTCRtpSender existingSender = existingTransceiver.getSender();
+                        logger.info("ANSWERER_BINDING: ATTACHING DEFERRED TRACK TO SENDER");
+                        existingSender.replaceTrack(videoTrack);
+                        videoSender = existingSender;
+
+                        // Explicit direction enforcement (critical for bidirectional media)
+                        logger.info("HANDSHAKE_STATE: ENFORCING SENDRECV ON DEFERRED ANSWER");
+                        existingTransceiver.setDirection(RTCRtpTransceiverDirection.SEND_RECV);
+                    } else {
+                        // Fallback: create new transceiver (should not happen for answerer)
+                        logger.warn("DEFERRED: No existing video transceiver found - creating new one (unexpected for answerer)");
+                        videoSender = peerConnection.addTrack(videoTrack, List.of("stream1"));
+                    }
                     applyVideoCodecPreferences();
                 } finally {
                     pcLock.unlock();
